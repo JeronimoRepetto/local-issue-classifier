@@ -1,4 +1,4 @@
-// issue-criticity — token and cost estimates for a Jev run (SPEC.md §4.7).
+// local-issue-classifier — token and cost estimates for a Jev run (SPEC.md §4.7).
 // Pure: the caller passes each issue's state tokens and the question tokens
 // (QUESTIONS_TOKENS lives with the questions in the Jev adapter).
 import { estimateTokens } from './text'

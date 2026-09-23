@@ -1,8 +1,13 @@
 {
-  "name": "issue-criticity",
+  "name": "local-issue-classifier",
   "private": true,
   "version": "0.1.0",
-  "description": "Local-only GitHub issue triage tool that scores complexity, criticality, cost and relevance with calibrated Jev judgments.",
+  "description": "Local-first web app that pulls a GitHub repo's issues and README, then asks Jev (TypeSafe AI's decision model) to rate each issue by complexity, criticality, effort and relevance. Filter, dismiss, sort by weighted priority and export as plain text. Keys stay in memory; results stay in your browser.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JeronimoRepetto/local-issue-classifier"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "icons": "node scripts/build-icons.mjs"
+    "icons": "node scripts/build-icons.mjs",
+    "hygiene": "node scripts/check-hygiene.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

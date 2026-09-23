@@ -1,4 +1,4 @@
-// issue-criticity — local Jev proxy for `pnpm dev` and `pnpm preview`
+// local-issue-classifier — local Jev proxy for `pnpm dev` and `pnpm preview`
 // (SPEC.md §4.1, §8 "Proxy hardening", §9 mode a). Node-only; imported by
 // vite.config.ts alone.
 //
@@ -74,7 +74,7 @@ export function jevProxyGuard(config: Pick<JevProxyConfig, 'prefix'> = {}): Plug
     res.end(JSON.stringify({ error: 'Not found' }))
   }
   return {
-    name: 'issue-criticity:jev-proxy-guard',
+    name: 'local-issue-classifier:jev-proxy-guard',
     configureServer: (server) => {
       server.middlewares.use(guard)
     },

@@ -17,7 +17,7 @@ import { usePreferences } from '../../composables/usePreferences'
 import { useAnalyses } from '../../composables/useAnalyses'
 
 const ABOUT_TEXT =
-  'issue-criticity is MIT-licensed. The logo, icons and illustrations are original pixel art ' +
+  'local-issue-classifier is MIT-licensed. The logo, icons and illustrations are original pixel art ' +
   '(MIT). Fonts: Inter and Silkscreen, both under the SIL Open Font License 1.1. Full notices ' +
   'in THIRD_PARTY_NOTICES.md.'
 

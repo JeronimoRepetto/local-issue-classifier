@@ -1,4 +1,4 @@
-// issue-criticity — maps a Jev `/v1/systemone` response to a Classification
+// local-issue-classifier — maps a Jev `/v1/systemone` response to a Classification
 // (SPEC.md §4.4). Pure. Validates the untrusted response shape: any missing or
 // malformed answer fails the whole classification, so partial answers are never
 // stored. Tolerant where compatible providers may differ: `confidence` and the

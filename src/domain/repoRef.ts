@@ -1,4 +1,4 @@
-// issue-criticity — parses the repository URL/shorthand forms from SPEC.md §2.3
+// local-issue-classifier — parses the repository URL/shorthand forms from SPEC.md §2.3
 // into a normalized RepoRef, or a typed error. Pure: no fetch, no browser APIs.
 import type { RepoRef } from './types'
 

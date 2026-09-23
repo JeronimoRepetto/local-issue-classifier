@@ -1,4 +1,4 @@
-// issue-criticity — bounded-concurrency pool and adaptive throttle (SPEC.md §4.5).
+// local-issue-classifier — bounded-concurrency pool and adaptive throttle (SPEC.md §4.5).
 // Generic and framework-free: the limit is read on every start, so a throttle
 // can shrink or grow it while the pool runs. The clock is injected.
 

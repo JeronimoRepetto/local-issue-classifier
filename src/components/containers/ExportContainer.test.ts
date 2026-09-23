@@ -78,7 +78,7 @@ describe('ExportContainer', () => {
 
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
     expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain(
-      'issue-criticity report',
+      'local-issue-classifier report',
     )
   })
 
@@ -132,7 +132,7 @@ describe('ExportContainer', () => {
 
     ;(document.querySelector('[data-test="export-download"]') as HTMLButtonElement).click()
     expect(downloadMod.downloadText).toHaveBeenCalledWith(
-      expect.stringContaining('issue-criticity report'),
+      expect.stringContaining('local-issue-classifier report'),
       'acme-widgets-issues-20260923-1405.txt',
     )
   })

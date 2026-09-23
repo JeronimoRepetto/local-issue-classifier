@@ -86,7 +86,7 @@ message; otherwise it is omitted.
 Golden fixture (byte-for-byte, apart from the `Generated` line): `tests/fixtures/export/basic-report.txt`.
 
 ```text
-issue-criticity report
+local-issue-classifier report
 Repository : acme/widgets (open issues)
 Generated  : 2026-09-23 14:05 (local time)
 Model      : jev-1.13.0 · questions v1

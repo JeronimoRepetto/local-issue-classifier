@@ -1,4 +1,4 @@
-// issue-criticity — Classify scopes and run shapes (SPEC.md §2.4). Pure.
+// local-issue-classifier — Classify scopes and run shapes (SPEC.md §2.4). Pure.
 // Presentational components import the RunProgress / RunSummary types from here.
 import { isClassificationCurrent } from './classification'
 import type { Analysis, Issue, IssueRow } from './types'

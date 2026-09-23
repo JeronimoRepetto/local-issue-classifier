@@ -1,4 +1,4 @@
-issue-criticity report
+local-issue-classifier report
 Repository : acme/widgets (open issues)
 Generated  : <TIMESTAMP>
 Model      : jev-1.13.0 · questions v1

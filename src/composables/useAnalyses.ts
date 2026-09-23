@@ -63,7 +63,7 @@ function remove(id: string): RemoveResult {
   return result
 }
 
-/** Remove every issue-criticity:* key (preferences and all analyses). */
+/** Remove every local-issue-classifier:* key (preferences and all analyses). */
 function clearAll(): ClearResult {
   useAnalysis().discard()
   const result = clearStorage(getAppStorage())

@@ -1,6 +1,6 @@
 # Deployment modes
 
-issue-criticity v1 runs **only locally**, with `pnpm dev` or `pnpm preview` on `http://localhost:5200`.
+local-issue-classifier v1 runs **only locally**, with `pnpm dev` or `pnpm preview` on `http://localhost:5200`.
 GitHub is called directly from the browser. Jev is always reached through a proxy, because the Jev
 API rejects browser origins. Switching modes changes configuration only; no code changes.
 

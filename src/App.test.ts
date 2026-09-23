@@ -73,7 +73,7 @@ afterEach(() => {
 describe('App', () => {
   it('mounts and shows the wordmark, with Home as the default view', () => {
     const wrapper = mount(App)
-    expect(wrapper.text()).toContain('issue-criticity')
+    expect(wrapper.text()).toContain('local-issue-classifier')
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true)
   })
 

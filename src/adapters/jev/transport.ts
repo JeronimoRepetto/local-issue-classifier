@@ -1,4 +1,4 @@
-// issue-criticity — HTTP transport to a Jev-compatible `/v1/systemone` endpoint
+// local-issue-classifier — HTTP transport to a Jev-compatible `/v1/systemone` endpoint
 // (SPEC.md §4.1). The single seam between the app and the Jev service: switching
 // deployment modes (§9) or providers changes only `baseUrl`, never code above.
 //
