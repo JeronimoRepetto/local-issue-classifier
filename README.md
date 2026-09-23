@@ -73,7 +73,19 @@ _Section pending (Task 9)._
 
 ## Keys
 
-_Section pending (Task 4)._
+issue-criticity uses two keys, both entered in **Settings**:
+
+- **Jev API key** — required to classify issues. See
+  [Getting a Jev API key](#getting-a-jev-api-key).
+- **GitHub personal access token** — optional. It raises the GitHub rate limit from 60 to
+  5 000 requests/hour and lets you fetch comments and private repositories. See
+  [Getting a GitHub token](#getting-a-github-token).
+
+Both are kept **in memory only**: they are never written to `localStorage`, `sessionStorage`,
+cookies, or any other storage, and they vanish the moment the page reloads. Every page load
+therefore starts from a "Keys required" state — you re-enter the keys, but your saved analyses
+and preferences are still there and stay fully usable without them. **Clear keys** in Settings
+wipes both immediately, and so does **Clear all local data**.
 
 ## Local data and privacy
 
