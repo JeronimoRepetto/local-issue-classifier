@@ -1,4 +1,4 @@
-// issue-criticity — the composite Jev `state` for batched classification and
+// local-issue-classifier — the composite Jev `state` for batched classification and
 // the adaptive fitter that packs issues into requests (docs/batching.md). Pure.
 //
 // One request carries the project context ONCE plus a compact entry per issue,

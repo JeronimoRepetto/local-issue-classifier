@@ -1,4 +1,4 @@
-// issue-criticity — the Jev questions of a batched request (docs/batching.md).
+// local-issue-classifier — the Jev questions of a batched request (docs/batching.md).
 // Derived from QUESTIONS (questions.ts, the single source of truth): the same
 // criteria, with each instruction pointed at one issue of the composite state
 // by index and id, e.g. "`issues[3]` (the issue with id #123)". Ids are

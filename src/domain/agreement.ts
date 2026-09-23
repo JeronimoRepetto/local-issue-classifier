@@ -1,4 +1,4 @@
-// issue-criticity — agreement between two classification runs of the same
+// local-issue-classifier — agreement between two classification runs of the same
 // issues (docs/batching.md). Pure. The batching harness
 // (scripts/compare-batching.mjs) compares each batched trimming profile with
 // the per-issue baseline, so the user can pick the tightest profile whose

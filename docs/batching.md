@@ -87,10 +87,10 @@ Cells show requests · estimated input tokens. The seconds estimate is `ceil(req
 1. **Export an analysis.** Open the app, open the analysis, and run this in the DevTools console:
 
    ```js
-   copy(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('issue-criticity:analysis:v1:'))))
+   copy(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('local-issue-classifier:analysis:v1:'))))
    ```
 
-   Paste the result into `analysis.json`. If you have several analyses, list the keys with `Object.keys(localStorage)` and pick one. `issue-criticity:analyses:v1` holds the index with names. The harness accepts either the stored JSON or that JSON as a quoted string.
+   Paste the result into `analysis.json`. If you have several analyses, list the keys with `Object.keys(localStorage)` and pick one. `local-issue-classifier:analyses:v1` holds the index with names. The harness accepts either the stored JSON or that JSON as a quoted string.
 2. **Dry run (no key, no calls).** This prints requests and estimated tokens per mode:
 
    ```bash
