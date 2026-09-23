@@ -6,6 +6,10 @@
 // Preferences.trimmingFloor.
 //
 //   JEV_API_KEY=... node scripts/compare-batching.mjs analysis.json [options]
+//   JEV_BASE_URL=http://localhost:8009 JEV_MODEL=kev-latest node scripts/compare-batching.mjs analysis.json
+//
+// The second form measures a local Jev-compatible server (docs/local-providers.md):
+// with JEV_BASE_URL set, the key is optional and may be empty.
 //
 // The analysis JSON is one saved analysis exported from localStorage (see
 // docs/batching.md). The app's TypeScript modules are loaded through Vite's SSR
@@ -26,14 +30,25 @@ Options:
   --profiles <list>     comma-separated trimming profiles (default: all: ${PROFILES.join(',')})
   --limit <n>           classify at most n issues (default: all non-dismissed)
   --concurrency <n>     pool size, 1..8 (default: 4)
-  --model <name>        Jev model (default: jev-latest)
+  --model <name>        Jev model (default: $JEV_MODEL, else jev-latest)
   --noise               run the per-issue baseline twice to show run-to-run noise
   --plan                print the request plan per profile and exit (no API calls, no key)
   -h, --help            show this help
 
 Environment:
-  JEV_API_KEY           Jev API key (required unless --plan)
-  JEV_BASE_URL          API base URL (default: https://api.typesafe.ai)`
+  JEV_API_KEY           Jev API key (required for the TypeSafe cloud unless --plan;
+                        optional, may be empty, when JEV_BASE_URL is set)
+  JEV_BASE_URL          API base URL (default: https://api.typesafe.ai), e.g. a local
+                        Kev server: http://localhost:8009
+  JEV_MODEL             model name when --model is absent (default: jev-latest)`
+
+const TYPESAFE_BASE_URL = 'https://api.typesafe.ai'
+
+/** The API base URL, whether it is the TypeSafe cloud (which needs a key), and the default model. */
+export function resolveTarget(env = process.env) {
+  const baseUrl = env.JEV_BASE_URL?.trim() || TYPESAFE_BASE_URL
+  return { baseUrl, keyRequired: baseUrl === TYPESAFE_BASE_URL, model: env.JEV_MODEL?.trim() || 'jev-latest' }
+}
 
 function fail(message) {
   console.error(`compare-batching: ${message}`)
@@ -76,7 +91,7 @@ function parse() {
     profiles,
     limit,
     concurrency: Math.round(concurrency),
-    model: values.model ?? 'jev-latest',
+    model: values.model ?? resolveTarget().model,
     noise: values.noise,
     planOnly: values.plan,
   }
@@ -153,7 +168,10 @@ async function main() {
   if (issues.length === 0) fail('the analysis has no issues to classify')
 
   const apiKey = process.env.JEV_API_KEY?.trim() ?? ''
-  if (!args.planOnly && !apiKey) fail('JEV_API_KEY is not set (use --plan for a keyless dry run)')
+  const target = resolveTarget()
+  if (!args.planOnly && !apiKey && target.keyRequired) {
+    fail('JEV_API_KEY is not set (use --plan for a keyless dry run, or JEV_BASE_URL for a local server)')
+  }
 
   const m = await loadModules()
   try {
@@ -161,7 +179,7 @@ async function main() {
     if (args.planOnly) return
 
     const transport = m.transport.createHttpJevTransport({
-      baseUrl: process.env.JEV_BASE_URL?.trim() || 'https://api.typesafe.ai',
+      baseUrl: target.baseUrl,
       getApiKey: () => apiKey,
       fetch: (input, init) => globalThis.fetch(input, init),
       timeoutMs: 120_000,
@@ -220,4 +238,7 @@ async function main() {
   }
 }
 
-main().catch((error) => fail(error?.message ?? String(error)))
+// Imported by tests for resolveTarget(): only run when executed as a script.
+if (process.argv[1]?.replaceAll('\\', '/').endsWith('scripts/compare-batching.mjs')) {
+  main().catch((error) => fail(error?.message ?? String(error)))
+}
