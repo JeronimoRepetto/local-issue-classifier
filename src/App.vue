@@ -16,6 +16,7 @@ import { useView } from './composables/useView'
 import { usePreferences } from './composables/usePreferences'
 import { useAnalysis } from './composables/useAnalysis'
 import { useSecrets } from './composables/useSecrets'
+import { useProvider } from './composables/useProvider'
 import { configureRepo } from './composables/useRepo'
 import { applyTheme, nextThemePreference } from './ui/theme'
 import IconLogo from './assets/icons/IconLogo.vue'
@@ -43,6 +44,7 @@ const view = useView()
 // clobber each other (see usePreferences.ts).
 const prefs = usePreferences()
 const secrets = useSecrets()
+const provider = useProvider()
 const analysis = useAnalysis()
 
 let toastId = 0
@@ -88,7 +90,8 @@ function cycleTheme(): void {
   prefs.update({ theme: nextThemePreference(prefs.state.theme) })
 }
 
-const showKeysBanner = computed(() => !secrets.hasJevKey.value && !prefs.state.keysBannerDismissed)
+// T16: ready is a Jev key for TypeSafe, or a valid base URL for a local provider (key optional).
+const showKeysBanner = computed(() => !provider.ready.value && !prefs.state.keysBannerDismissed)
 </script>
 
 <template>

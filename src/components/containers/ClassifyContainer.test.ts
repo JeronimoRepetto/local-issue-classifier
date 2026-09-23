@@ -8,15 +8,18 @@ import { fakeIssue, fakeRepo } from '../../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
 import { http, ok, scriptedClient } from '../../../tests/fakes/fakeJev'
 import type { Handler } from '../../../tests/fakes/fakeJev'
+import type { ProviderConfig } from '../../domain/provider'
 
-async function setup(handler: Handler, withKey = true) {
+async function setup(handler: Handler, withKey = true, provider?: ProviderConfig) {
   vi.resetModules()
   const { setAppStorage } = await import('../../adapters/storage/appStorage')
   setAppStorage(new MemoryStorage())
   const { useAnalysis } = await import('../../composables/useAnalysis')
   const { useSecrets } = await import('../../composables/useSecrets')
+  const { usePreferences } = await import('../../composables/usePreferences')
   const { configureClassifier } = await import('../../composables/useClassifier')
   configureClassifier({ createClient: () => scriptedClient(handler), sleep: async () => undefined })
+  if (provider) usePreferences().update({ provider })
   useAnalysis().setCurrent(
     createAnalysis({
       id: 'a1',
@@ -44,6 +47,15 @@ describe('ClassifyContainer', () => {
     expect(wrapper.get('[data-test="classify-start"]').attributes('disabled')).toBeDefined()
     await wrapper.get('[data-test="classify-open-settings"]').trigger('click')
     expect(wrapper.emitted('open-settings')).toEqual([['jev-key-missing']])
+  })
+
+  it('with a local provider and a valid base URL, the button is enabled without any key (useProvider().ready gate)', async () => {
+    const { wrapper } = await setup(() => ok(), false, {
+      kind: 'local',
+      baseUrl: 'http://localhost:8009',
+      model: 'kev-latest',
+    })
+    expect(wrapper.get('[data-test="classify-start"]').attributes('disabled')).toBeUndefined()
   })
 
   it('runs, shows progress, then the summary and a success toast', async () => {

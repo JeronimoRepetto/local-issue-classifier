@@ -15,6 +15,7 @@ import PreferencesForm from '../ui/PreferencesForm.vue'
 import { useSecrets } from '../../composables/useSecrets'
 import { usePreferences } from '../../composables/usePreferences'
 import { useAnalyses } from '../../composables/useAnalyses'
+import { useProvider } from '../../composables/useProvider'
 
 const ABOUT_TEXT =
   'local-issue-classifier is MIT-licensed. The UI icons are original line icons and the logo ' +
@@ -24,6 +25,7 @@ const ABOUT_TEXT =
 const secrets = useSecrets()
 const prefs = usePreferences()
 const analyses = useAnalyses()
+const provider = useProvider()
 
 const clearAllOpen = ref(false)
 
@@ -58,7 +60,7 @@ onBeforeUnmount(() => stopTheme?.())
     </header>
 
     <KeysRequiredBanner
-      v-if="!secrets.hasJevKey.value && !prefs.state.keysBannerDismissed"
+      v-if="!provider.ready.value && !prefs.state.keysBannerDismissed"
       @dismiss="prefs.dismissKeysBanner()"
     />
 

@@ -14,8 +14,8 @@ defineEmits<{ dismiss: [] }>()
   <div class="keys-banner" role="status">
     <IconInfo class="keys-banner__icon" aria-hidden="true" />
     <p class="keys-banner__text">
-      Your keys are kept in memory only and are cleared when this page reloads. Enter your Jev
-      API key (and optionally a GitHub token) to continue. Your saved analyses are still here.
+      Your keys are kept in memory only and are cleared when this page reloads. Add your Jev API
+      key or configure a local provider in Settings. Your saved analyses are still here.
     </p>
     <UiButton
       data-test="dismiss-banner"

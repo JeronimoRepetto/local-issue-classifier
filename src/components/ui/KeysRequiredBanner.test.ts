@@ -12,6 +12,11 @@ describe('KeysRequiredBanner', () => {
     expect(wrapper.text()).toContain('Your saved analyses are still here')
   })
 
+  it('says to add a Jev key or configure a local provider in Settings (T16)', () => {
+    const wrapper = mount(KeysRequiredBanner)
+    expect(wrapper.text()).toContain('Add your Jev API key or configure a local provider in Settings.')
+  })
+
   it('is a status region, not an error', () => {
     const wrapper = mount(KeysRequiredBanner)
     expect(wrapper.get('[role="status"]')).toBeTruthy()

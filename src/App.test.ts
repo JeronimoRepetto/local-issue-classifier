@@ -269,6 +269,14 @@ describe('App', () => {
       expect(wrapper.text()).not.toContain('Your keys are kept in memory only')
     })
 
+    it('hides once a local provider with a valid base URL is configured, even without a Jev key (useProvider().ready)', async () => {
+      const wrapper = mount(App)
+      expect(wrapper.find('[data-test="dismiss-banner"]').exists()).toBe(true)
+      prefsMod.usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
+      await flush()
+      expect(wrapper.find('[data-test="dismiss-banner"]').exists()).toBe(false)
+    })
+
     it('also shows on the analysis view', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis())
       viewMod.useView().state.view = 'analysis'

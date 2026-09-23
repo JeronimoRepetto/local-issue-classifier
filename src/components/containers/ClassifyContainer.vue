@@ -13,7 +13,7 @@ import ClassifyProgress from '../ui/ClassifyProgress.vue'
 import RunSummary from '../ui/RunSummary.vue'
 import { useClassifier } from '../../composables/useClassifier'
 import type { ClassifyRequest } from '../../composables/useClassifier'
-import { useSecrets } from '../../composables/useSecrets'
+import { useProvider } from '../../composables/useProvider'
 import type { RunSummary as Summary } from '../../domain/classifyRun'
 
 export type OpenSettingsReason = 'jev-key-missing' | 'jev-key-rejected'
@@ -26,7 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'open-settings': [reason: OpenSettingsReason] }>()
 
 const classifier = useClassifier()
-const secrets = useSecrets()
+const provider = useProvider()
 const { reduced } = useReducedMotion()
 
 const scope = ref<ClassifyButtonScope>('unclassified')
@@ -93,7 +93,7 @@ function cancel(): void {
   <div class="classify-container">
     <ClassifyButton
       v-model:scope="scope"
-      :has-key="secrets.hasJevKey.value"
+      :has-key="provider.ready.value"
       :counts="counts"
       :estimate="estimate"
       :running="running"
