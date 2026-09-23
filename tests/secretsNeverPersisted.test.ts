@@ -1,14 +1,12 @@
 // SPEC.md §7.3 "Secrets never persisted, as a behaviour test", against the
 // real (happy-dom) localStorage / sessionStorage / document.cookie.
 //
-// Task 7 scope: useSecrets (Task 4) and the Jev runner (Tasks 10/11) do not
-// exist yet, so the secrets are held in a local in-memory value and the
-// classification arrives through useAnalysis().applyResult, which is exactly
-// where the runner will write. Task 4 should swap the local value for
-// useSecrets() and turn the todo below into a real assertion.
+// Task 4: the secrets now live in useSecrets() (in memory only), and the
+// classification still arrives through useAnalysis().applyResult, which is
+// exactly where the Task 10/11 Jev runner will write.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAnalysis } from '../src/domain/analysis'
-import { defaultPreferences, defaultProjectContext, defaultSecrets } from '../src/domain/types'
+import { defaultPreferences, defaultProjectContext } from '../src/domain/types'
 import { fakeClassification, fakeIssue, fakeRepo } from './fakes/domainFixtures'
 
 const JEV_KEY = 'jev-secret-key-7f3a9c'
@@ -38,8 +36,13 @@ afterEach(() => {
 
 describe('secrets are never persisted (§7.3)', () => {
   it('persists the analysis, classification and working state but never a secret; reload restores them', async () => {
-    // 1. Keys in memory, an analysis created and saved, one issue classified, working state changed.
-    const secrets = { ...defaultSecrets(), jevApiKey: JEV_KEY, githubToken: GITHUB_TOKEN }
+    // 1. Keys in memory (useSecrets, Task 4), an analysis created and saved,
+    //    one issue classified, working state changed.
+    const { useSecrets } = await import('../src/composables/useSecrets')
+    const secrets = useSecrets()
+    secrets.setJevKey(JEV_KEY)
+    secrets.setGitHubToken(GITHUB_TOKEN)
+
     const { useAnalysis } = await import('../src/composables/useAnalysis')
     const store = useAnalysis()
     store.setCurrent(
@@ -51,7 +54,7 @@ describe('secrets are never persisted (§7.3)', () => {
         prefs: defaultPreferences(),
         projectContext: defaultProjectContext('acme/widgets'),
         issues: [fakeIssue(1), fakeIssue(2)],
-        commentsFetched: Boolean(secrets.githubToken),
+        commentsFetched: secrets.hasGitHubToken.value,
       }),
     )
     store.applyResult(1, { ok: true, classification: fakeClassification() })
@@ -68,8 +71,16 @@ describe('secrets are never persisted (§7.3)', () => {
       expect(value).not.toContain(GITHUB_TOKEN)
     }
 
-    // 3. Simulated reload: fresh modules, then the last analysis is restored.
+    // 3. Simulated reload: fresh modules. useSecrets() comes back empty, and
+    //    the last analysis is restored from non-secret storage alone.
     vi.resetModules()
+    const { useSecrets: useSecretsAfterReload } = await import('../src/composables/useSecrets')
+    const secretsAfterReload = useSecretsAfterReload()
+    expect(secretsAfterReload.state.jevApiKey).toBe('')
+    expect(secretsAfterReload.state.githubToken).toBe('')
+    expect(secretsAfterReload.hasJevKey.value).toBe(false)
+    expect(secretsAfterReload.hasGitHubToken.value).toBe(false)
+
     const reloaded = await import('../src/composables/useAnalysis')
     const fresh = reloaded.useAnalysis()
     expect(fresh.current.value).toBeNull()
@@ -80,6 +91,4 @@ describe('secrets are never persisted (§7.3)', () => {
     expect(restored?.working.dismissed).toEqual([2])
     expect(restored?.working.priorityWeights).toEqual({ criticality: 50, relevance: 50, complexity: 0, effort: 0 })
   })
-
-  it.todo('useSecrets() is empty after a module reload (wire in with Task 4)')
 })

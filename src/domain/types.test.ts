@@ -56,6 +56,7 @@ describe('defaultPreferences', () => {
     expect(prefs.lowConfidenceThreshold).toBe(0.5)
     expect(prefs.theme).toBe('system')
     expect(prefs.onboarding).toEqual({ keys: false, repo: false, classify: false })
+    expect(prefs.keysBannerDismissed).toBe(false)
     expect(prefs.defaultExportOptions).toEqual(defaultExportOptions())
   })
 
