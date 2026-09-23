@@ -38,6 +38,26 @@ Built by `server/jevProxy.ts` and registered in `vite.config.ts` for both `serve
 | Logging | The proxy code logs nothing. Vite itself prints a one-line `http proxy error` with the path (never headers or bodies) if the upstream cannot be reached. |
 | Binding | Vite binds to `localhost` only. Do not set `host: true`: other machines on the LAN must not use the proxy. |
 
+### (a') Local proxy for local providers: `/jev-local`
+
+For a local Jev-compatible server (Kev, JevK5; see [local-providers.md](local-providers.md)) that
+sends no CORS headers, `jevLocalProxy()` in `server/jevProxy.ts` adds a second path. Unlike `/jev`,
+its upstream is not fixed: each request names the server in the `x-local-target` header.
+
+| Rule | Behaviour |
+|------|-----------|
+| Target | `x-local-target` must pass `validateLocalBaseUrl` (`src/domain/provider.ts`): `http`/`https` to `localhost`, `127.x`, `[::1]` or a private LAN range. Anything else, or a missing header, gets a 400 before any connection is made. |
+| Allowlist | Only `/jev-local/v1/systemone` and `/jev-local/v1/models`. Other paths get a 404. Only `GET` and `POST` are accepted. |
+| Callers | A request whose `origin` is not the Vite server itself gets a 403, so other websites open in the browser cannot use the proxy to reach your LAN. |
+| Headers | Only `authorization`, `content-type` and `accept` are forwarded, so `origin`, `referer`, `cookie` and `x-local-target` never reach the server. Only `content-type`, `retry-after` and `retry-after-ms` come back. |
+| Redirects | Returned to the browser, never followed. |
+| Marker | Every answer carries `x-jev-local-proxy`: `upstream` (forwarded), `rejected` (400/403/404/405/413) or `unreachable` (502, the server is down). The app's connection test uses it to tell the proxy apart from an SPA fallback page. |
+| Logging | None. |
+
+This proxy exists **only in the local Vite server** (`pnpm dev`, `pnpm preview`). A hosted build
+(modes b and b') would not offer local providers: a public relay into private networks is exactly
+what the target check forbids.
+
 ### (b) Hosted: the contract a future function must honour
 
 - The same two allowlisted paths.
@@ -59,7 +79,8 @@ relay for anyone who holds a Jev key. That design is out of scope for v1.
 
 The model name defaults to `jev-latest` (one constant, `DEFAULT_JEV_MODEL` in `src/domain/types.ts`)
 and can be changed in Preferences. The response's `confidence` fields are optional, so a compatible
-provider that omits them still works.
+provider that omits them still works. To classify with a local server instead of the TypeSafe cloud,
+choose it in Settings; see [local-providers.md](local-providers.md).
 
 Never put a key in `.env`. Keys are entered at runtime and kept in memory only.
 
