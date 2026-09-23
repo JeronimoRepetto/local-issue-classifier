@@ -168,6 +168,7 @@ export interface Preferences {
   defaultExportOptions: ExportOptions // seed for new analyses' working state
   theme: 'system' | 'light' | 'dark' // §10.2, default 'system'
   onboarding: { keys: boolean; repo: boolean; classify: boolean } // first-run checklist, §10.1
+  keysBannerDismissed: boolean // §2.1 step 2, Task 4: "Keys required" banner dismissal
 }
 
 // ── Filters, sorting, export ─────────────────────────────────────────
@@ -315,6 +316,7 @@ export function defaultPreferences(): Preferences {
     defaultExportOptions: defaultExportOptions(),
     theme: 'system',
     onboarding: { keys: false, repo: false, classify: false },
+    keysBannerDismissed: false,
   }
 }
 
