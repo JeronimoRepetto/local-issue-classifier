@@ -175,6 +175,8 @@ export interface Preferences {
   concurrency: number // default 4, clamp 1..8
   jevModel: string // default 'jev-latest'
   lowConfidenceThreshold: number // default 0.5
+  classifyMode: ClassifyMode // default 'batched'; 'per-issue' is the fallback (docs/batching.md)
+  trimmingFloor: TrimmingProfileId // tightest profile the batch fitter may use; default 'minimal'
   defaultExportOptions: ExportOptions // seed for new analyses' working state
   theme: 'system' | 'light' | 'dark' // §10.2, default 'system'
   onboarding: { keys: boolean; repo: boolean; classify: boolean } // first-run checklist, §10.1
@@ -325,6 +327,8 @@ export function defaultPreferences(): Preferences {
     concurrency: 4,
     jevModel: DEFAULT_JEV_MODEL,
     lowConfidenceThreshold: 0.5,
+    classifyMode: 'batched',
+    trimmingFloor: 'minimal',
     defaultExportOptions: defaultExportOptions(),
     theme: 'system',
     onboarding: { keys: false, repo: false, classify: false },

@@ -4,7 +4,22 @@
 // throwing. A write failure is typed, never thrown, and nothing is evicted.
 import { STORAGE_KEYS, defaultPreferences } from '../../domain/types'
 import type { Preferences } from '../../domain/types'
+import { TRIMMING_PROFILE_IDS } from '../../domain/jevBatchState'
 import type { StorageLike } from './analysisStore'
+
+const CLASSIFY_MODES: readonly string[] = ['batched', 'per-issue']
+
+/** Enumerated fields read from storage must still be one of their values. */
+function sanitize(prefs: Preferences): Preferences {
+  const defaults = defaultPreferences()
+  return {
+    ...prefs,
+    classifyMode: CLASSIFY_MODES.includes(prefs.classifyMode) ? prefs.classifyMode : defaults.classifyMode,
+    trimmingFloor: (TRIMMING_PROFILE_IDS as readonly string[]).includes(prefs.trimmingFloor)
+      ? prefs.trimmingFloor
+      : defaults.trimmingFloor,
+  }
+}
 
 export type SavePreferencesResult = { ok: true } | { ok: false; reason: 'quota' | 'unavailable' }
 
@@ -26,7 +41,7 @@ export function loadPreferences(storage: StorageLike): Preferences {
     if (raw === null) return defaultPreferences()
     const parsed: unknown = JSON.parse(raw)
     if (!isObject(parsed)) return defaultPreferences()
-    return { ...defaultPreferences(), ...parsed } as Preferences
+    return sanitize({ ...defaultPreferences(), ...parsed } as Preferences)
   } catch {
     return defaultPreferences()
   }
