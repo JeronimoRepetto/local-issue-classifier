@@ -143,7 +143,20 @@ _Section pending (Task 8)._
 
 ## Priority
 
-_Section pending (Task 14)._
+Priority is an optional 0–100 ranking score, shown as its own table column and usable as a table
+sort key and an export order key. It combines a row's four classification scores with four
+adjustable weights — Criticality, Relevance, Complexity and Effort — into a single number; lower
+complexity and lower effort push priority up, since an easy, low-effort fix is more attractive to
+act on first.
+
+Open the **Weights** popover next to the Priority column header to adjust the four sliders
+(0–100, steps of 5, each with a numeric input beside it). Changes preview live: the Priority
+column and the row order update as you move a slider. **Reset to defaults** restores 40 / 30 / 15
+/ 15, and if every weight is set to 0 the column shows "—" and the popover says so — there is
+nothing to rank on. Weights are saved per analysis and survive a reload.
+
+Priority is a ranking aid, not a measurement: like relevance, it is built from the same ordinal
+Jev scores (see [`docs/jev-questions.md`](docs/jev-questions.md#priority)).
 
 ## Export format
 
