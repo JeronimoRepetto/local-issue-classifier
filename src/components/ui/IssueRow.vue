@@ -82,8 +82,8 @@ function onRowClick(event: MouseEvent) {
     <td class="issue-row__cell">
       <RelevanceCell :value="classification?.relevance ?? null" />
     </td>
-    <td class="issue-row__cell">
-      <ConfidenceBadge v-if="classification" :confidence="classification.minConfidence" />
+    <td class="issue-row__cell" data-test="confidence-cell">
+      <ConfidenceBadge v-if="classification && classification.minConfidence != null" :confidence="classification.minConfidence" />
       <span v-else aria-hidden="true">—</span>
     </td>
     <td class="issue-row__cell">

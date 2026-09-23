@@ -28,4 +28,12 @@ describe('LevelCell', () => {
     const wrapper = mount(LevelCell, { props: { dimension: 'Criticality', value: null } })
     expect(wrapper.text()).toBe('—')
   })
+
+  it('still shows the level badge when confidence is missing (forward-compat: confidence is optional upstream)', () => {
+    const withoutConfidence = { ...scoreDimension, confidence: undefined as unknown as number }
+    const wrapper = mount(LevelCell, { props: { dimension: 'Criticality', value: withoutConfidence } })
+    expect(wrapper.findComponent({ name: 'LevelBadge' }).exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'ConfidenceBadge' }).exists()).toBe(false)
+    expect(wrapper.text()).toContain('—')
+  })
 })

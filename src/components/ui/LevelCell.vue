@@ -17,13 +17,17 @@ const props = defineProps<{
 const probabilities = computed(() =>
   props.value ? { low: props.value.probabilities[0], medium: props.value.probabilities[1], high: props.value.probabilities[2] } : undefined,
 )
+// `confidence` is optional upstream (a later schema may omit it); render the
+// level chip on its own rather than crash ConfidenceBadge on a missing number.
+const hasConfidence = computed(() => props.value != null && props.value.confidence != null)
 </script>
 
 <template>
   <span class="level-cell">
     <template v-if="value">
       <LevelBadge :level="value.level" :dimension="dimension" :stale="stale" />
-      <ConfidenceBadge :confidence="value.confidence" :probabilities="probabilities" />
+      <ConfidenceBadge v-if="hasConfidence" :confidence="value.confidence" :probabilities="probabilities" />
+      <span v-else class="level-cell__empty" aria-hidden="true">—</span>
     </template>
     <span v-else class="level-cell__empty" aria-hidden="true">—</span>
   </span>

@@ -88,6 +88,14 @@ describe('IssueRow', () => {
     expect(wrapper.emitted('expand')).toBeUndefined()
   })
 
+  it('shows a dash in the confidence column when minConfidence is missing (forward-compat)', () => {
+    const classification = fakeClassification({ minConfidence: undefined as unknown as number })
+    const wrapper = mountRow({ row: row({ status: 'done', classification }) })
+    const confidenceCell = wrapper.get('[data-test="confidence-cell"]')
+    expect(confidenceCell.findComponent({ name: 'ConfidenceBadge' }).exists()).toBe(false)
+    expect(confidenceCell.text()).toBe('—')
+  })
+
   it('has a Priority column slot placeholder for Task 14', () => {
     const wrapper = mountRow()
     expect(wrapper.get('[data-test="priority-cell"]').text()).toBe('—')
