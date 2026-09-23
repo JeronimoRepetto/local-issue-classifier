@@ -156,7 +156,14 @@ function onKeydown(event: KeyboardEvent) {
             :data-test="column.key ? `sort-${column.key}` : undefined"
             @click="onHeaderClick(column)"
           >
-            <span :class="{ 'u-visually-hidden': column.hiddenLabel }">{{ column.label }}</span>
+            <!--
+              Task 14's Weights popover button lands next to this label
+              (SPEC §2.5 item 3), without changing the column's sort wiring.
+            -->
+            <slot v-if="column.key === 'priority'" name="priority-header">
+              <span>{{ column.label }}</span>
+            </slot>
+            <span v-else :class="{ 'u-visually-hidden': column.hiddenLabel }">{{ column.label }}</span>
           </th>
         </tr>
       </thead>

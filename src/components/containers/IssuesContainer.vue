@@ -188,6 +188,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       <UiButton v-if="hasMissing" data-test="remove-missing" variant="ghost" @click="removeMissingOpen = true">
         Remove missing
       </UiButton>
+      <!--
+        Task 13's "Sort" popover (SortRuleList editing the full multi-key
+        order, SPEC §2.5 item 3) mounts here; `sort` and `setSort` are already
+        wired below so it only needs to replace this fallback trigger.
+      -->
+      <slot name="sort-popover" :sort="filters.sort.value" :set-sort="filters.setSort" />
     </div>
 
     <div v-if="selected.size > 0" class="issues-container__bulk-bar">

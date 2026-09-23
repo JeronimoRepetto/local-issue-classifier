@@ -169,6 +169,26 @@ describe('IssuesContainer', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 
+  it('exposes a sort-popover slot (Task 13 hook) with the current sort and setSort', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, {
+      attachTo: document.body,
+      slots: {
+        'sort-popover': `<template #default="{ sort, setSort }">
+          <button data-test="sort-popover-trigger" @click="setSort('relevance')">{{ sort?.key ?? 'default' }}</button>
+        </template>`,
+      },
+    })
+    await flush()
+    const trigger = wrapper.get('[data-test="sort-popover-trigger"]')
+    expect(trigger.text()).toBe('criticality')
+    await trigger.trigger('click')
+    await flush()
+    expect(analysisMod.useAnalysis().current.value?.working.tableSort).toEqual([
+      { key: 'relevance', direction: 'desc' },
+    ])
+  })
+
   it('"/" focuses the search input', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     mount(IssuesContainer, { attachTo: document.body })

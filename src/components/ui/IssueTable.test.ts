@@ -69,6 +69,24 @@ describe('IssueTable — sortable column headers', () => {
   })
 })
 
+describe('IssueTable — Priority header slot (Task 14 hook)', () => {
+  it('renders a plain label by default', () => {
+    const wrapper = mountTable([row(1)])
+    expect(wrapper.get('[data-test="sort-priority"]').text()).toBe('Priority')
+  })
+
+  it('lets a caller replace the header content, e.g. with a Weights popover trigger', () => {
+    const wrapper = mount(IssueTable, {
+      props: { rows: [row(1)], selected: [], sort: null },
+      slots: { 'priority-header': '<button data-test="weights-trigger">Priority · Weights</button>' },
+      attachTo: document.body,
+    })
+    expect(wrapper.get('[data-test="sort-priority"]').get('[data-test="weights-trigger"]').text()).toBe(
+      'Priority · Weights',
+    )
+  })
+})
+
 describe('IssueTable — row action pass-through', () => {
   it('re-emits toggle-select, dismiss, restore and expand from a row', async () => {
     const wrapper = mountTable([row(1), row(2)])
