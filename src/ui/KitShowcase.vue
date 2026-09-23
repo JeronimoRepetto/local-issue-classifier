@@ -351,6 +351,10 @@ const labelOptions = [
   grid-column: 1 / -1;
 }
 
+.kit-grid > * {
+  min-width: 0;
+}
+
 .kit-row {
   display: flex;
   flex-wrap: wrap;
