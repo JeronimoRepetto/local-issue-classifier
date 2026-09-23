@@ -35,7 +35,18 @@ _Section pending (Task 10)._
 
 ## Getting a GitHub token
 
-_Section pending (Task 6)._
+A token is optional. Without one, public repositories load at 60 requests/hour and comments are skipped by default. With one, the limit is 5 000 requests/hour.
+
+1. On GitHub, open **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. Name it (for example `issue-criticity`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
+3. Under **Repository access**, choose **Public repositories** (read-only) or **Only select repositories** for the private repos you want to analyse.
+4. Under **Permissions → Repository permissions**, set:
+   - **Issues: Read-only**, for issues and their comments;
+   - **Contents: Read-only**, for the README, CONTRIBUTING, `docs/` and the package manifest;
+   - **Metadata: Read-only**, for repository info. Confirm it shows Read-only; GitHub normally adds it automatically.
+5. Generate the token and paste it into Settings. It is kept in memory only, so you paste it again after every reload; keep it in your own password manager if you want.
+
+Classic tokens also work, but private repos need the `repo` scope, which also grants write access. Prefer the fine-grained token.
 
 ## Run
 
