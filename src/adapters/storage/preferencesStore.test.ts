@@ -103,3 +103,38 @@ describe('savePreferences', () => {
     expect(savePreferences(storage, defaultPreferences())).toEqual({ ok: false, reason: 'unavailable' })
   })
 })
+
+describe('Preferences.provider (T16)', () => {
+  it('defaults to the TypeSafe cloud', () => {
+    expect(defaultPreferences().provider).toEqual({ kind: 'typesafe' })
+    expect(loadPreferences(new MemoryStorage()).provider).toEqual({ kind: 'typesafe' })
+  })
+
+  it('loads a legacy entry without a provider as TypeSafe', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ theme: 'dark' }))
+    expect(loadPreferences(storage).provider).toEqual({ kind: 'typesafe' })
+  })
+
+  it('tolerates an unknown or malformed provider value', () => {
+    for (const provider of ['local', 3, null, { kind: 'mystery' }]) {
+      const storage = new MemoryStorage()
+      storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ provider }))
+      expect(loadPreferences(storage).provider).toEqual({ kind: 'typesafe' })
+    }
+  })
+
+  it('round-trips a local provider', () => {
+    const storage = new MemoryStorage()
+    const provider = { kind: 'local' as const, baseUrl: 'http://localhost:8009', model: 'kev-latest' }
+    savePreferences(storage, { ...defaultPreferences(), provider })
+    expect(loadPreferences(storage).provider).toEqual(provider)
+  })
+
+  it('never writes a key, even if one is smuggled into the provider object', () => {
+    const storage = new MemoryStorage()
+    const provider = { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest', apiKey: 'local-secret-9f' }
+    savePreferences(storage, { ...defaultPreferences(), provider } as never)
+    expect(storage.getItem(STORAGE_KEYS.preferences)).not.toContain('local-secret-9f')
+  })
+})

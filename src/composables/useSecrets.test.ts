@@ -59,3 +59,16 @@ describe('useSecrets singleton', () => {
     expect(secrets.state.jevApiKey).toBe('')
   })
 })
+
+describe('useSecrets: local provider key (T16)', () => {
+  it('stores a trimmed local key, and clearKeys wipes it too', () => {
+    const secrets = useSecrets()
+    expect(secrets.state.localApiKey).toBe('')
+    secrets.setLocalApiKey('  local-key  ')
+    expect(secrets.state.localApiKey).toBe('local-key')
+    expect(secrets.hasLocalApiKey.value).toBe(true)
+    secrets.clearKeys()
+    expect(secrets.state.localApiKey).toBe('')
+    expect(secrets.hasLocalApiKey.value).toBe(false)
+  })
+})

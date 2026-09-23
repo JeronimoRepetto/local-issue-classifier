@@ -1,0 +1,136 @@
+// T16 — classifier provider selection (docs/local-providers.md): the pure
+// provider model, the local base URL guard and the tolerant sanitizer.
+import { describe, expect, it } from 'vitest'
+import {
+  LOCAL_PRESETS,
+  defaultProviderConfig,
+  parseModelNames,
+  providerKey,
+  providerLabel,
+  sanitizeProviderConfig,
+  validateLocalBaseUrl,
+} from './provider'
+
+describe('defaultProviderConfig', () => {
+  it('is the TypeSafe cloud, as a fresh object each call', () => {
+    expect(defaultProviderConfig()).toEqual({ kind: 'typesafe' })
+    expect(defaultProviderConfig()).not.toBe(defaultProviderConfig())
+  })
+})
+
+describe('validateLocalBaseUrl', () => {
+  it.each([
+    ['http://localhost:8009', 'http://localhost:8009'],
+    ['http://localhost:8009/', 'http://localhost:8009'],
+    ['  http://127.0.0.1:8090  ', 'http://127.0.0.1:8090'],
+    ['http://127.1.2.3:8009', 'http://127.1.2.3:8009'],
+    ['http://[::1]:8009', 'http://[::1]:8009'],
+    ['https://localhost', 'https://localhost'],
+    ['http://10.0.0.5:8009', 'http://10.0.0.5:8009'],
+    ['http://172.16.0.1:8009', 'http://172.16.0.1:8009'],
+    ['http://172.31.255.254:8009', 'http://172.31.255.254:8009'],
+    ['http://192.168.1.20:8009', 'http://192.168.1.20:8009'],
+    ['http://[fd12:3456::1]:8009', 'http://[fd12:3456::1]:8009'],
+    ['http://LOCALHOST:8009/kev/', 'http://localhost:8009/kev'],
+  ])('accepts %s as %s', (input, url) => {
+    expect(validateLocalBaseUrl(input)).toEqual({ ok: true, url })
+  })
+
+  it.each([
+    ['', 'empty'],
+    ['   ', 'empty'],
+    ['localhost:8009', 'scheme'],
+    ['127.0.0.1:8009', 'scheme'],
+    ['javascript:alert(1)', 'scheme'],
+    ['ftp://localhost:8009', 'scheme'],
+    ['file:///etc/passwd', 'scheme'],
+    ['http://', 'invalid'],
+    ['https://api.typesafe.ai', 'host'],
+    ['http://example.com:8009', 'host'],
+    ['http://8.8.8.8:8009', 'host'],
+    ['http://172.32.0.1:8009', 'host'],
+    ['http://172.15.0.1:8009', 'host'],
+    ['http://169.254.169.254', 'host'],
+    ['http://0.0.0.0:8009', 'host'],
+    ['http://[2001:db8::1]:8009', 'host'],
+    ['http://localhost.evil.com:8009', 'host'],
+    ['http://mybox.local:8009', 'host'],
+    ['http://user:pass@localhost:8009', 'credentials'],
+    ['http://localhost:8009/?x=1', 'query'],
+    ['http://localhost:8009/#top', 'query'],
+  ])('rejects %j with reason %s', (input, reason) => {
+    const result = validateLocalBaseUrl(input)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toBe(reason)
+      expect(result.message.length).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('LOCAL_PRESETS', () => {
+  it('lists Kev and JevK5 with valid local base URLs', () => {
+    expect(LOCAL_PRESETS.map((p) => p.id)).toEqual(['kev', 'jevk5'])
+    const kev = LOCAL_PRESETS[0]
+    expect(kev).toMatchObject({ baseUrl: 'http://localhost:8009', model: 'kev-latest' })
+    for (const preset of LOCAL_PRESETS) expect(validateLocalBaseUrl(preset.baseUrl).ok).toBe(true)
+  })
+})
+
+describe('providerLabel / providerKey', () => {
+  it('names the provider for the UI', () => {
+    expect(providerLabel({ kind: 'typesafe' })).toBe('TypeSafe cloud (Jev)')
+    expect(providerLabel({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' })).toBe(
+      'Kev (local, http://localhost:8009)',
+    )
+    expect(providerLabel({ kind: 'local', baseUrl: 'http://10.0.0.5:9000', model: 'mine' })).toBe(
+      'Local server (http://10.0.0.5:9000)',
+    )
+  })
+
+  it('keys the routing cache by provider and normalized base URL', () => {
+    expect(providerKey({ kind: 'typesafe' })).toBe('typesafe')
+    expect(providerKey({ kind: 'local', baseUrl: 'http://localhost:8009/', model: 'x' })).toBe(
+      'local:http://localhost:8009',
+    )
+  })
+})
+
+describe('sanitizeProviderConfig', () => {
+  it('falls back to TypeSafe for missing or unknown values', () => {
+    for (const value of [undefined, null, 'local', 42, [], {}, { kind: 'openai' }]) {
+      expect(sanitizeProviderConfig(value)).toEqual({ kind: 'typesafe' })
+    }
+  })
+
+  it('keeps a local config and fills a missing base URL or model from the Kev preset', () => {
+    expect(sanitizeProviderConfig({ kind: 'local', baseUrl: 'http://10.0.0.5:8009', model: 'kev-4b' })).toEqual({
+      kind: 'local',
+      baseUrl: 'http://10.0.0.5:8009',
+      model: 'kev-4b',
+    })
+    expect(sanitizeProviderConfig({ kind: 'local', baseUrl: 7, model: '' })).toEqual({
+      kind: 'local',
+      baseUrl: 'http://localhost:8009',
+      model: 'kev-latest',
+    })
+  })
+
+  it('never keeps a key or any extra field', () => {
+    expect(
+      sanitizeProviderConfig({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'm', apiKey: 'secret', x: 1 }),
+    ).toEqual({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'm' })
+    expect(sanitizeProviderConfig({ kind: 'typesafe', apiKey: 'secret' })).toEqual({ kind: 'typesafe' })
+  })
+})
+
+describe('parseModelNames', () => {
+  it('reads the TypeSafe shape and the OpenAI-style shape', () => {
+    expect(parseModelNames({ models: [{ name: 'kev-latest' }, { name: 'kev-4b' }] })).toEqual(['kev-latest', 'kev-4b'])
+    expect(parseModelNames({ data: [{ id: 'kev-latest' }] })).toEqual(['kev-latest'])
+  })
+
+  it('returns null for anything else', () => {
+    for (const body of [null, 'x', {}, { models: 'x' }, { models: [{}] }]) expect(parseModelNames(body)).toBeNull()
+  })
+})
