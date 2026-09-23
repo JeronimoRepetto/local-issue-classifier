@@ -6,6 +6,7 @@ import { STORAGE_KEYS, defaultPreferences } from '../../domain/types'
 import type { Preferences } from '../../domain/types'
 import { TRIMMING_PROFILE_IDS } from '../../domain/jevBatchState'
 import { sanitizeHardwareOverride } from '../../domain/hardware'
+import { sanitizeProviderConfig } from '../../domain/provider'
 import type { StorageLike } from './analysisStore'
 
 const CLASSIFY_MODES: readonly string[] = ['batched', 'per-issue']
@@ -20,6 +21,8 @@ function sanitize(prefs: Preferences): Preferences {
       ? prefs.trimmingFloor
       : defaults.trimmingFloor,
     hardwareOverride: sanitizeHardwareOverride(prefs.hardwareOverride),
+    // Unknown shapes fall back to TypeSafe; a local config keeps no key (T16).
+    provider: sanitizeProviderConfig(prefs.provider),
   }
 }
 
@@ -51,7 +54,9 @@ export function loadPreferences(storage: StorageLike): Preferences {
 
 export function savePreferences(storage: StorageLike, prefs: Preferences): SavePreferencesResult {
   try {
-    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify(prefs))
+    // The provider is re-sanitized so a key can never be written, even by mistake.
+    const stored: Preferences = { ...prefs, provider: sanitizeProviderConfig(prefs.provider) }
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify(stored))
     return { ok: true }
   } catch (error) {
     return { ok: false, reason: isQuotaError(error) ? 'quota' : 'unavailable' }

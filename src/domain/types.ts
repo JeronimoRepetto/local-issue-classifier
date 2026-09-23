@@ -3,6 +3,9 @@
 // no browser APIs: the clock and randomness are always injected by the caller.
 import type { HardwareOverride } from './hardware'
 
+import { defaultProviderConfig } from './provider'
+import type { ProviderConfig } from './provider'
+
 /** The one place the default Jev model name lives (Preferences.jevModel, Jev client). */
 export const DEFAULT_JEV_MODEL = 'jev-latest'
 
@@ -184,6 +187,7 @@ export interface Preferences {
   keysBannerDismissed: boolean // §2.1 step 2, Task 4: "Keys required" banner dismissal
   /** Manual GPU/VRAM correction for the hardware-fit panel (docs/hardware-fit.md). Detected values are never persisted. */
   hardwareOverride?: HardwareOverride | null // default null
+  provider: ProviderConfig // T16: TypeSafe cloud (default) or a local Jev-compatible server; never a key
 }
 
 // ── Filters, sorting, export ─────────────────────────────────────────
@@ -337,6 +341,7 @@ export function defaultPreferences(): Preferences {
     onboarding: { keys: false, repo: false, classify: false },
     keysBannerDismissed: false,
     hardwareOverride: null,
+    provider: defaultProviderConfig(),
   }
 }
 
