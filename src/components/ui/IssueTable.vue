@@ -185,7 +185,15 @@ function onKeydown(event: KeyboardEvent) {
           @dismiss="emit('dismiss', $event)"
           @restore="emit('restore', $event)"
           @expand="emit('expand', $event)"
-        />
+        >
+          <!--
+            Task 14's Priority cell (SPEC §6.3 column 4) lands here, scoped
+            to each row: `<template #priority="{ row }">…</template>`.
+          -->
+          <template #priority>
+            <slot name="priority" :row="row">—</slot>
+          </template>
+        </IssueRow>
       </tbody>
       <tbody v-else>
         <tr v-if="paddingTop > 0" class="issue-table__spacer" aria-hidden="true">
@@ -204,7 +212,11 @@ function onKeydown(event: KeyboardEvent) {
           @dismiss="emit('dismiss', $event)"
           @restore="emit('restore', $event)"
           @expand="emit('expand', $event)"
-        />
+        >
+          <template #priority>
+            <slot name="priority" :row="rows[item.index]">—</slot>
+          </template>
+        </IssueRow>
         <tr v-if="paddingBottom > 0" class="issue-table__spacer" aria-hidden="true">
           <td :colspan="COLUMN_COUNT" :style="{ height: `${paddingBottom}px` }" />
         </tr>

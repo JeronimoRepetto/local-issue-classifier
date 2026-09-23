@@ -16,7 +16,7 @@ const CAPTION =
 <template>
   <UiTooltip :text="CAPTION">
     <template #default="{ describedBy }">
-      <span data-test="priority-cell" :aria-describedby="describedBy">
+      <span data-test="priority-value" :aria-describedby="describedBy">
         <ScoreBar :value="value" label="Priority" />
       </span>
     </template>

@@ -205,6 +205,58 @@ describe('IssuesContainer', () => {
     ])
   })
 
+  it('mounts the Weights popover trigger in the Priority column header (Task 14)', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+    expect(wrapper.find('[data-test="weight-editor-trigger"]').exists()).toBe(true)
+  })
+
+  it('shows a Priority value for a classified row and "—" for an unclassified one (Task 14)', async () => {
+    const analysis = seedAnalysis()
+    analysis.rows[0].status = 'done'
+    analysis.rows[0].classification = fakeClassification()
+    analysisMod.useAnalysis().setCurrent(analysis)
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    const priorityValues = wrapper.findAll('[data-test="priority-cell"] [data-test="value"]')
+    expect(priorityValues[0].text()).not.toBe('—')
+    expect(priorityValues[1].text()).toBe('—')
+  })
+
+  it('recomputes the Priority column and re-sorts live when working.priorityWeights changes (Task 14)', async () => {
+    const analysis = seedAnalysis()
+    analysis.rows[0].status = 'done'
+    analysis.rows[0].classification = fakeClassification({
+      effort: { level: 'high', score: 2, confidence: 0.9, probabilities: [0, 0, 1] },
+    })
+    analysis.rows[1].status = 'done'
+    analysis.rows[1].classification = fakeClassification({
+      effort: { level: 'low', score: 0, confidence: 0.9, probabilities: [1, 0, 0] },
+    })
+    analysisMod.useAnalysis().setCurrent(analysis)
+    analysisMod.useAnalysis().updateWorking({
+      tableSort: [{ key: 'priority', direction: 'desc' }],
+      priorityWeights: { criticality: 0, relevance: 0, complexity: 0, effort: 100 },
+    })
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    // Effort-only weight, inverted: issue #2 (effort score 0) outranks #1 (score 2).
+    let numbers = wrapper.findAll('[data-test="issue-row"] a').map((a) => a.text())
+    expect(numbers[0]).toBe('#2')
+
+    // Both rows share the same default criticality score (fakeClassification's
+    // default, 2), so a criticality-only weight ties them, and the number
+    // tie-break decides: #1 leads regardless of the effort difference above.
+    analysisMod.useAnalysis().updateWorking({ priorityWeights: { criticality: 100, relevance: 0, complexity: 0, effort: 0 } })
+    await flush()
+
+    numbers = wrapper.findAll('[data-test="issue-row"] a').map((a) => a.text())
+    expect(numbers[0]).toBe('#1')
+  })
+
   it('"/" focuses the search input', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     mount(IssuesContainer, { attachTo: document.body })

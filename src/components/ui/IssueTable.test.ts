@@ -103,6 +103,26 @@ describe('IssueTable — Priority header slot (Task 14 hook)', () => {
   })
 })
 
+describe('IssueTable — Priority cell slot (Task 14 hook)', () => {
+  it('renders the default "—" fallback for every row by default', () => {
+    const wrapper = mountTable([row(1), row(2)])
+    const cells = wrapper.findAll('[data-test="priority-cell"]')
+    expect(cells.map((cell) => cell.text())).toEqual(['—', '—'])
+  })
+
+  it('lets a caller replace each row\'s priority cell, scoped to that row', () => {
+    const wrapper = mount(IssueTable, {
+      props: { rows: [row(1), row(2)], selected: [], sort: null },
+      slots: {
+        priority: `<template #default="{ row }"><span data-test="priority-value">{{ row.issue.number }}</span></template>`,
+      },
+      attachTo: document.body,
+    })
+    const values = wrapper.findAll('[data-test="priority-value"]').map((el) => el.text())
+    expect(values).toEqual(['1', '2'])
+  })
+})
+
 describe('IssueTable — row action pass-through', () => {
   it('re-emits toggle-select, dismiss, restore and expand from a row', async () => {
     const wrapper = mountTable([row(1), row(2)])
