@@ -111,7 +111,23 @@ _Section pending (Task 14)._
 
 ## Export format
 
-_Section pending (Task 13)._
+**Export…** opens a dialog to build a plain-text report of the current analysis (or a saved copy of
+its filtered view). You choose:
+
+- **Scope** — the current filtered view (default) or every issue in the analysis. Dismissed issues
+  are always excluded unless you check **Include dismissed**.
+- **Include unclassified issues**, **Include dismissed**, **Include confidence** and
+  **Include URLs**.
+- **Order** — an ordered list of sort keys and directions, edited the same way as the table's Sort
+  popover (add, remove, reorder with Alt+↑/↓). **Use current table sort** copies the table's own
+  order into the export in one click.
+
+The order and options are saved per analysis. **Download** saves the previewed text as
+`{owner}-{repo}-issues-{YYYYMMDD-HHmm}.txt` through an anchor-based download (no server involved).
+With nothing in scope, Download is disabled and the dialog says "Nothing to export."
+
+The full format — every header line, the row layout, the Unclassified/Dismissed sections and a
+worked example — is specified in [`docs/export-format.md`](docs/export-format.md).
 
 ## Deployment modes
 
