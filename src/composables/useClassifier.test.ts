@@ -8,6 +8,7 @@ import type { Scheduler } from './useAnalysis'
 import { fakeClassification, fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../tests/fakes/memoryStorage'
 import { http, ok, scriptedClient } from '../../tests/fakes/fakeJev'
+import { QUESTIONS_VERSION } from '../adapters/jev/questions'
 import type { Handler, ScriptedClient } from '../../tests/fakes/fakeJev'
 
 type Mods = {
@@ -47,7 +48,7 @@ function analysis(overrides: { v2?: number } = {}): Analysis {
   a = applyClassification(
     a,
     2,
-    { ok: true, classification: fakeClassification({ questionsVersion: overrides.v2 ?? 1 }) },
+    { ok: true, classification: fakeClassification({ questionsVersion: overrides.v2 ?? QUESTIONS_VERSION }) },
     NOW,
   )
   return dismiss(a, [3], NOW)

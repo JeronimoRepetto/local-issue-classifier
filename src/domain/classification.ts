@@ -35,6 +35,23 @@ export const ISSUE_KINDS: readonly IssueKind[] = [
   'other',
 ]
 
+/** The five answers of a classification, in request order. */
+export type AnswerDimension = 'complexity' | 'criticality' | 'effort' | 'relevance' | 'kind'
+export const ANSWER_DIMENSIONS: readonly AnswerDimension[] = ['complexity', 'criticality', 'effort', 'relevance', 'kind']
+
+/** Short prefixes of the namespaced answer ids in a batched request (docs/batching.md). */
+export const BATCH_ANSWER_PREFIXES: Readonly<Record<AnswerDimension, string>> = {
+  complexity: 'c',
+  criticality: 'k',
+  effort: 'e',
+  relevance: 'r',
+  kind: 't',
+}
+
+/** e.g. `c_123`: the complexity answer for issue #123 in a batched response. */
+export const batchAnswerId = (dimension: AnswerDimension, issueNumber: number) =>
+  `${BATCH_ANSWER_PREFIXES[dimension]}_${issueNumber}`
+
 const LEVELS: readonly Level[] = ['low', 'medium', 'high']
 const RELEVANCE_TOP_LEVEL = 4 // 5 levels: 0..4
 
