@@ -150,8 +150,9 @@ parts. A production build contains no kit code.
   state (`visibleColumns`, normalized by `src/domain/columns.ts`). The detail drawer is a
   440 px right sheet with micro section kickers.
 - **Settings.** A heading with mono key-status pills, then two-column hairline sections (Keys,
-  Preferences, Local data, About). A `classify-mode` slot in `PreferencesForm` (`TODO(RB)`)
-  is reserved for the batching lane.
+  Classifier, Hardware, Preferences, Local data, About). Classifier mounts `ProviderSelector`
+  (TypeSafe cloud or a local Kev/JevK5 server, plus the batching mode/trimming floor under
+  Advanced); Hardware mounts `HardwareFitPanel` with a "Use Kev locally" action (WIRE-2).
 - **Export dialog.** Labelled rows for Scope (segmented, with a count), Include, Order and a mono
   Preview.
 

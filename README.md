@@ -10,9 +10,12 @@ your browser.
 1. Paste a GitHub repository URL (or `owner/repo`) and pick a state: Open, Closed or All.
 2. The app fetches the repository's issues, README and project metadata directly from the GitHub
    API, and saves them as a new **analysis** in this browser.
-3. **Classify** sends one request per issue to Jev, carrying the issue and a trimmed project
-   summary. Jev answers four narrow questions — Complexity, Criticality, Effort and Relevance —
-   plus a fifth, speculative Kind (bug / feature / documentation / question / maintenance / other).
+3. **Classify** sends the issue and a trimmed project summary to Jev. By default it batches every
+   selected issue into as few requests as fit (one request when the limits allow it); "One request
+   per issue" is available under Settings → Classifier → Advanced. Jev answers four narrow
+   questions — Complexity, Criticality, Effort and Relevance — plus a fifth, speculative Kind
+   (bug / feature / documentation / question / maintenance / other). See
+   [`docs/batching.md`](docs/batching.md) for how batching fits issues into a request.
 4. The table shows every issue with its scores. Filter, sort (including by a weighted
    **Priority** score), dismiss what you don't care about, and **Export** the current view as a
    plain-text report.
@@ -23,7 +26,9 @@ each question asks and how its answer becomes a value.
 
 ## Screenshots
 
-Screenshots coming soon.
+![Home screen, dark theme: the saved-analyses list with a storage meter and flat analysis cards](docs/redesign/after-home-dark.png)
+
+![Analysis screen, dark theme: the issues table with filters, classify bar and priority column](docs/redesign/after-analysis-dark.png)
 
 ## Requirements
 
@@ -231,6 +236,25 @@ With nothing in scope, Download is disabled and the dialog says "Nothing to expo
 The full format — every header line, the row layout, the Unclassified/Dismissed sections and a
 worked example — is specified in [`docs/export-format.md`](docs/export-format.md).
 
+## Local providers
+
+By default the app classifies with **Jev on the TypeSafe cloud**, which needs a Jev API key. In
+Settings → **Classifier**, you can instead point it at a **local Jev-compatible server** — Kev
+(`jaredpalmer/kev`) or JevK5 (`allebee/jevk5`), both presets — which costs nothing per token and
+keeps issue text on your machine or LAN. No key is required for a local server, though one can be
+set if the server enforces one. See [`docs/local-providers.md`](docs/local-providers.md) for the
+launch commands, the CORS/proxy fallback and how to test the connection.
+
+## Hardware fit
+
+Settings → **Hardware** answers "can this machine run a local model, and which size?" by reading
+what the browser already exposes (WebGL/WebGPU renderer strings, device memory, CPU threads) —
+nothing is benchmarked and nothing is sent anywhere. It gives a Fits/Tight/Won't fit verdict per
+local model tier, a recommendation, and a manual GPU/VRAM override for when detection can't tell
+(Firefox, Safari, or an unusual GPU). "Use Kev locally" applies the Kev preset to the provider
+config in one click. See [`docs/hardware-fit.md`](docs/hardware-fit.md) for what is read, the GPU
+table and the tier thresholds.
+
 ## Deployment modes
 
 v1 runs locally only (`pnpm dev` or `pnpm preview` on `localhost:5200`). The Jev API rejects
@@ -270,12 +294,6 @@ Not implemented in v1; tracked as future work:
 - **Responsive filter collapse** below 1280 px — the filter bar does not yet collapse into a
   compact form at narrower widths (the table itself already scrolls within its container at
   1024 px, per the design-quality checklist).
-- **Local Jev-compatible providers** — `JevTransport` is a single seam by design (see
-  `docs/deployment.md`), so a self-hosted, Jev-API-compatible model server (for example a local
-  `jaredpalmer/kev`- or `allebee/jevk5`-style deployment) is a plausible future backend; none is
-  wired up or tested today.
-- **Hardware fit detection** — surfacing whether the machine running a local provider has enough
-  memory/compute for a given model size is not implemented.
 - **Hosted deployment mode** (§9 mode b): a serverless proxy function for a public deployment,
   with its own review of abuse and rate limiting.
 
@@ -295,9 +313,8 @@ Not implemented in v1; tracked as future work:
 
 ## Credits
 
-- **Fonts:** [Inter](https://github.com/rsms/inter) and
-  [Silkscreen](https://github.com/googlefonts/silkscreen), both under the SIL Open Font License
-  1.1, bundled from `@fontsource` packages (no font CDN).
+- **Fonts:** Geist Sans, Geist Mono and Geist Pixel, under the SIL Open Font License 1.1, bundled
+  from `@fontsource` packages (no font CDN).
 - **Icons:** all icons, the logo and illustrations are original pixel art made for this project
   (MIT). No Streamline icons are bundled; see [`docs/design.md`](docs/design.md#icon-source-decision-2026-09-23).
 

@@ -59,3 +59,17 @@ at 1440 px and 1024 px.
   Evidence: `tests/icons.test.ts` checks the normalizer output, that committed icons match a fresh `pnpm icons` build, and that every icon has `currentColor`, a `viewBox` and nothing executable.
 - [ ] **Responsive.** At 1024 px there is no horizontal page scroll, and the table scrolls only within its container.
   Not ticked — needs a real browser viewport check: user. The responsive filter-bar collapse below 1280 px is separately tracked as backlog (see README "Roadmap / backlog").
+
+## WIRE-2 updates (2026-09-24)
+
+- **Screenshots** (§12.1 documentation deliverables originally specced as "a placeholder section,
+  with a TODO note for `docs/screenshots/`"): resolved. README's "Screenshots" section now embeds
+  two real after-redesign screenshots with alt text (`docs/redesign/after-home-dark.png`,
+  `docs/redesign/after-analysis-dark.png`), replacing the "Screenshots coming soon" placeholder.
+  Evidence: both files are tracked under `docs/redesign/` (along with several other before/after
+  and kit-page captures from the redesign lane) and `README.md`'s Screenshots section references
+  them directly.
+- **Local Jev-compatible providers** and **hardware fit detection** (README "Roadmap / backlog",
+  previously listed as not implemented): both are now wired up end to end — Settings → Classifier
+  (`ProviderSelector`) and Settings → Hardware (`HardwareFitPanel`) — and the two backlog bullets
+  were removed from README accordingly. See `docs/local-providers.md` and `docs/hardware-fit.md`.

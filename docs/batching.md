@@ -130,4 +130,4 @@ Choose the tightest profile whose agreement is close to the `per-issue (repeat)`
 
 ## Next step
 
-Settings does not show `classifyMode` and `trimmingFloor` yet. The code is marked `TODO(RD)` in `src/composables/useClassifier.ts`. That work belongs to the redesign lane, which can also show `estimate.profile` next to the request count.
+Settings → Classifier (`ProviderSelector`'s Advanced disclosure, WIRE-2) shows `classifyMode` and `trimmingFloor`. Showing `estimate.profile` / `progress.profile` next to the request count in the Classify bar itself is not wired up yet.
