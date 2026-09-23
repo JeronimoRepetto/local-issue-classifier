@@ -26,7 +26,7 @@ const hasConfidence = computed(() => props.value != null && props.value.confiden
   <span class="level-cell">
     <template v-if="value">
       <LevelBadge :level="value.level" :dimension="dimension" :stale="stale" />
-      <ConfidenceBadge v-if="hasConfidence" :confidence="value.confidence" :probabilities="probabilities" />
+      <ConfidenceBadge v-if="hasConfidence" :confidence="value.confidence!" :probabilities="probabilities" />
       <span v-else class="level-cell__empty" aria-hidden="true">—</span>
     </template>
     <span v-else class="level-cell__empty" aria-hidden="true">—</span>

@@ -16,7 +16,10 @@ const CLASSIFICATION_KEYS = new Set<SortKey>([
 /** 0 = has a value for this key, 1 = no value — always sorts after, any direction. */
 function classificationRank(row: IssueRow, key: SortKey): 0 | 1 {
   if (!CLASSIFICATION_KEYS.has(key)) return 0
-  return row.classification ? 0 : 1
+  if (!row.classification) return 1
+  // minConfidence is optional; undefined should sort after defined values
+  if (key === 'minConfidence' && row.classification.minConfidence === undefined) return 1
+  return 0
 }
 
 function dateValue(row: IssueRow, key: SortKey): string | null {
@@ -38,7 +41,7 @@ function rawValue(row: IssueRow, key: SortKey): number {
     case 'relevance':
       return c ? c.relevance.value : 0
     case 'minConfidence':
-      return c ? c.minConfidence : 0
+      return c && c.minConfidence !== undefined ? c.minConfidence : 0
     case 'commentCount':
       return row.issue.commentCount
     case 'number':

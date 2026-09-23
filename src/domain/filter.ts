@@ -30,7 +30,9 @@ function matchesRelevance(row: IssueRow, min: number, max: number): boolean {
 function matchesMinConfidence(row: IssueRow, threshold: number): boolean {
   if (threshold <= 0) return true
   if (!row.classification) return false
-  return row.classification.minConfidence >= threshold
+  const { minConfidence } = row.classification
+  if (minConfidence === undefined) return false
+  return minConfidence >= threshold
 }
 
 function matchesStatus(row: IssueRow, allowed: IssueFilter['statuses']): boolean {

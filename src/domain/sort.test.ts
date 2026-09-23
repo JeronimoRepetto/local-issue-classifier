@@ -74,6 +74,14 @@ describe('sortRows — minConfidence', () => {
     expect(sortRows([a, b], 'minConfidence', 'asc')).toEqual([a, b])
     expect(sortRows([a, b], 'minConfidence', 'desc')).toEqual([b, a])
   })
+
+  it('sorts rows with undefined minConfidence after rows with defined values in both directions', () => {
+    const classification = fakeClassification({ minConfidence: undefined })
+    const withUndefined = row(3, { status: 'done', classification })
+    const withDefined = classifiedRow(1, { minConfidence: 0.8 })
+    expect(sortRows([withUndefined, withDefined], 'minConfidence', 'asc')).toEqual([withDefined, withUndefined])
+    expect(sortRows([withUndefined, withDefined], 'minConfidence', 'desc')).toEqual([withDefined, withUndefined])
+  })
 })
 
 describe('sortRows — dates compare by ISO string', () => {

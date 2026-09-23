@@ -121,6 +121,14 @@ describe('filterRows — minimum confidence', () => {
     const result = filterRows([confident, unsure, unclassified], { ...defaultFilter(), minConfidence: 0.5 })
     expect(result).toEqual([confident])
   })
+
+  it('drops rows with undefined minConfidence when a threshold is active', () => {
+    const classification = fakeClassification({ minConfidence: undefined })
+    const withUndefined = row(1, { status: 'done', classification })
+    const withDefined = classifiedRow(2, { minConfidence: 0.8 })
+    const result = filterRows([withUndefined, withDefined], { ...defaultFilter(), minConfidence: 0.5 })
+    expect(result).toEqual([withDefined])
+  })
 })
 
 describe('filterRows — classification status', () => {
