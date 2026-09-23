@@ -75,6 +75,7 @@ describe('defaultFilter', () => {
     expect(filter.complexity).toEqual([])
     expect(filter.criticality).toEqual([])
     expect(filter.effort).toEqual([])
+    expect(filter.kind).toEqual([])
     expect(filter.relevanceMin).toBe(0)
     expect(filter.relevanceMax).toBe(100)
     expect(filter.minConfidence).toBe(0)
@@ -88,8 +89,10 @@ describe('defaultFilter', () => {
     const b = defaultFilter()
     a.labels.push('bug')
     a.complexity.push('high')
+    a.kind.push('bug')
     expect(b.labels).toEqual([])
     expect(b.complexity).toEqual([])
+    expect(b.kind).toEqual([])
   })
 })
 

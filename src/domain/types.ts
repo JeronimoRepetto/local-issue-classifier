@@ -201,6 +201,7 @@ export interface IssueFilter {
   complexity: Level[] // empty = no filter
   criticality: Level[]
   effort: Level[]
+  kind: IssueKind[] // empty = no filter (Task 12, §6.3 Kind column)
   relevanceMin: number
   relevanceMax: number
   minConfidence: number
@@ -280,6 +281,7 @@ export function defaultFilter(): IssueFilter {
     complexity: [],
     criticality: [],
     effort: [],
+    kind: [],
     relevanceMin: 0,
     relevanceMax: 100,
     minConfidence: 0,
