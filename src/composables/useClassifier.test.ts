@@ -2,13 +2,14 @@
 // real useAnalysis / useSecrets / useRunGuard singletons and a fake Jev client.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { applyClassification, createAnalysis, dismiss } from '../domain/analysis'
-import type { Analysis } from '../domain/types'
+import type { Analysis, Preferences } from '../domain/types'
 import { STORAGE_KEYS, defaultPreferences, defaultProjectContext } from '../domain/types'
 import type { Scheduler } from './useAnalysis'
 import { fakeClassification, fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../tests/fakes/memoryStorage'
 import { http, ok, scriptedClient } from '../../tests/fakes/fakeJev'
 import { QUESTIONS_VERSION } from '../adapters/jev/questions'
+import { BATCH_QUESTION_BUDGET } from '../adapters/jev/batchQuestions'
 import type { Handler, ScriptedClient } from '../../tests/fakes/fakeJev'
 
 type Mods = {
@@ -54,8 +55,12 @@ function analysis(overrides: { v2?: number } = {}): Analysis {
   return dismiss(a, [3], NOW)
 }
 
-async function load(handler: Handler) {
+/** Existing scenarios run per-issue (one request per issue); batched ones opt in. */
+async function load(handler: Handler, prefs: Partial<Preferences> = { classifyMode: 'per-issue' }) {
   storage = storage ?? new MemoryStorage()
+  if (storage.getItem(STORAGE_KEYS.preferences) === null) {
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...defaultPreferences(), ...prefs }))
+  }
   const { setAppStorage } = await import('../adapters/storage/appStorage')
   setAppStorage(storage)
   mods = {
@@ -242,5 +247,45 @@ describe('useClassifier: cancel, retry failed, resume', () => {
     mods.secrets.useSecrets().setJevKey('jev-test')
     await mods.classifier.useClassifier().start()
     expect(client.calls.map((c) => c.issue)).toEqual([4])
+  })
+})
+
+describe('useClassifier: batched mode (the default)', () => {
+  it('sends the selected issues in ONE request and applies each result', async () => {
+    await load(() => ok(), {})
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    mods.secrets.useSecrets().setJevKey('jev-test')
+    const classifier = mods.classifier.useClassifier()
+
+    const summary = await classifier.start()
+    expect(client.batches).toEqual([[1, 4]])
+    expect(summary).toMatchObject({ status: 'completed', classified: 2, requests: 1, profile: 'standard' })
+    expect(classifier.state.progress).toMatchObject({ done: 2, total: 2, requests: 1, profile: 'standard' })
+    expect(row(mods.analysis.useAnalysis().current.value, 4)?.status).toBe('done')
+  })
+
+  it('estimates one request, its tokens once, the profile and one call of latency', async () => {
+    await load(() => ok(), {})
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const estimate = mods.classifier.useClassifier().estimate({ scope: 'unclassified' })
+    expect(estimate).toMatchObject({ mode: 'batched', requests: 1, profile: 'standard', tooLarge: 0, seconds: 2 })
+    const perIssueTokens = BATCH_QUESTION_BUDGET.perIssueTokens
+    expect(estimate?.inputTokens).toBeGreaterThan(2 * perIssueTokens)
+    expect(estimate?.costUsd).toBeCloseTo(((estimate?.inputTokens ?? 0) / 1_000_000) * 0.042, 10)
+  })
+
+  it('per-issue mode estimates one request per issue and no profile', async () => {
+    await load(() => ok())
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const estimate = mods.classifier.useClassifier().estimate({ scope: 'unclassified' })
+    expect(estimate).toMatchObject({ mode: 'per-issue', requests: 2, profile: null, seconds: 1 })
+  })
+
+  it('passes the trimming floor to the fitter', async () => {
+    await load(() => ok(), { trimmingFloor: 'standard' })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    mods.secrets.useSecrets().setJevKey('jev-test')
+    const summary = await mods.classifier.useClassifier().start()
+    expect(summary?.profile).toBe('standard')
   })
 })

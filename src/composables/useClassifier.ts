@@ -5,14 +5,17 @@
 // a reload is simply starting again: only unclassified / stale issues are sent.
 import { computed, reactive } from 'vue'
 import { markStale } from '../domain/analysis'
-import { estimateRun } from '../domain/estimate'
+import { estimateBatchedRun, estimateRun } from '../domain/estimate'
 import { buildIssueState } from '../domain/jevState'
-import { estimateSeconds, scopeCounts, selectForClassification } from '../domain/classifyRun'
+import { planBatches } from '../domain/jevBatchState'
+import { estimateBatchedSeconds, estimateSeconds, scopeCounts, selectForClassification } from '../domain/classifyRun'
+import type { ClassifyMode, Issue, ProjectContext, TrimmingProfileId } from '../domain/types'
 import type { ClassifyScope, RunProgress, RunSummary, ScopeCounts } from '../domain/classifyRun'
 import { createJevClient } from '../adapters/jev/client'
 import type { JevClient } from '../adapters/jev/client'
 import { createHttpJevTransport, resolveJevBaseUrl } from '../adapters/jev/transport'
 import { QUESTIONS_TOKENS, QUESTIONS_VERSION } from '../adapters/jev/questions'
+import { BATCH_QUESTION_BUDGET } from '../adapters/jev/batchQuestions'
 import { runClassification } from '../adapters/jev/runner'
 import type { Sleep } from '../adapters/jev/runner'
 import { useAnalysis } from './useAnalysis'
@@ -29,7 +32,11 @@ export interface ClassifyRequest {
 }
 
 export interface ClassifyEstimate {
+  mode: ClassifyMode
+  /** Requests the run will send: batches (usually 1) or issues. */
   requests: number
+  /** Trimming profile the batch fitter would use; null in per-issue mode. */
+  profile: TrimmingProfileId | null
   inputTokens: number
   costUsd: number
   seconds: number
@@ -37,7 +44,10 @@ export interface ClassifyEstimate {
   tooLarge: number
 }
 
-type ClientFactory = (options: { getApiKey: () => string; model: string }) => Pick<JevClient, 'model' | 'classify'>
+type ClientFactory = (options: {
+  getApiKey: () => string
+  model: string
+}) => Pick<JevClient, 'model' | 'classify' | 'classifyBatch'>
 
 export interface ClassifierConfig {
   createClient?: ClientFactory
@@ -94,7 +104,14 @@ function counts(filteredNumbers?: readonly number[]): ScopeCounts | null {
   return a ? scopeCounts(a, QUESTIONS_VERSION, filteredNumbers) : null
 }
 
-/** §4.7: sum of each state's tokens plus the question tokens. */
+// TODO(RD): expose Preferences.classifyMode and trimmingFloor in Settings, and
+// show estimate.profile / progress.profile ("1 request, compact profile").
+const classifyMode = (): ClassifyMode => (prefs.state.classifyMode === 'per-issue' ? 'per-issue' : 'batched')
+
+/**
+ * §4.7. Batched: the fitter's plan, each request's tokens counted once.
+ * Per-issue: each state's tokens plus the question tokens.
+ */
 function estimate(request: ClassifyRequest = {}): ClassifyEstimate | null {
   const a = analysis.current.value
   if (!a) return null
@@ -103,10 +120,31 @@ function estimate(request: ClassifyRequest = {}): ClassifyEstimate | null {
     only: request.only,
     questionsVersion: QUESTIONS_VERSION,
   })
+  return classifyMode() === 'batched' ? estimateBatched(issues, a.projectContext) : estimatePerIssue(issues, a.projectContext)
+}
+
+function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): ClassifyEstimate {
+  const plan = planBatches(issues, ctx, {
+    now: config.now,
+    maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
+    floor: prefs.state.trimmingFloor,
+    questions: BATCH_QUESTION_BUDGET,
+  })
+  const run = estimateBatchedRun(plan.batches)
+  return {
+    ...run,
+    mode: 'batched',
+    profile: plan.batches.length > 0 ? plan.profile : null,
+    seconds: estimateBatchedSeconds(run.requests, prefs.state.concurrency),
+    tooLarge: plan.tooLarge.length,
+  }
+}
+
+function estimatePerIssue(issues: readonly Issue[], ctx: ProjectContext): ClassifyEstimate {
   const tokens: number[] = []
   let tooLarge = 0
   for (const issue of issues) {
-    const built = buildIssueState(issue, a.projectContext, {
+    const built = buildIssueState(issue, ctx, {
       now: config.now,
       maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
     })
@@ -114,7 +152,13 @@ function estimate(request: ClassifyRequest = {}): ClassifyEstimate | null {
     else tooLarge++
   }
   const run = estimateRun(tokens, QUESTIONS_TOKENS)
-  return { ...run, seconds: estimateSeconds(run.requests, prefs.state.concurrency), tooLarge }
+  return {
+    ...run,
+    mode: 'per-issue',
+    profile: null,
+    seconds: estimateSeconds(run.requests, prefs.state.concurrency),
+    tooLarge,
+  }
 }
 
 async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> {
@@ -144,6 +188,8 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
       projectContext: current.projectContext,
       client: config.createClient({ getApiKey: () => secrets.state.jevApiKey, model: prefs.state.jevModel }),
       concurrency: prefs.state.concurrency,
+      mode: classifyMode(),
+      trimmingFloor: prefs.state.trimmingFloor,
       questionsVersion: QUESTIONS_VERSION,
       maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
       lowConfidenceThreshold: prefs.state.lowConfidenceThreshold,

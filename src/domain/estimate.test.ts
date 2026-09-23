@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimateRun, estimateStateTokens, JEV_USD_PER_MILLION_INPUT_TOKENS } from './estimate'
+import { estimateBatchedRun, estimateRun, estimateStateTokens, JEV_USD_PER_MILLION_INPUT_TOKENS } from './estimate'
 
 describe('estimate (SPEC §4.7)', () => {
   it('estimates state tokens as ceil(chars / 3.5) of the serialized state', () => {
@@ -30,5 +30,18 @@ describe('estimate (SPEC §4.7)', () => {
   it('accepts a custom price and handles an empty run', () => {
     expect(estimateRun([], 900)).toEqual({ requests: 0, inputTokens: 0, costUsd: 0 })
     expect(estimateRun([1_000_000], 0, 1).costUsd).toBe(1)
+  })
+})
+
+describe('estimateBatchedRun (docs/batching.md)', () => {
+  it('counts one request per batch and the tokens of each batch once', () => {
+    const run = estimateBatchedRun([{ totalTokens: 40_000 }, { totalTokens: 10_000 }])
+    expect(run.requests).toBe(2)
+    expect(run.inputTokens).toBe(50_000)
+    expect(run.costUsd).toBeCloseTo((50_000 / 1_000_000) * 0.042, 10)
+  })
+
+  it('handles an empty plan', () => {
+    expect(estimateBatchedRun([])).toEqual({ requests: 0, inputTokens: 0, costUsd: 0 })
   })
 })

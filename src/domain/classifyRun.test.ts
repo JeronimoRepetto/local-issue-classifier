@@ -1,6 +1,6 @@
 // Task 11 — SPEC.md §2.4: which issues a Classify scope sends.
 import { describe, expect, it } from 'vitest'
-import { selectForClassification, needsClassification, scopeCounts, estimateSeconds } from './classifyRun'
+import { selectForClassification, needsClassification, scopeCounts, estimateSeconds, estimateBatchedSeconds } from './classifyRun'
 import { applyClassification, createAnalysis, dismiss, markStale } from './analysis'
 import type { Analysis } from './types'
 import { defaultPreferences, defaultProjectContext } from './types'
@@ -74,5 +74,15 @@ describe('estimateSeconds', () => {
     expect(estimateSeconds(200, 4)).toBe(100)
     expect(estimateSeconds(0, 4)).toBe(0)
     expect(estimateSeconds(3, 0)).toBe(6)
+  })
+})
+
+describe('estimateBatchedSeconds', () => {
+  it('counts waves of concurrent requests, 2 s each: one request is one call', () => {
+    expect(estimateBatchedSeconds(1, 4)).toBe(2)
+    expect(estimateBatchedSeconds(4, 4)).toBe(2)
+    expect(estimateBatchedSeconds(5, 4)).toBe(4)
+    expect(estimateBatchedSeconds(0, 4)).toBe(0)
+    expect(estimateBatchedSeconds(2, 0)).toBe(4)
   })
 })

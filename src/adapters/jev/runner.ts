@@ -1,20 +1,30 @@
 // issue-criticity — the classification runner (SPEC.md §2.4, §4.5). Pure of Vue.
 //
-// One request per issue through a bounded, adaptive pool. The transport makes a
-// single attempt; this layer owns retries, backoff with jitter, `retry-after`
-// (capped at 60 s), the adaptive throttle and the auth abort. Every finished
-// issue is reported through `onResult` at once, so the caller can save results
-// incrementally; an aborted issue reports nothing and stays unclassified.
-import { buildIssueState } from '../../domain/jevState'
-import { toClassification, UNEXPECTED_JEV_RESPONSE } from '../../domain/classification'
+// Two modes through the same bounded, adaptive pool (docs/batching.md):
+// - batched (default): the fitter plans as few requests as the Jev limits allow
+//   (usually one), each carrying many issues; a validation error splits the
+//   batch in half and retries each half;
+// - per-issue: one request per issue, kept for comparison and as a fallback.
+// The transport makes a single attempt; this layer owns retries, backoff with
+// jitter, `retry-after` (capped at 60 s), the adaptive throttle and the auth
+// abort. Every finished issue is reported through `onResult` at once, so the
+// caller can save results incrementally; an aborted issue reports nothing and
+// stays unclassified. Progress counts issues, not requests.
+import { buildIssueState, TOO_LARGE_MESSAGE } from '../../domain/jevState'
+import { estimateStateTokens } from '../../domain/estimate'
+import { QUESTIONS_TOKENS } from './questions'
+import { buildBatchState, planBatches } from '../../domain/jevBatchState'
+import type { JevBatchState, RequestLimits } from '../../domain/jevBatchState'
+import { toBatchClassifications, toClassification, UNEXPECTED_JEV_RESPONSE } from '../../domain/classification'
 import type { ClassificationOutcome } from '../../domain/analysis'
 import type { RunProgress, RunSummary } from '../../domain/classifyRun'
-import type { Issue, ProjectContext } from '../../domain/types'
-import type { JevState } from '../../domain/jevState'
+import type { ClassifyMode, Issue, ProjectContext, TrimmingProfileId } from '../../domain/types'
 import type { JevClient } from './client'
+import { BATCH_QUESTION_BUDGET, batchQuestions } from './batchQuestions'
 import type { JevHttpResult, SystemOneResponseBody } from './transport'
 import { JevTransportError } from './transport'
-import { createThrottle, runPool } from './pool'
+import { createRatePacer, createThrottle, DEFAULT_RATE_LIMITS, runPool } from './pool'
+import type { RateLimits } from './pool'
 
 export const MAX_RETRIES = 3
 export const BACKOFF_START_MS = 500
@@ -22,6 +32,7 @@ export const BACKOFF_MAX_MS = 5_000
 export const JITTER = 0.25
 export const RETRY_AFTER_CAP_MS = 60_000
 export const DEFAULT_LOW_CONFIDENCE = 0.5
+export const DEFAULT_CLASSIFY_MODE: ClassifyMode = 'batched'
 
 export const rateLimitedMessage = (retries: number) => `Rate limited — retried ${retries}×`
 export const RATE_LIMITED_MESSAGE = rateLimitedMessage(MAX_RETRIES)
@@ -30,10 +41,25 @@ const DETAIL_MAX_CHARS = 200
 
 export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>
 
+/** The result of one request after retries; `validation` marks a 422/413. */
+type SendOutcome =
+  | { ok: true; body: unknown }
+  | { ok: false; error: string; validation?: boolean }
+
 export interface RunnerOptions {
   issues: readonly Issue[]
   projectContext: ProjectContext
-  client: Pick<JevClient, 'model' | 'classify'>
+  client: Pick<JevClient, 'model' | 'classify' | 'classifyBatch'>
+  /** Default 'batched' (Preferences.classifyMode). */
+  mode?: ClassifyMode
+  /** Batched: the tightest trimming profile the fitter may use (Preferences.trimmingFloor). */
+  trimmingFloor?: TrimmingProfileId
+  /** Batched: use exactly this profile (the agreement harness). */
+  forceProfile?: TrimmingProfileId
+  /** Batched: request limits override, for tests. Default: models.md minus 10%. */
+  requestLimits?: RequestLimits
+  /** Account rate limits to pace under; default models.md minus 10%. */
+  rateLimits?: RateLimits
   /** Configured pool size (Preferences.concurrency), 1..8. */
   concurrency: number
   questionsVersion: number
@@ -43,7 +69,7 @@ export interface RunnerOptions {
   /** Cancel: aborts in-flight requests; completed results are kept. */
   signal?: AbortSignal
   maxCommentsPerIssue?: number
-  /** Size-guard override, for tests. */
+  /** Per-issue size-guard override, for tests. */
   maxStateTokens?: number
   lowConfidenceThreshold?: number
   maxRetries?: number
@@ -106,6 +132,7 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
   const random = options.random ?? Math.random
   const maxRetries = options.maxRetries ?? MAX_RETRIES
   const lowConfidence = options.lowConfidenceThreshold ?? DEFAULT_LOW_CONFIDENCE
+  const mode = options.mode ?? DEFAULT_CLASSIFY_MODE
   const startedAt = now().getTime()
 
   // The run's own controller: the caller's cancel, or an auth failure, aborts it.
@@ -116,10 +143,14 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
   const signal = controller.signal
 
   const throttle = createThrottle({ max: options.concurrency, now: options.throttleNow ?? Date.now })
+  const pacer = createRatePacer({ ...(options.rateLimits ?? DEFAULT_RATE_LIMITS), now: options.throttleNow ?? Date.now })
   const total = options.issues.length
-  const counts = { done: 0, failed: 0, rateLimited: 0, classified: 0, lowConfidence: 0, inputTokens: 0 }
+  const counts = { done: 0, failed: 0, rateLimited: 0, classified: 0, lowConfidence: 0, inputTokens: 0, requests: 0 }
   const failedNumbers: number[] = []
   let authFailed = false
+  let profile: TrimmingProfileId | null = null
+  /** Requests the run expects to send: the plan's batches plus validation splits (per-issue: issues). */
+  let planned = 0
 
   const report = () =>
     options.onProgress?.({
@@ -128,6 +159,8 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
       failed: counts.failed,
       rateLimited: counts.rateLimited,
       concurrency: throttle.limit,
+      requests: planned,
+      profile,
     })
 
   const record = (issueNumber: number, outcome: ClassificationOutcome) => {
@@ -162,38 +195,36 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
 
   const fail = (error: string): ClassificationOutcome => ({ ok: false, error })
 
-  /** null: cancelled or auth-aborted, nothing to record. */
-  async function classify(state: JevState, issue: Issue): Promise<ClassificationOutcome | null> {
+  /**
+   * One request with retries, backoff, `retry-after`, throttle and auth abort.
+   * null: cancelled or auth-aborted, nothing to record.
+   */
+  async function send(
+    call: () => Promise<JevHttpResult<SystemOneResponseBody>>,
+    tokens: number,
+  ): Promise<SendOutcome | null> {
+    counts.requests++
     for (let attempt = 0; ; attempt++) {
       if (signal.aborted) return null
+      for (let delay = pacer.delayFor(tokens); delay > 0; delay = pacer.delayFor(tokens)) {
+        if (!(await wait(delay))) return null
+      }
+      pacer.commit(tokens)
       let result: JevHttpResult<SystemOneResponseBody>
       try {
-        result = await options.client.classify(state, signal)
+        result = await call()
       } catch (error) {
         const kind = error instanceof JevTransportError ? error.kind : 'network'
         if (signal.aborted || kind === 'aborted') return null
         if (attempt >= maxRetries) {
-          return fail(kind === 'timeout' ? TIMEOUT_MESSAGE : new JevTransportError('network').message)
+          return { ok: false, error: kind === 'timeout' ? TIMEOUT_MESSAGE : new JevTransportError('network').message }
         }
         if (!(await wait(backoff(attempt)))) return null
         continue
       }
 
       if (signal.aborted) return null
-      if (result.ok) {
-        try {
-          const classification = toClassification(result.body, {
-            requestedModel: options.client.model,
-            questionsVersion: options.questionsVersion,
-            issueUpdatedAt: issue.updatedAt,
-            classifiedAt: now().toISOString(),
-          })
-          throttle.success()
-          return { ok: true, classification }
-        } catch {
-          return fail(UNEXPECTED_JEV_RESPONSE)
-        }
-      }
+      if (result.ok) return { ok: true, body: result.body }
       if (isAuthFailure(result)) {
         authFailed = true
         controller.abort()
@@ -206,41 +237,109 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
       }
       if (isRetryable(result.status)) {
         if (attempt >= maxRetries) {
-          return fail(
-            isRateLimit(result.status)
+          return {
+            ok: false,
+            error: isRateLimit(result.status)
               ? rateLimitedMessage(maxRetries)
               : `Jev request failed (${result.status}) — retried ${maxRetries}×`,
-          )
+          }
         }
         const delay =
           result.retryAfterMs !== null ? Math.min(result.retryAfterMs, RETRY_AFTER_CAP_MS) : backoff(attempt)
         if (!(await wait(delay))) return null
         continue
       }
-      if (result.status === 422) return fail(`Invalid request (422): ${validationDetail(result.body)}`)
-      return fail(`Jev request failed (${result.status})`)
+      if (result.status === 422) {
+        return { ok: false, error: `Invalid request (422): ${validationDetail(result.body)}`, validation: true }
+      }
+      return { ok: false, error: `Jev request failed (${result.status})`, validation: result.status === 413 }
     }
   }
 
-  report()
-  try {
-    await runPool(
-      options.issues,
-      async (issue) => {
-        const built = buildIssueState(issue, options.projectContext, {
-          now,
-          maxCommentsPerIssue: options.maxCommentsPerIssue,
-          maxStateTokens: options.maxStateTokens,
-        })
-        if (!built.ok) {
-          record(issue.number, fail(built.error.message))
-          return
+  // ── Per-issue mode: one request per issue ─────────────────────────
+  async function classifyOne(issue: Issue): Promise<void> {
+    const built = buildIssueState(issue, options.projectContext, {
+      now,
+      maxCommentsPerIssue: options.maxCommentsPerIssue,
+      maxStateTokens: options.maxStateTokens,
+    })
+    if (!built.ok) {
+      record(issue.number, fail(built.error.message))
+      return
+    }
+    const sent = await send(() => options.client.classify(built.state, signal), built.estimatedTokens + QUESTIONS_TOKENS)
+    if (!sent) return
+    if (!sent.ok) {
+      record(issue.number, fail(sent.error))
+      return
+    }
+    try {
+      const classification = toClassification(sent.body, {
+        requestedModel: options.client.model,
+        questionsVersion: options.questionsVersion,
+        issueUpdatedAt: issue.updatedAt,
+        classifiedAt: now().toISOString(),
+      })
+      throttle.success()
+      record(issue.number, { ok: true, classification })
+    } catch {
+      record(issue.number, fail(UNEXPECTED_JEV_RESPONSE))
+    }
+  }
+
+  // ── Batched mode: every issue of a batch in one request ───────────
+  const stateOptions = { now, maxCommentsPerIssue: options.maxCommentsPerIssue }
+
+  /** A validation error (422/413) on a batch splits it in half; depth is bounded by log2(size). */
+  async function classifyBatch(issues: readonly Issue[], state: JevBatchState, profileId: TrimmingProfileId) {
+    const questions = batchQuestions(issues.map((i) => i.number))
+    const tokens = estimateStateTokens(state) + issues.length * BATCH_QUESTION_BUDGET.perIssueTokens
+    const sent = await send(() => options.client.classifyBatch(state, questions, signal), tokens)
+    if (!sent) return
+    if (!sent.ok) {
+      if (sent.validation && issues.length > 1) {
+        const middle = Math.ceil(issues.length / 2)
+        planned++ // one request becomes two
+        for (const half of [issues.slice(0, middle), issues.slice(middle)]) {
+          if (signal.aborted) return
+          await classifyBatch(half, buildBatchState(half, options.projectContext, profileId, stateOptions), profileId)
         }
-        const outcome = await classify(built.state, issue)
-        if (outcome) record(issue.number, outcome)
-      },
-      { limit: () => throttle.limit, signal },
+        return
+      }
+      for (const issue of issues) record(issue.number, fail(sent.error))
+      return
+    }
+    const outcomes = toBatchClassifications(
+      sent.body,
+      issues.map((i) => ({ issueNumber: i.number, issueUpdatedAt: i.updatedAt })),
+      { requestedModel: options.client.model, questionsVersion: options.questionsVersion, classifiedAt: now().toISOString() },
     )
+    if ([...outcomes.values()].some((o) => o.ok)) throttle.success()
+    for (const [issueNumber, outcome] of outcomes) record(issueNumber, outcome)
+  }
+
+  try {
+    if (mode === 'per-issue') {
+      planned = total
+      report()
+      await runPool(options.issues, classifyOne, { limit: () => throttle.limit, signal })
+    } else {
+      const plan = planBatches(options.issues, options.projectContext, {
+        ...stateOptions,
+        questions: BATCH_QUESTION_BUDGET,
+        floor: options.trimmingFloor,
+        only: options.forceProfile,
+        limits: options.requestLimits,
+      })
+      profile = plan.profile
+      planned = plan.batches.length
+      report()
+      for (const issue of plan.tooLarge) record(issue.number, fail(TOO_LARGE_MESSAGE))
+      await runPool(plan.batches, (batch) => classifyBatch(batch.issues, batch.state, plan.profile), {
+        limit: () => throttle.limit,
+        signal,
+      })
+    }
   } finally {
     options.signal?.removeEventListener('abort', onCancel)
   }
@@ -255,5 +354,7 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
     inputTokens: counts.inputTokens,
     failedNumbers,
     elapsedMs: Math.max(0, now().getTime() - startedAt),
+    requests: counts.requests,
+    profile,
   }
 }

@@ -17,6 +17,19 @@ export interface RunEstimate {
   costUsd: number
 }
 
+/** Batched (docs/batching.md): one request per planned batch, its tokens counted once. */
+export function estimateBatchedRun(
+  batches: readonly { totalTokens: number }[],
+  usdPerMillionInputTokens = JEV_USD_PER_MILLION_INPUT_TOKENS,
+): RunEstimate {
+  const inputTokens = batches.reduce((sum, batch) => sum + batch.totalTokens, 0)
+  return {
+    requests: batches.length,
+    inputTokens,
+    costUsd: (inputTokens / 1_000_000) * usdPerMillionInputTokens,
+  }
+}
+
 /**
  * One request per issue: each costs its state tokens plus the question tokens.
  * An estimate for a confirmation prompt, not a bill.

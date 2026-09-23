@@ -1,7 +1,7 @@
 // issue-criticity — Classify scopes and run shapes (SPEC.md §2.4). Pure.
 // Presentational components import the RunProgress / RunSummary types from here.
 import { isClassificationCurrent } from './classification'
-import type { Analysis, Issue, IssueRow } from './types'
+import type { Analysis, Issue, IssueRow, TrimmingProfileId } from './types'
 
 /** `unclassified` is the default; `all` re-sends every non-dismissed issue. */
 export type ClassifyScope = 'unclassified' | 'all'
@@ -22,6 +22,10 @@ export interface RunProgress {
   rateLimited: number
   /** The pool size right now (after adaptive halving / restore). */
   concurrency: number
+  /** Requests planned so far (batched: batches, incl. validation splits; per-issue: issues). */
+  requests?: number
+  /** Trimming profile of a batched run; null in per-issue mode. */
+  profile?: TrimmingProfileId | null
 }
 
 export type RunStatus = 'completed' | 'cancelled' | 'auth-failed'
@@ -37,6 +41,10 @@ export interface RunSummary {
   inputTokens: number
   failedNumbers: number[]
   elapsedMs: number
+  /** Requests sent, retries not counted (batched: batches incl. validation splits). */
+  requests?: number
+  /** Trimming profile of a batched run; null in per-issue mode. */
+  profile?: TrimmingProfileId | null
 }
 
 /**
@@ -89,4 +97,13 @@ export const SECONDS_PER_CALL = 2
 
 export function estimateSeconds(requests: number, concurrency: number): number {
   return Math.ceil((requests * SECONDS_PER_CALL) / Math.max(1, concurrency))
+}
+
+/**
+ * Batched runs send few, large requests: they go out in waves of at most
+ * `concurrency`, each wave taking about one call. An approximation: a large
+ * request may take longer than the measured 2 s (docs/batching.md).
+ */
+export function estimateBatchedSeconds(requests: number, concurrency: number): number {
+  return Math.ceil(requests / Math.max(1, concurrency)) * SECONDS_PER_CALL
 }

@@ -2,6 +2,7 @@
 import type { JevClient } from '../../src/adapters/jev/client'
 import type { JevHttpResult, SystemOneResponseBody } from '../../src/adapters/jev/transport'
 import type { JevState } from '../../src/domain/jevState'
+import type { JevBatchState } from '../../src/domain/jevBatchState'
 
 type Result = JevHttpResult<SystemOneResponseBody>
 
@@ -78,23 +79,61 @@ export interface Call {
 
 export type Handler = (issue: number, attempt: number, signal?: AbortSignal) => Result | Promise<Result>
 
+/** Answers a whole batched request; attempts start at 1 per distinct issue set. */
+export type BatchHandler = (issues: number[], attempt: number, signal?: AbortSignal) => Result | Promise<Result>
+
 export interface ScriptedClient extends JevClient {
   calls: Call[]
+  /** Issue numbers of every batched request, in call order (retries included). */
+  batches: number[][]
 }
 
-/** Each call is answered by `handler(issueNumber, attempt)`; attempts start at 1 per issue. */
-export function scriptedClient(handler: Handler): ScriptedClient {
+/**
+ * Each call is answered by `handler(issueNumber, attempt)`; attempts start at 1
+ * per issue. A batched request fans out to `handler` once per issue and merges
+ * the answers under the namespaced ids (the first non-2xx result answers the
+ * whole request), unless a `batchHandler` answers the request itself.
+ */
+export function scriptedClient(handler: Handler, batchHandler?: BatchHandler): ScriptedClient {
   const attempts = new Map<number, number>()
+  const batchAttempts = new Map<string, number>()
   const calls: Call[] = []
+  const batches: number[][] = []
+  const next = (issue: number) => {
+    const attempt = (attempts.get(issue) ?? 0) + 1
+    attempts.set(issue, attempt)
+    calls.push({ issue, attempt })
+    return attempt
+  }
   return {
     model: 'jev-latest',
     calls,
+    batches,
     async classify(state: JevState, signal?: AbortSignal) {
       const issue = state.issue.number
-      const attempt = (attempts.get(issue) ?? 0) + 1
-      attempts.set(issue, attempt)
-      calls.push({ issue, attempt })
-      return handler(issue, attempt, signal)
+      return handler(issue, next(issue), signal)
+    },
+    async classifyBatch(state: JevBatchState, _questions: unknown, signal?: AbortSignal) {
+      const numbers = state.issues.map((entry) => Number(entry.id.replace('#', '')))
+      batches.push(numbers)
+      if (batchHandler) {
+        const key = numbers.join(',')
+        const attempt = (batchAttempts.get(key) ?? 0) + 1
+        batchAttempts.set(key, attempt)
+        return batchHandler(numbers, attempt, signal)
+      }
+      const results = await Promise.all(numbers.map((n) => handler(n, next(n), signal)))
+      const failed = results.find((r) => !r.ok)
+      if (failed) return failed
+      const bodies = results.map((r) => r.body as SystemOneResponseBody)
+      return ok({
+        model: 'jev-1.13.0',
+        answers: Object.assign(
+          {},
+          ...bodies.map((body, i) => (body && body.answers ? namespaced(numbers[i], body) : {})),
+        ),
+        usage: { input_tokens: bodies.reduce((sum, body) => sum + (body?.usage?.input_tokens ?? 0), 0) },
+      })
     },
     async listModels() {
       return { status: 200, ok: true, body: { models: [] }, retryAfterMs: null }
