@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+*.log
+.DS_Store
+
+# editor junk
+.idea/
+*.swp
+*.swo
+
+# secrets — keep out of the repo (only .env.example is versioned)
+.env
+.env.*
+!.env.example

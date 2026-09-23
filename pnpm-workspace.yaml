@@ -1,0 +1,12 @@
+# pnpm 11 reads build-approval and dependency overrides here (the package.json
+# `pnpm` field is ignored once a pnpm-workspace.yaml file exists).
+# esbuild ships a native binary via a postinstall step that Vite needs.
+allowBuilds:
+  esbuild: true
+
+# vitest 2.1.x's internal vite-node/@vitest/mocker packages otherwise resolve
+# their own vite@5.x peer alongside our vite@6.x, doubling the install and
+# breaking vue-tsc's typecheck on vite.config.ts (two incompatible `Plugin`
+# types). Force a single vite version across the tree.
+overrides:
+  vite: ^6.0.0
