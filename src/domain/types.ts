@@ -1,4 +1,4 @@
-// issue-criticity — typed domain model + defaultX() factories + STORAGE_KEYS.
+// local-issue-classifier — typed domain model + defaultX() factories + STORAGE_KEYS.
 // SPEC.md §3. Plain serializable interfaces, no Vue, no fetch, no storage,
 // no browser APIs: the clock and randomness are always injected by the caller.
 
@@ -224,11 +224,11 @@ export interface ExportOptions {
 }
 
 // Only non-secret data has a storage key. There is deliberately no key for secrets.
-export const STORAGE_PREFIX = 'issue-criticity:'
+export const STORAGE_PREFIX = 'local-issue-classifier:'
 export const STORAGE_KEYS = {
-  preferences: 'issue-criticity:preferences:v1',
-  analysesIndex: 'issue-criticity:analyses:v1', // AnalysisSummary[]
-  analysis: (id: string) => `issue-criticity:analysis:v1:${id}`, // one Analysis per key
+  preferences: 'local-issue-classifier:preferences:v1',
+  analysesIndex: 'local-issue-classifier:analyses:v1', // AnalysisSummary[]
+  analysis: (id: string) => `local-issue-classifier:analysis:v1:${id}`, // one Analysis per key
 } as const
 
 // ── Factories ──────────────────────────────────────────────────────────

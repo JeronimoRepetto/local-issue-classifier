@@ -11,7 +11,7 @@ const ENTRY = /^\s*<([^<>]+)>\s*;(.*)$/
 const REL = /\brel\s*=\s*"([^"]*)"/
 
 /**
- * Parses an RFC 8288 `link` header into the relations issue-criticity uses.
+ * Parses an RFC 8288 `link` header into the relations local-issue-classifier uses.
  * Pure and total: a missing header or malformed entries yield no relation, never an error.
  */
 export function parseLinkHeader(header: string | null | undefined): LinkRels {

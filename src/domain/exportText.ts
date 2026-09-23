@@ -209,7 +209,7 @@ function compactLine(row: IssueRow): string {
 }
 
 function buildHeader(analysis: Analysis, options: ExportOptions, mainCount: number, total: number, now: Date): string {
-  const lines = ['issue-criticity report']
+  const lines = ['local-issue-classifier report']
 
   const repoLine = `${analysis.repo.fullName} (${analysis.stateFilter} issues)`
   const nameSuffix = analysis.name !== defaultAnalysisName(analysis) ? ` — "${analysis.name}"` : ''

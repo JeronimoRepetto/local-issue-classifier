@@ -1,5 +1,9 @@
 # issue-criticity — Specification
 
+> **Note:** the product was renamed to **local-issue-classifier** on 2026-09-23. This document is
+> kept as the historical specification and is not rewritten; the current name, storage prefix and
+> README live outside this file.
+
 Status: draft v4, dated 2026-09-23. All open questions are resolved. Audience: implementers (human or agent) and reviewers.
 
 ## What the app does

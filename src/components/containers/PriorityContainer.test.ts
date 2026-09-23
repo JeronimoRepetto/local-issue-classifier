@@ -108,7 +108,7 @@ describe('PriorityContainer', () => {
     })
 
     vi.advanceTimersByTime(600) // past the 500 ms working-state save debounce
-    const stored = JSON.parse(storage.getItem('issue-criticity:analysis:v1:a1') as string)
+    const stored = JSON.parse(storage.getItem('local-issue-classifier:analysis:v1:a1') as string)
     expect(stored.working.priorityWeights.criticality).toBe(60)
   })
 

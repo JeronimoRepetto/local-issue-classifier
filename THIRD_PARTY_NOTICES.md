@@ -1,6 +1,6 @@
 # Third-party notices
 
-The issue-criticity source code is MIT-licensed. The third-party assets below are bundled with
+The local-issue-classifier source code is MIT-licensed. The third-party assets below are bundled with
 the app and keep their own licenses; they are **not** relicensed under MIT.
 
 ## Fonts

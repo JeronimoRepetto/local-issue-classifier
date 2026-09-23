@@ -1,6 +1,6 @@
 # The Jev questions
 
-issue-criticity sends **one request per issue** to Jev, carrying the issue state and the same five
+local-issue-classifier sends **one request per issue** to Jev, carrying the issue state and the same five
 questions every time. Four questions drive the table; the fifth is a cheap extra. The questions live
 in one file, `src/adapters/jev/questions.ts`, which is the single source of truth. This page explains
 what each question asks and how its answer becomes a value in the app.

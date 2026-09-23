@@ -84,7 +84,7 @@ const labelOptions = [
 
     <section class="kit-section">
       <h2>Typography</h2>
-      <p class="kit-logo"><component :is="icons.IconLogo" width="32" height="32" /> <span class="u-pixel-font">issue-criticity</span></p>
+      <p class="kit-logo"><component :is="icons.IconLogo" width="32" height="32" /> <span class="u-pixel-font">local-issue-classifier</span></p>
       <p v-for="step in ['h1', 'h2', 'h3', 'body', 'table', 'caption'] as const" :key="step" :class="`kit-type-${step}`">
         {{ step }} · {{ tokens.type[step].size }}/{{ tokens.type[step].lineHeight }} · The quick brown fox, 0123456789
       </p>

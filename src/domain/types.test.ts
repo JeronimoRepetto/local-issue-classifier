@@ -260,7 +260,7 @@ describe('STORAGE_KEYS', () => {
   })
 
   it('analysis(id) builds a prefixed, id-specific key', () => {
-    expect(STORAGE_KEYS.analysis('abc123')).toBe('issue-criticity:analysis:v1:abc123')
+    expect(STORAGE_KEYS.analysis('abc123')).toBe('local-issue-classifier:analysis:v1:abc123')
     expect(STORAGE_KEYS.analysis('abc123')).not.toBe(STORAGE_KEYS.analysis('other-id'))
   })
 })

@@ -85,7 +85,7 @@ const showKeysBanner = computed(() => !secrets.hasJevKey.value && !prefs.state.k
     <header class="app-shell__top-bar">
       <button class="app-shell__brand" type="button" data-test="brand" @click="view.goHome()">
         <IconLogo class="app-shell__logo" />
-        <span class="app-shell__wordmark u-pixel-font">issue-criticity</span>
+        <span class="app-shell__wordmark u-pixel-font">local-issue-classifier</span>
       </button>
       <button
         class="app-shell__settings"

@@ -1,4 +1,4 @@
-// issue-criticity — Jev client: builds the `/v1/systemone` request for one
+// local-issue-classifier — Jev client: builds the `/v1/systemone` request for one
 // issue state (SPEC.md §4.6) and sends it through a JevTransport. The model
 // name is an option defaulting to DEFAULT_JEV_MODEL, so a compatible provider
 // serving the same request shape only needs a different model and baseUrl.

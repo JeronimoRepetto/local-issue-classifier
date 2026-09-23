@@ -132,7 +132,7 @@ describe('useExport — previewText and scopeCount', () => {
   it('builds the preview text with the pure formatter and the injected clock', () => {
     analysisMod.useAnalysis().setCurrent(analysis())
     const { previewText } = exportMod.useExport()
-    expect(previewText.value).toContain('issue-criticity report')
+    expect(previewText.value).toContain('local-issue-classifier report')
     expect(previewText.value).toContain('Generated  : 2026-09-23 14:05 (local time)')
   })
 

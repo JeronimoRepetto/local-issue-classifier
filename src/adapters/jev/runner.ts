@@ -1,4 +1,4 @@
-// issue-criticity — the classification runner (SPEC.md §2.4, §4.5). Pure of Vue.
+// local-issue-classifier — the classification runner (SPEC.md §2.4, §4.5). Pure of Vue.
 //
 // One request per issue through a bounded, adaptive pool. The transport makes a
 // single attempt; this layer owns retries, backoff with jitter, `retry-after`

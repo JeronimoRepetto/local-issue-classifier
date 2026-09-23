@@ -156,16 +156,16 @@ describe('removeAnalysis / clearAll / usage', () => {
     saveAnalysis(storage, analysis('a1'))
     storage.setItem(STORAGE_KEYS.preferences, '{}')
     storage.setItem('other-app:data', 'keep')
-    storage.setItem('issue-criticityX', 'keep') // no colon: not our prefix
+    storage.setItem('local-issue-classifierX', 'keep') // no colon: not our prefix
     expect(clearAll(storage)).toEqual({ ok: true, removed: 3 })
-    expect(storage.keys().sort()).toEqual(['issue-criticityX', 'other-app:data'])
+    expect(storage.keys().sort()).toEqual(['local-issue-classifierX', 'other-app:data'])
   })
 
   it('usage counts UTF-16 bytes of prefixed keys only', () => {
     storage.setItem('other-app:data', 'x'.repeat(100))
     expect(usage(storage)).toBe(0)
-    storage.setItem('issue-criticity:k', 'abc')
-    expect(usage(storage)).toBe(('issue-criticity:k'.length + 3) * 2)
+    storage.setItem('local-issue-classifier:k', 'abc')
+    expect(usage(storage)).toBe(('local-issue-classifier:k'.length + 3) * 2)
   })
 })
 

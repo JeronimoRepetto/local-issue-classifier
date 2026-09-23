@@ -1,4 +1,4 @@
-// issue-criticity — text trimming helpers for the Jev state and stored
+// local-issue-classifier — text trimming helpers for the Jev state and stored
 // issue bodies (SPEC.md §3 / §4.3). Pure string manipulation only.
 
 /**
