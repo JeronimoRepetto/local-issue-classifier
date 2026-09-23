@@ -1,42 +1,30 @@
 <script setup lang="ts">
-// Inline 2×2 pixel spinner. It steps with `ease-pixel` and is static under
-// reduced motion, because `--dur-sprite` resolves to 0 ms there.
+// Inline progress arc: a 16-unit ring with a quarter arc that turns once per
+// `--dur-spin`. It is static under reduced motion, because `--dur-spin`
+// resolves to 0 ms there.
 </script>
 
 <template>
-  <span class="ui-spinner" aria-hidden="true">
-    <span v-for="n in 4" :key="n" class="ui-spinner__cell" :style="{ '--cell': n - 1 }" />
-  </span>
+  <svg class="ui-spinner" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false">
+    <circle class="ui-spinner__track" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" />
+    <path d="M8 2a6 6 0 0 1 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+  </svg>
 </template>
 
 <style scoped>
 .ui-spinner {
-  display: inline-grid;
-  grid-template-columns: repeat(2, var(--space-1));
-  grid-template-rows: repeat(2, var(--space-1));
-  gap: var(--line-thin);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  animation: ui-spinner-turn var(--dur-spin) linear infinite;
 }
 
-.ui-spinner__cell {
-  background: currentColor;
+.ui-spinner__track {
   opacity: 0.25;
-  animation: ui-spinner-blink var(--dur-sprite) var(--ease-pixel) infinite;
-  animation-delay: calc(var(--dur-sprite) * var(--cell) / 4 - var(--dur-sprite));
 }
 
-/* Clockwise order: top-left, top-right, bottom-right, bottom-left. */
-.ui-spinner__cell:nth-child(3) {
-  order: 4;
-}
-
-@keyframes ui-spinner-blink {
-  0%,
-  24.9% {
-    opacity: 1;
-  }
-  25%,
-  100% {
-    opacity: 0.25;
+@keyframes ui-spinner-turn {
+  to {
+    transform: rotate(1turn);
   }
 }
 </style>

@@ -35,7 +35,7 @@ withDefaults(defineProps<{ title: string; description: string; tone?: 'neutral' 
   display: grid;
   place-items: center;
   padding: var(--space-3);
-  border-radius: var(--radius-pixel);
+  border-radius: var(--radius-md);
   background: var(--color-surface-2);
   color: var(--color-accent);
 }

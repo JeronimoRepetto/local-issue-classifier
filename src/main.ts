@@ -1,7 +1,8 @@
 import { createApp } from 'vue'
 // Self-hosted fonts (OFL-1.1), bundled by Vite: no CDN, matching the CSP (SPEC §8, §10.3).
-import '@fontsource-variable/inter'
-import '@fontsource/silkscreen'
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
+import '@fontsource/geist-pixel'
 import App from './App.vue'
 import { installTokenStylesheet } from './ui/theme'
 import './ui/base.css'

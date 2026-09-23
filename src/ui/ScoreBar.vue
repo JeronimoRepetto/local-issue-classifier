@@ -48,7 +48,7 @@ const ariaLabel = computed(() =>
   flex: 1;
   height: var(--space-2);
   background: var(--color-surface-2);
-  border-radius: var(--radius-pixel);
+  border-radius: var(--radius-round);
   overflow: hidden;
 }
 

@@ -105,7 +105,7 @@ const throttled = computed(() => props.progress.rateLimited > 0)
 .classify-progress__track {
   height: var(--space-2);
   background: var(--color-surface-2);
-  border-radius: var(--radius-pixel);
+  border-radius: var(--radius-round);
   overflow: hidden;
 }
 

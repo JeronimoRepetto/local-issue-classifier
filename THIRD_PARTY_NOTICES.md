@@ -5,16 +5,17 @@ the app and keep their own licenses; they are **not** relicensed under MIT.
 
 ## Fonts
 
-Both fonts are installed from npm and bundled by Vite. They are self-hosted: no font CDN is
+All fonts are installed from npm and bundled by Vite. They are self-hosted: no font CDN is
 contacted at runtime.
 
 | Font | Package | License | Copyright |
 |---|---|---|---|
-| Inter (variable) | `@fontsource-variable/inter` 5.3.0 | SIL Open Font License 1.1 (`OFL-1.1`) | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) |
-| Silkscreen | `@fontsource/silkscreen` 5.3.0 | SIL Open Font License 1.1 (`OFL-1.1`) | Copyright 2001 The Silkscreen Project Authors (https://github.com/googlefonts/silkscreen) |
+| Geist (variable) | `@fontsource-variable/geist` 5.3.0 | SIL Open Font License 1.1 (`OFL-1.1`) | Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font) |
+| Geist Mono (variable) | `@fontsource-variable/geist-mono` 5.3.0 | SIL Open Font License 1.1 (`OFL-1.1`) | Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font) |
+| Geist Pixel | `@fontsource/geist-pixel` 5.3.0 | SIL Open Font License 1.1 (`OFL-1.1`) | Copyright 2026 The Geist Project Authors (https://github.com/vercel/geist-font) |
 
 The license text ships in each package (`node_modules/<package>/LICENSE`) and is available at
-https://openfontlicense.org. The `license` field in both packages' npm metadata reads `OFL-1.1`
+https://openfontlicense.org. The `license` field in each package's npm metadata reads `OFL-1.1`
 (checked 2026-09-23).
 
 ## Icons

@@ -13,6 +13,7 @@ export const COLOR_ROLES = [
   'border-strong',
   'text',
   'text-muted',
+  'text-subtle',
   'accent',
   'accent-hover',
   'accent-soft',
@@ -24,6 +25,7 @@ export const COLOR_ROLES = [
   'info',
   'on-danger',
   'inverse-surface',
+  'inverse-hover',
   'on-inverse',
   'level-high-fg',
   'level-high-bg',
@@ -49,138 +51,166 @@ export interface Tokens {
   /** Scrim behind dialogs; alpha color, so it is outside the contrast pairs. */
   overlay: Record<ThemeName, string>
   elevation: Record<ThemeName, { 1: string; 2: string; 3: string }>
-  space: Record<1 | 2 | 3 | 4 | 5 | 6 | 7, number>
+  /** 4 px grid. `2h` (12 px) sits between 8 and 16 for compact padding. */
+  space: Record<1 | 2 | '2h' | 3 | 4 | 5 | 6 | 7, number>
   size: { compact: number; default: number; large: number; row: number }
   icon: { sm: number; md: number; lg: number }
-  radius: { sm: number; md: number; lg: number; pixel: number; round: number }
+  radius: { xs: number; sm: number; md: number; lg: number; round: number }
   line: { thin: number; thick: number }
-  font: { sans: string; pixel: string; mono: string }
-  type: Record<'caption' | 'table' | 'body' | 'h3' | 'h2' | 'h1', TypeStep>
+  /** `pixel` is the identity accent only: wordmark, one page heading, empty-state art. */
+  font: { sans: string; mono: string; pixel: string }
+  type: Record<'micro' | 'caption' | 'table' | 'body' | 'h3' | 'h2' | 'h1', TypeStep>
+  tracking: { micro: string; tight: string }
   weight: { regular: number; medium: number; semibold: number }
-  /** `sprite` is one loop of a stepped pixel sprite (spinner, mascot). */
-  duration: { fast: number; base: number; slow: number; sprite: number }
+  /** `spin` is one turn of the progress arc. */
+  duration: { fast: number; base: number; slow: number; spin: number }
   /** Upper bound for opacity fades under `prefers-reduced-motion` (SPEC §10.6). */
   reducedFadeCap: number
-  easing: { out: string; in: string; standard: string; pixel: string }
+  easing: { out: string; in: string; standard: string }
   motion: { shift: number; scale: number }
   z: { popover: number; toast: number; dialog: number }
-  /** Largest width used by popovers, tooltips and toasts. */
-  measure: { tooltip: number; popover: number; toast: number; dialog: number }
+  /** Largest widths: floating layers, the drawer and the page columns. */
+  measure: {
+    tooltip: number
+    popover: number
+    toast: number
+    dialog: number
+    drawer: number
+    narrow: number
+    page: number
+    wide: number
+  }
 }
 
+// Design system v2 (docs/redesign-brief.md): neutral zinc surfaces, one indigo
+// accent, hairline borders, and a cool-to-hot heat scale that renders as text.
 export const tokens: Tokens = {
   color: {
     light: {
-      bg: '#F7F7FA',
-      surface: '#FFFFFF',
-      'surface-2': '#F0F1F5',
-      border: '#DADCE5',
-      'border-strong': '#7E8494',
-      text: '#16181D',
-      'text-muted': '#5B6070',
-      accent: '#4B4BC8',
-      'accent-hover': '#3B3BA8',
-      'accent-soft': '#ECECFB',
+      bg: '#FFFFFF',
+      surface: '#FAFAFA',
+      'surface-2': '#F4F4F5',
+      border: '#E4E4E7',
+      'border-strong': '#8A8A93',
+      text: '#18181B',
+      'text-muted': '#52525B',
+      'text-subtle': '#67676F',
+      accent: '#4F46E5',
+      'accent-hover': '#4338CA',
+      'accent-soft': '#EEF0FF',
       'on-accent': '#FFFFFF',
-      success: '#1E6B3A',
-      warning: '#8A5A00',
-      danger: '#A3261D',
-      'danger-hover': '#861E17',
-      info: '#1F5BB8',
+      success: '#15803D',
+      warning: '#A15C07',
+      danger: '#B91C1C',
+      'danger-hover': '#991B1B',
+      info: '#1D4ED8',
       'on-danger': '#FFFFFF',
-      'inverse-surface': '#16181D',
-      'on-inverse': '#F7F7FA',
-      'level-high-fg': '#A3261D',
-      'level-high-bg': '#FDE7E4',
-      'level-medium-fg': '#7A5000',
-      'level-medium-bg': '#FFF1D6',
-      'level-low-fg': '#1E6B3A',
-      'level-low-bg': '#E3F4E8',
-      'scale-1': '#8B8BDB',
-      'scale-2': '#6F6FD2',
-      'scale-3': '#5A5ACB',
-      'scale-4': '#4B4BC8',
-      'scale-5': '#3B3BA8',
+      'inverse-surface': '#18181B',
+      'inverse-hover': '#3F3F46',
+      'on-inverse': '#FAFAFA',
+      'level-high-fg': '#B91C1C',
+      'level-high-bg': '#FEF2F2',
+      'level-medium-fg': '#A15C07',
+      'level-medium-bg': '#FFFBEB',
+      'level-low-fg': '#15803D',
+      'level-low-bg': '#F0FDF4',
+      'scale-1': '#67676F',
+      'scale-2': '#2563EB',
+      'scale-3': '#975A06',
+      'scale-4': '#C2410C',
+      'scale-5': '#B91C1C',
     },
     dark: {
-      bg: '#111318',
-      surface: '#1A1D24',
-      'surface-2': '#232733',
-      border: '#333848',
-      'border-strong': '#6B7186',
-      text: '#ECEEF3',
-      'text-muted': '#A3A9B8',
-      accent: '#9A9AF2',
-      'accent-hover': '#B4B4F7',
-      'accent-soft': '#26284A',
-      'on-accent': '#111318',
-      success: '#7FD69B',
-      warning: '#F5C56B',
-      danger: '#FF9C92',
-      'danger-hover': '#FFB7AF',
-      info: '#8DB8FF',
-      'on-danger': '#111318',
-      'inverse-surface': '#ECEEF3',
-      'on-inverse': '#111318',
-      'level-high-fg': '#FF9C92',
-      'level-high-bg': '#3A1A18',
-      'level-medium-fg': '#F5C56B',
-      'level-medium-bg': '#3A2C10',
-      'level-low-fg': '#7FD69B',
-      'level-low-bg': '#15301F',
-      'scale-1': '#5E5EB8',
-      'scale-2': '#7070CC',
-      'scale-3': '#8A8AE4',
-      'scale-4': '#9A9AF2',
-      'scale-5': '#B4B4F7',
+      bg: '#09090B',
+      surface: '#111113',
+      'surface-2': '#18181B',
+      border: '#26262B',
+      'border-strong': '#6A6A74',
+      text: '#EDEDEF',
+      'text-muted': '#94949E',
+      'text-subtle': '#81818B',
+      accent: '#8B93FF',
+      'accent-hover': '#A5ABFF',
+      'accent-soft': '#1C1D33',
+      'on-accent': '#09090B',
+      success: '#4ADE80',
+      warning: '#FBBF24',
+      danger: '#F87171',
+      'danger-hover': '#FCA5A5',
+      info: '#60A5FA',
+      'on-danger': '#09090B',
+      'inverse-surface': '#EDEDEF',
+      'inverse-hover': '#D4D4D8',
+      'on-inverse': '#09090B',
+      'level-high-fg': '#F87171',
+      'level-high-bg': '#2A1414',
+      'level-medium-fg': '#FBBF24',
+      'level-medium-bg': '#2A2110',
+      'level-low-fg': '#4ADE80',
+      'level-low-bg': '#10261A',
+      'scale-1': '#8A8A94',
+      'scale-2': '#60A5FA',
+      'scale-3': '#FACC15',
+      'scale-4': '#FB923C',
+      'scale-5': '#F87171',
     },
   },
   overlay: {
-    light: 'rgba(22, 24, 29, 0.4)',
-    dark: 'rgba(0, 0, 0, 0.6)',
+    light: 'rgba(9, 9, 11, 0.4)',
+    dark: 'rgba(0, 0, 0, 0.7)',
   },
   elevation: {
     light: {
-      1: '0 1px 2px rgba(22, 24, 29, 0.06), 0 1px 3px rgba(22, 24, 29, 0.08)',
-      2: '0 4px 12px rgba(22, 24, 29, 0.1), 0 2px 4px rgba(22, 24, 29, 0.06)',
-      3: '0 16px 40px rgba(22, 24, 29, 0.16), 0 4px 12px rgba(22, 24, 29, 0.08)',
+      1: '0 1px 2px rgba(9, 9, 11, 0.04)',
+      2: '0 4px 16px rgba(9, 9, 11, 0.08)',
+      3: '0 16px 48px rgba(9, 9, 11, 0.14)',
     },
     dark: {
-      1: '0 1px 2px rgba(0, 0, 0, 0.3)',
-      2: '0 4px 12px rgba(0, 0, 0, 0.35)',
-      3: '0 16px 40px rgba(0, 0, 0, 0.45)',
+      1: '0 1px 2px rgba(0, 0, 0, 0.4)',
+      2: '0 4px 16px rgba(0, 0, 0, 0.4)',
+      3: '0 16px 48px rgba(0, 0, 0, 0.6)',
     },
   },
-  space: { 1: 4, 2: 8, 3: 16, 4: 24, 5: 32, 6: 48, 7: 64 },
-  size: { compact: 32, default: 40, large: 48, row: 40 },
-  icon: { sm: 16, md: 24, lg: 32 },
-  radius: { sm: 4, md: 8, lg: 12, pixel: 0, round: 999 },
+  space: { 1: 4, 2: 8, '2h': 12, 3: 16, 4: 24, 5: 32, 6: 48, 7: 64 },
+  size: { compact: 28, default: 32, large: 40, row: 44 },
+  icon: { sm: 16, md: 20, lg: 32 },
+  radius: { xs: 4, sm: 6, md: 8, lg: 12, round: 999 },
   line: { thin: 1, thick: 2 },
   font: {
-    sans: "'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    pixel: "Silkscreen, ui-monospace, 'Cascadia Mono', Consolas, monospace",
-    mono: "ui-monospace, 'Cascadia Mono', Consolas, monospace",
+    sans: "'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    mono: "'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace",
+    pixel: "'Geist Pixel', 'Geist Mono Variable', ui-monospace, monospace",
   },
   type: {
+    micro: { size: 11, lineHeight: 16 },
     caption: { size: 12, lineHeight: 16 },
-    table: { size: 14, lineHeight: 20 },
-    body: { size: 16, lineHeight: 24 },
-    h3: { size: 20, lineHeight: 28 },
-    h2: { size: 24, lineHeight: 32 },
-    h1: { size: 32, lineHeight: 40 },
+    table: { size: 13, lineHeight: 20 },
+    body: { size: 15, lineHeight: 24 },
+    h3: { size: 17, lineHeight: 24 },
+    h2: { size: 22, lineHeight: 28 },
+    h1: { size: 36, lineHeight: 40 },
   },
+  tracking: { micro: '0.08em', tight: '-0.02em' },
   weight: { regular: 400, medium: 500, semibold: 600 },
-  duration: { fast: 120, base: 200, slow: 320, sprite: 800 },
+  duration: { fast: 120, base: 160, slow: 240, spin: 800 },
   reducedFadeCap: 80,
   easing: {
-    out: 'cubic-bezier(0, 0, 0.2, 1)',
+    out: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
     in: 'cubic-bezier(0.4, 0, 1, 1)',
     standard: 'cubic-bezier(0.2, 0, 0, 1)',
-    pixel: 'steps(4, end)',
   },
   motion: { shift: 4, scale: 0.98 },
   z: { popover: 20, toast: 30, dialog: 40 },
-  measure: { tooltip: 280, popover: 360, toast: 400, dialog: 520 },
+  measure: {
+    tooltip: 280,
+    popover: 360,
+    toast: 400,
+    dialog: 520,
+    drawer: 440,
+    narrow: 640,
+    page: 880,
+    wide: 1120,
+  },
 }
 
 export type ContrastKind = 'text' | 'ui'
@@ -195,11 +225,18 @@ export interface ContrastPair {
 const TEXT_ON_SURFACES: ColorRole[] = [
   'text',
   'text-muted',
+  'text-subtle',
   'accent',
   'success',
   'warning',
   'danger',
   'info',
+  // Heat scale: priority and relevance numbers are colored text (v2).
+  'scale-1',
+  'scale-2',
+  'scale-3',
+  'scale-4',
+  'scale-5',
 ]
 const SURFACES: ColorRole[] = ['bg', 'surface', 'surface-2']
 
@@ -217,6 +254,8 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { fg: 'on-danger', bg: 'danger', kind: 'text' },
   { fg: 'on-danger', bg: 'danger-hover', kind: 'text' },
   { fg: 'on-inverse', bg: 'inverse-surface', kind: 'text' },
+  { fg: 'on-inverse', bg: 'inverse-hover', kind: 'text' },
+  { fg: 'danger', bg: 'level-high-bg', kind: 'text' },
   { fg: 'level-high-fg', bg: 'level-high-bg', kind: 'text' },
   { fg: 'level-medium-fg', bg: 'level-medium-bg', kind: 'text' },
   { fg: 'level-low-fg', bg: 'level-low-bg', kind: 'text' },
@@ -246,6 +285,7 @@ function themeVariables(t: Tokens, theme: ThemeName): [string, string][] {
   for (const [k, v] of Object.entries(t.type)) {
     vars.push([`--text-${k}-size`, px(v.size)], [`--text-${k}-line`, px(v.lineHeight)])
   }
+  for (const [k, v] of Object.entries(t.tracking)) vars.push([`--tracking-${k}`, v])
   for (const [k, v] of Object.entries(t.weight)) vars.push([`--weight-${k}`, String(v)])
   for (const [k, v] of Object.entries(t.duration)) vars.push([`--dur-${k}`, ms(v)])
   vars.push(['--dur-fade-base', ms(t.duration.base)], ['--dur-fade-slow', ms(t.duration.slow)])
