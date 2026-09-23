@@ -24,6 +24,7 @@ import ConfidenceBadge from './ConfidenceBadge.vue'
 import ScoreBar from './ScoreBar.vue'
 import EmptyState from './EmptyState.vue'
 import FilterChip from './FilterChip.vue'
+import UiSegmented from './UiSegmented.vue'
 
 const props = defineProps<{ theme: ThemeName }>()
 
@@ -38,6 +39,8 @@ const select = ref('updated')
 const labels = ref(['bug'])
 const weight = ref(40)
 const chipActive = ref(true)
+const issueState = ref('open')
+const format = ref('csv')
 const dialogOpen = ref(false)
 const destructiveOpen = ref(false)
 const toasts = ref<ToastItem[]>([])
@@ -61,6 +64,25 @@ const sortOptions = [
   { value: 'criticality', label: 'Criticality' },
   { value: 'number', label: 'Issue number', disabled: true },
 ]
+const stateOptions = [
+  { value: 'open', label: 'open' },
+  { value: 'closed', label: 'closed' },
+  { value: 'all', label: 'all' },
+]
+const formatOptions = [
+  { value: 'csv', label: 'csv' },
+  { value: 'json', label: 'json' },
+  { value: 'md', label: 'markdown' },
+]
+
+/** Density specimen rows: fixed sample data, rendered with kit parts only. */
+const sampleRows = [
+  { number: 4312, title: 'Hydration mismatch when a slot renders conditionally', labels: ['bug', 'ssr'], priority: 82, criticality: 'high', effort: 'medium', relevance: 71, updated: '2d' },
+  { number: 4290, title: 'Docs: typo in the reactivity guide', labels: ['docs'], priority: 12, criticality: 'low', effort: 'low', relevance: 20, updated: '9d' },
+  { number: 4288, title: 'Transition group leaks listeners on fast toggles', labels: ['bug'], priority: 57, criticality: 'medium', effort: 'high', relevance: 48, updated: '3w' },
+] as const
+const spaceKeys = ['1', '2', '2h', '3', '4', '5', '6', '7'] as const
+
 const labelOptions = [
   { value: 'bug', label: 'bug' },
   { value: 'docs', label: 'documentation' },
@@ -77,39 +99,45 @@ const labelOptions = [
         <li v-for="role in COLOR_ROLES" :key="role" class="kit-swatch">
           <span class="kit-swatch__chip" :style="{ background: `var(--color-${role})` }" />
           <code>{{ role }}</code>
-          <span class="kit-muted u-tabular">{{ ratio(role) }}:1</span>
+          <span class="kit-muted u-mono">{{ palette[role] }} · {{ ratio(role) }}</span>
         </li>
       </ul>
     </section>
 
     <section class="kit-section">
       <h2>Typography</h2>
-      <p class="kit-logo"><component :is="icons.IconLogo" width="32" height="32" /> <span class="u-pixel-font">local-issue-classifier</span></p>
+      <p class="kit-logo" data-kit-type="pixel">
+        <component :is="icons.IconLogo" class="kit-logo__mark" />
+        <span class="u-pixel-font">local-issue-classifier</span>
+        <span class="kit-muted">Geist Pixel · wordmark, one page heading</span>
+      </p>
+      <p data-kit-type="sans" class="kit-type-body">Geist Sans · prose, titles and controls</p>
+      <p data-kit-type="mono" class="kit-type-mono">Geist Mono · 4312 · 82/100 · 2026-09-23 · 1.2 MB</p>
       <p v-for="step in ['h1', 'h2', 'h3', 'body', 'table', 'caption'] as const" :key="step" :class="`kit-type-${step}`">
         {{ step }} · {{ tokens.type[step].size }}/{{ tokens.type[step].lineHeight }} · The quick brown fox, 0123456789
       </p>
+      <p class="u-micro">micro · {{ tokens.type.micro.size }}/{{ tokens.type.micro.lineHeight }} · column header</p>
     </section>
 
     <section class="kit-section">
       <h2>Spacing, radii, elevation</h2>
       <div class="kit-row">
-        <span v-for="n in 7" :key="n" class="kit-space" :style="{ width: `var(--space-${n})` }" :title="`space-${n}`" />
+        <span v-for="n in spaceKeys" :key="n" class="kit-space" :style="{ width: `var(--space-${n})` }" :title="`space-${n}`" />
       </div>
       <div class="kit-row">
-        <span v-for="r in ['pixel', 'sm', 'md', 'lg']" :key="r" class="kit-radius" :style="{ borderRadius: `var(--radius-${r})` }">{{ r }}</span>
+        <span v-for="r in ['xs', 'sm', 'md', 'lg', 'round']" :key="r" class="kit-radius" :style="{ borderRadius: `var(--radius-${r})` }">{{ r }}</span>
       </div>
       <div class="kit-row">
         <span v-for="e in 3" :key="e" class="kit-elev" :style="{ boxShadow: `var(--elev-${e})` }">elev-{{ e }}</span>
-        <span class="kit-elev u-pixel-border">pixel border</span>
       </div>
     </section>
 
     <section class="kit-section">
-      <h2>Icons (16 / 24 / 32)</h2>
+      <h2>Icons (16 / 20 / 32)</h2>
       <ul class="kit-icons">
         <li v-for="name in ICON_NAMES" :key="name" data-kit-icon :title="name">
           <component :is="icons[name]" width="16" height="16" />
-          <component :is="icons[name]" width="24" height="24" />
+          <component :is="icons[name]" width="20" height="20" />
           <component :is="icons[name]" width="32" height="32" />
           <code>{{ name.replace('Icon', '') }}</code>
         </li>
@@ -119,9 +147,9 @@ const labelOptions = [
     <section class="kit-section">
       <h2>Buttons</h2>
       <div v-for="variant in ['primary', 'secondary', 'ghost', 'danger'] as const" :key="variant" class="kit-row">
-        <UiButton :variant="variant" size="compact">{{ variant }} 32</UiButton>
-        <UiButton :variant="variant">{{ variant }} 40</UiButton>
-        <UiButton :variant="variant" size="large">{{ variant }} 48</UiButton>
+        <UiButton :variant="variant" size="compact">{{ variant }} 28</UiButton>
+        <UiButton :variant="variant">{{ variant }} 32</UiButton>
+        <UiButton :variant="variant" size="large">{{ variant }} 40</UiButton>
         <UiButton :variant="variant" disabled>Disabled</UiButton>
         <UiButton :variant="variant" loading>Loading</UiButton>
         <UiButton :variant="variant" icon-only aria-label="Settings">
@@ -200,6 +228,47 @@ const labelOptions = [
     </section>
 
     <section class="kit-section">
+      <h2>Segmented control</h2>
+      <div class="kit-row">
+        <UiSegmented v-model="issueState" label="Issue state" :options="stateOptions" />
+        <UiSegmented v-model="format" label="Export format" :options="formatOptions" size="compact" />
+      </div>
+    </section>
+
+    <section class="kit-section">
+      <h2>Density (real size)</h2>
+      <div class="kit-density">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th class="ui-table__th" scope="col">#</th>
+              <th class="ui-table__th" scope="col">Title</th>
+              <th class="ui-table__th" scope="col">Priority</th>
+              <th class="ui-table__th" scope="col">Criticality</th>
+              <th class="ui-table__th" scope="col">Effort</th>
+              <th class="ui-table__th" scope="col">Relevance</th>
+              <th class="ui-table__th" scope="col">Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in sampleRows" :key="row.number" class="ui-table__row">
+              <td class="ui-table__td ui-table__td--mono">{{ row.number }}</td>
+              <td class="ui-table__td ui-table__td--title">
+                <span class="kit-density__title">{{ row.title }}</span>
+                <span v-for="l in row.labels" :key="l" class="kit-density__label">{{ l }}</span>
+              </td>
+              <td class="ui-table__td"><ScoreBar :value="row.priority" label="Priority" /></td>
+              <td class="ui-table__td"><LevelBadge :level="row.criticality" dimension="Criticality" /></td>
+              <td class="ui-table__td"><LevelBadge :level="row.effort" dimension="Effort" /></td>
+              <td class="ui-table__td"><ScoreBar :value="row.relevance" label="Relevance" :bar="false" /></td>
+              <td class="ui-table__td ui-table__td--mono">{{ row.updated }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="kit-section">
       <h2>Tooltip, popover, dialog</h2>
       <div class="kit-row">
         <UiTooltip text="Shown after 300 ms on hover or focus">
@@ -253,24 +322,25 @@ const labelOptions = [
 <style scoped>
 .kit-showcase {
   display: grid;
-  gap: var(--space-5);
 }
 
+/* Sections are hairline-separated blocks, not cards. */
 .kit-section {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--elev-1);
+  padding: var(--space-4) 0;
+  border-bottom: var(--line-thin) solid var(--color-border);
 }
 
 .kit-section h2 {
   margin: 0;
-  font-size: var(--text-h3-size);
-  line-height: var(--text-h3-line);
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  font-weight: var(--weight-regular);
+  color: var(--color-text-subtle);
 }
 
 .kit-grid {
@@ -281,6 +351,10 @@ const labelOptions = [
   grid-column: 1 / -1;
 }
 
+.kit-grid > * {
+  min-width: 0;
+}
+
 .kit-row {
   display: flex;
   flex-wrap: wrap;
@@ -289,8 +363,36 @@ const labelOptions = [
 }
 
 .kit-muted {
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
   font-size: var(--text-caption-size);
+}
+
+.kit-type-mono {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+  color: var(--color-text-muted);
+}
+
+.kit-density {
+  overflow-x: auto;
+}
+
+.kit-density__title {
+  margin-right: var(--space-2);
+}
+
+.kit-density__label {
+  display: inline-block;
+  margin-right: var(--space-1);
+  padding: 0 var(--space-1);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
 }
 
 .kit-swatches,
@@ -304,10 +406,16 @@ const labelOptions = [
 }
 
 .kit-swatch {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-2);
   align-items: center;
-  gap: var(--space-2);
   font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+}
+
+.kit-swatch__chip {
+  grid-row: span 2;
 }
 
 .kit-swatch__chip {
@@ -327,12 +435,18 @@ const labelOptions = [
 
 .kit-logo {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  color: var(--color-accent);
   font-size: var(--text-h2-size);
   line-height: var(--text-h2-line);
+}
+
+.kit-logo__mark {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--color-accent);
 }
 
 .kit-type-h1,
@@ -348,11 +462,12 @@ const labelOptions = [
   font-size: var(--text-h1-size);
   line-height: var(--text-h1-line);
   font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
 }
 .kit-type-h2 {
   font-size: var(--text-h2-size);
   line-height: var(--text-h2-line);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 .kit-type-h3 {
   font-size: var(--text-h3-size);
@@ -376,7 +491,8 @@ const labelOptions = [
 
 .kit-space {
   height: var(--space-4);
-  background: var(--color-accent);
+  background: var(--color-accent-soft);
+  border: var(--line-thin) solid var(--color-accent);
 }
 
 .kit-radius,
@@ -385,9 +501,11 @@ const labelOptions = [
   place-items: center;
   width: calc(var(--space-7) + var(--space-5));
   height: var(--space-6);
-  background: var(--color-surface-2);
-  border: var(--line-thin) solid var(--color-border-strong);
+  background: var(--color-surface);
+  border: var(--line-thin) solid var(--color-border);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
+  color: var(--color-text-muted);
 }
 
 .kit-elev {

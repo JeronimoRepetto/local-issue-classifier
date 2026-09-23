@@ -11,7 +11,7 @@ const props = withDefaults(
     size?: ControlSize
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
-    /** Shows an inline pixel spinner; the label stays (hidden) to keep the width. */
+    /** Shows an inline progress arc; the label stays (hidden) to keep the width. */
     loading?: boolean
     /** Square button with only the `icon` slot; requires an `aria-label`. */
     iconOnly?: boolean
@@ -61,7 +61,7 @@ function onClick(event: MouseEvent) {
   align-items: center;
   justify-content: center;
   height: var(--size-default);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2h);
   border: var(--line-thin) solid transparent;
   border-radius: var(--radius-md);
   font: inherit;
@@ -71,9 +71,14 @@ function onClick(event: MouseEvent) {
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    border-color var(--dur-fast) var(--ease-standard),
-    color var(--dur-fast) var(--ease-standard);
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.ui-button:active:not(:disabled) {
+  transform: scale(var(--motion-scale));
 }
 
 .ui-button__content {
@@ -82,15 +87,19 @@ function onClick(event: MouseEvent) {
   gap: var(--space-2);
 }
 
+.ui-button__content :deep(svg) {
+  flex: none;
+}
+
 .ui-button--size-compact {
   height: var(--size-compact);
   padding: 0 var(--space-2);
+  font-size: var(--text-caption-size);
 }
 
 .ui-button--size-large {
   height: var(--size-large);
-  padding: 0 var(--space-4);
-  font-size: var(--text-body-size);
+  padding: 0 var(--space-3);
 }
 
 .ui-button--icon-only {
@@ -106,48 +115,45 @@ function onClick(event: MouseEvent) {
   width: var(--size-large);
 }
 
+/* Primary is the inverse surface (near-black / near-white), not the accent. */
 .ui-button--primary {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-inverse-surface);
+  color: var(--color-on-inverse);
 }
 
-.ui-button--primary:hover:not(:disabled),
-.ui-button--primary:active:not(:disabled) {
-  background: var(--color-accent-hover);
+.ui-button--primary:hover:not(:disabled) {
+  background: var(--color-inverse-hover);
 }
 
 .ui-button--secondary {
   background: var(--color-surface);
-  border-color: var(--color-border-strong);
+  border-color: var(--color-border);
   color: var(--color-text);
 }
 
 .ui-button--secondary:hover:not(:disabled) {
   background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
 }
 
 .ui-button--ghost {
   background: transparent;
-  color: var(--color-text);
+  color: var(--color-text-muted);
 }
 
 .ui-button--ghost:hover:not(:disabled) {
   background: var(--color-surface-2);
-}
-
-.ui-button--secondary:active:not(:disabled),
-.ui-button--ghost:active:not(:disabled) {
-  background: var(--color-accent-soft);
+  color: var(--color-text);
 }
 
 .ui-button--danger {
-  background: var(--color-danger);
-  color: var(--color-on-danger);
+  background: var(--color-level-high-bg);
+  border-color: var(--color-level-high-bg);
+  color: var(--color-danger);
 }
 
-.ui-button--danger:hover:not(:disabled),
-.ui-button--danger:active:not(:disabled) {
-  background: var(--color-danger-hover);
+.ui-button--danger:hover:not(:disabled) {
+  border-color: var(--color-danger);
 }
 
 .ui-button:disabled {
@@ -166,8 +172,6 @@ function onClick(event: MouseEvent) {
 .ui-button__spinner {
   position: absolute;
   inset: 0;
-  width: fit-content;
-  height: fit-content;
   margin: auto;
 }
 </style>

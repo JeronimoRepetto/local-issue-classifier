@@ -37,6 +37,11 @@ describe('KitPage', () => {
         '.score-bar',
         '.filter-chip--active',
         '.empty-state',
+        '.ui-segmented',
+        '.kit-density',
+        '[data-kit-type="sans"]',
+        '[data-kit-type="mono"]',
+        '[data-kit-type="pixel"]',
       ]) {
         expect(panel.find(selector).exists(), `${selector} in ${panel.attributes('data-kit-theme')}`).toBe(
           true,
@@ -44,6 +49,25 @@ describe('KitPage', () => {
       }
       expect(panel.findAll('[data-kit-icon]')).toHaveLength(ICON_NAMES.length)
     }
+    wrapper.unmount()
+  })
+
+  it('carries the product name in its wordmark', async () => {
+    const wrapper = mount(KitPage, { attachTo: document.body })
+    await nextTick()
+    expect(wrapper.get('.kit__title').text()).toContain('local-issue-classifier')
+    expect(wrapper.text()).not.toContain('issue-criticity')
+    wrapper.unmount()
+  })
+
+  it('shows a real-size density specimen: a table header and rows built from kit parts', async () => {
+    const wrapper = mount(KitPage, { attachTo: document.body })
+    await nextTick()
+    const density = wrapper.get('[data-kit-theme="light"] .kit-density')
+    expect(density.findAll('thead th').length).toBeGreaterThan(4)
+    expect(density.findAll('tbody tr').length).toBeGreaterThanOrEqual(3)
+    expect(density.find('tbody .level-badge').exists()).toBe(true)
+    expect(density.find('tbody .score-bar').exists()).toBe(true)
     wrapper.unmount()
   })
 

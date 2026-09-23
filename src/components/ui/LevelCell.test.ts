@@ -12,11 +12,18 @@ const scoreDimension = {
 }
 
 describe('LevelCell', () => {
-  it('shows a level badge and a confidence badge when classified', () => {
+  it('shows a level badge, and keeps a high confidence quiet (design v2: only doubt is flagged)', () => {
     const wrapper = mount(LevelCell, { props: { dimension: 'Criticality', value: scoreDimension } })
     expect(wrapper.findComponent({ name: 'LevelBadge' }).exists()).toBe(true)
     expect(wrapper.text()).toContain('High')
-    expect(wrapper.text()).toContain('91%')
+    expect(wrapper.text()).not.toContain('91%')
+  })
+
+  it('shows the confidence badge when confidence is below high', () => {
+    const wrapper = mount(LevelCell, {
+      props: { dimension: 'Criticality', value: { ...scoreDimension, confidence: 0.62 } },
+    })
+    expect(wrapper.text()).toContain('62%')
   })
 
   it('marks the level badge stale when the row is stale', () => {

@@ -65,6 +65,9 @@ onBeforeUnmount(() => clearTimeout(timer))
   max-width: var(--measure-tooltip);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
   background: var(--color-inverse-surface);
   color: var(--color-on-inverse);
   box-shadow: var(--elev-2);

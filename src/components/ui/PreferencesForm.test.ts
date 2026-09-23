@@ -12,15 +12,23 @@ function mountForm(overrides: Partial<Preferences> = {}) {
 }
 
 describe('PreferencesForm', () => {
-  it('reflects the current theme selection', () => {
+  it('reflects the current theme selection in a segmented control', () => {
     const wrapper = mountForm({ theme: 'dark' })
-    expect((wrapper.get('[data-test="theme"] select').element as HTMLSelectElement).value).toBe('dark')
+    expect(wrapper.get('[data-test="theme"] [role="radio"][aria-checked="true"]').text()).toBe('dark')
   })
 
   it('emits a theme patch when changed', async () => {
     const wrapper = mountForm()
-    await wrapper.get('[data-test="theme"] select').setValue('light')
+    await wrapper.get('[data-test="theme"] [data-test="segment-light"]').trigger('click')
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([{ theme: 'light' }])
+  })
+
+  it('offers a classify-mode slot next to the classification settings', () => {
+    const wrapper = mount(PreferencesForm, {
+      props: { modelValue: defaultPreferences() },
+      slots: { 'classify-mode': '<p data-test="classify-mode-slot">mode</p>' },
+    })
+    expect(wrapper.find('[data-test="classify-mode-slot"]').exists()).toBe(true)
   })
 
   it('emits an includeClosedByDefault patch as a boolean, not a string', async () => {

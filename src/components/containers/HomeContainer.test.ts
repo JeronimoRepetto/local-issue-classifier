@@ -63,6 +63,19 @@ describe('HomeContainer', () => {
     expect(wrapper.find('[data-test="storage-meter"]').exists()).toBe(true)
   })
 
+  it('has one pixel page heading, a lede and a saved-analyses kicker with the storage meter', async () => {
+    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+    const headings = wrapper.findAll('h1')
+    expect(headings).toHaveLength(1)
+    expect(headings[0].classes()).toContain('u-pixel-font')
+    expect(wrapper.find('[data-test="home-lede"]').text().length).toBeGreaterThan(0)
+    const kicker = wrapper.get('[data-test="saved-kicker"]')
+    expect(kicker.text()).toContain('Saved analyses')
+    expect(kicker.find('[data-test="storage-meter"]').exists()).toBe(true)
+  })
+
   it('open switches to the analysis view', async () => {
     analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
     const wrapper = mount(HomeContainer)

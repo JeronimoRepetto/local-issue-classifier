@@ -17,9 +17,9 @@ import { usePreferences } from '../../composables/usePreferences'
 import { useAnalyses } from '../../composables/useAnalyses'
 
 const ABOUT_TEXT =
-  'local-issue-classifier is MIT-licensed. The logo, icons and illustrations are original pixel art ' +
-  '(MIT). Fonts: Inter and Silkscreen, both under the SIL Open Font License 1.1. Full notices ' +
-  'in THIRD_PARTY_NOTICES.md.'
+  'local-issue-classifier is MIT-licensed. The UI icons are original line icons and the logo ' +
+  'and illustration are original pixel art (MIT). Fonts: Geist, Geist Mono and Geist Pixel, ' +
+  'under the SIL Open Font License 1.1. Full notices in THIRD_PARTY_NOTICES.md.'
 
 const secrets = useSecrets()
 const prefs = usePreferences()
@@ -52,15 +52,22 @@ onBeforeUnmount(() => stopTheme?.())
 
 <template>
   <div class="settings">
+    <header class="settings__header">
+      <h1 class="settings__title">Settings</h1>
+      <KeyStatus :jev-key-set="secrets.hasJevKey.value" :github-token-set="secrets.hasGitHubToken.value" />
+    </header>
+
     <KeysRequiredBanner
       v-if="!secrets.hasJevKey.value && !prefs.state.keysBannerDismissed"
       @dismiss="prefs.dismissKeysBanner()"
     />
 
-    <KeyStatus :jev-key-set="secrets.hasJevKey.value" :github-token-set="secrets.hasGitHubToken.value" />
-
     <section class="settings__section">
-      <h2 class="settings__heading">Keys</h2>
+      <div class="settings__aside">
+        <h2 class="settings__heading u-micro">Keys</h2>
+        <p class="settings__lede">Kept in memory only and cleared when the page reloads.</p>
+      </div>
+      <div class="settings__body">
 
       <div data-test="jev-key-field">
         <UiSecretInput
@@ -102,19 +109,35 @@ onBeforeUnmount(() => stopTheme?.())
         browser's storage.
       </p>
 
-      <UiButton data-test="clear-keys" variant="secondary" @click="secrets.clearKeys()">Clear keys</UiButton>
+      <div class="settings__actions">
+        <UiButton data-test="clear-keys" variant="secondary" @click="secrets.clearKeys()">Clear keys</UiButton>
+      </div>
+      </div>
     </section>
 
     <section class="settings__section">
-      <h2 class="settings__heading">Preferences</h2>
-      <PreferencesForm :model-value="prefs.state" @update:model-value="prefs.update($event)" />
+      <div class="settings__aside">
+        <h2 class="settings__heading u-micro">Preferences</h2>
+        <p class="settings__lede">Saved in this browser. They seed new analyses.</p>
+      </div>
+      <div class="settings__body">
+        <PreferencesForm :model-value="prefs.state" @update:model-value="prefs.update($event)" />
+      </div>
     </section>
 
     <section class="settings__section settings__section--danger">
-      <h2 class="settings__heading">Local data</h2>
-      <UiButton data-test="clear-all" variant="secondary" @click="clearAllOpen = true">
-        Clear all local data
-      </UiButton>
+      <div class="settings__aside">
+        <h2 class="settings__heading u-micro">Local data</h2>
+        <p class="settings__lede">Every saved analysis and preference in this browser.</p>
+      </div>
+      <div class="settings__body">
+        <div class="settings__danger">
+          <p>Removes all saved analyses and preferences, and clears your keys. This cannot be undone.</p>
+          <UiButton data-test="clear-all" variant="danger" @click="clearAllOpen = true">
+            Clear all local data
+          </UiButton>
+        </div>
+      </div>
     </section>
 
     <UiDialog
@@ -127,9 +150,13 @@ onBeforeUnmount(() => stopTheme?.())
       @confirm="onClearAllConfirm"
     />
 
-    <section class="settings__section settings__about">
-      <h2 class="settings__heading">About</h2>
-      <p>{{ ABOUT_TEXT }}</p>
+    <section class="settings__section settings__about" data-test="about">
+      <div class="settings__aside">
+        <h2 class="settings__heading u-micro">About</h2>
+      </div>
+      <div class="settings__body">
+        <p>{{ ABOUT_TEXT }}</p>
+      </div>
     </section>
   </div>
 </template>
@@ -138,18 +165,62 @@ onBeforeUnmount(() => stopTheme?.())
 .settings {
   display: grid;
   gap: var(--space-4);
-  max-width: var(--measure-dialog);
+  max-width: var(--measure-page);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-6);
 }
 
+.settings__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.settings__title {
+  margin: 0;
+  font-size: var(--text-h2-size);
+  line-height: var(--text-h2-line);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Two-column rows: a kicker and one line on the left, the controls on the right. */
 .settings__section {
   display: grid;
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr);
+  gap: var(--space-3) var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--line-thin) solid var(--color-border);
+}
+
+.settings__aside {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
 }
 
 .settings__heading {
   margin: 0;
-  font-size: var(--text-h3-size);
-  line-height: var(--text-h3-line);
+}
+
+.settings__lede {
+  margin: 0;
+  color: var(--color-text-subtle);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+}
+
+.settings__body {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings__actions {
+  display: flex;
+  gap: var(--space-2);
 }
 
 .settings__notice {
@@ -159,10 +230,34 @@ onBeforeUnmount(() => stopTheme?.())
   line-height: var(--text-caption-line);
 }
 
-.settings__about p {
+.settings__danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2h);
+  padding: var(--space-2h) var(--space-3);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.settings__danger p {
   margin: 0;
   color: var(--color-text-muted);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+}
+
+.settings__about p {
+  margin: 0;
+  color: var(--color-text-subtle);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
+}
+
+@media (max-width: 48em) {
+  .settings__section {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

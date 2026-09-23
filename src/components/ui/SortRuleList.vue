@@ -139,9 +139,10 @@ function onItemKeydown(index: number, event: KeyboardEvent): void {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
+  height: var(--size-default);
+  padding: 0 var(--space-1) 0 var(--space-2h);
   border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
@@ -151,7 +152,8 @@ function onItemKeydown(index: number, event: KeyboardEvent): void {
 }
 
 .sort-rule-list__index {
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
 }
 
@@ -170,8 +172,9 @@ function onItemKeydown(index: number, event: KeyboardEvent): void {
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-text);
+  color: var(--color-text-muted);
   font: inherit;
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   cursor: pointer;
 }

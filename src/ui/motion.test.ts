@@ -27,10 +27,10 @@ describe('resolveDurations', () => {
   it('uses the token durations when motion is allowed', () => {
     expect(resolveDurations(false)).toEqual({
       fast: 120,
-      base: 200,
-      slow: 320,
-      fadeBase: 200,
-      fadeSlow: 320,
+      base: 160,
+      slow: 240,
+      fadeBase: 160,
+      fadeSlow: 240,
     })
   })
 
@@ -53,7 +53,7 @@ describe('useReducedMotion', () => {
     const fake = fakeMatchMedia(false)
     const scope = effectScope()
     const motion = scope.run(() => useReducedMotion(fake.matchMedia))!
-    expect(motion.durations.value.slow).toBe(320)
+    expect(motion.durations.value.slow).toBe(240)
 
     fake.emit(true)
     await nextTick()

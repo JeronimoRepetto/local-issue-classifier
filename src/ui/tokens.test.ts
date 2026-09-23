@@ -38,8 +38,32 @@ describe('color tokens', () => {
     )
   })
 
+  it('checks the primary button (inverse surface) in its rest and hover states', () => {
+    for (const bg of ['inverse-surface', 'inverse-hover']) {
+      expect(
+        CONTRAST_PAIRS.some((p) => p.fg === 'on-inverse' && p.bg === bg && p.kind === 'text'),
+        `on-inverse on ${bg}`,
+      ).toBe(true)
+    }
+  })
+
   it('checks every text role against every surface it can sit on', () => {
-    const textRoles = ['text', 'text-muted', 'accent', 'success', 'warning', 'danger', 'info']
+    // v2: `text-subtle` and the heat scale render as text (colored score numbers).
+    const textRoles = [
+      'text',
+      'text-muted',
+      'text-subtle',
+      'accent',
+      'success',
+      'warning',
+      'danger',
+      'info',
+      'scale-1',
+      'scale-2',
+      'scale-3',
+      'scale-4',
+      'scale-5',
+    ]
     for (const fg of textRoles) {
       for (const bg of ['bg', 'surface', 'surface-2']) {
         expect(
@@ -68,14 +92,36 @@ describe('tokensToCss', () => {
   it('can scope a theme to any selector, for side-by-side previews', () => {
     const css = tokensToCss(tokens, 'dark', '[data-kit-theme="dark"]')
     expect(css.startsWith('[data-kit-theme="dark"] {')).toBe(true)
-    expect(css).toContain('--color-bg: #111318;')
+    expect(css).toContain('--color-bg: #09090B;')
   })
 
   it('emits spacing in px and durations in ms', () => {
     const css = tokensToCss(tokens, 'light')
     expect(css).toContain('--space-2: 8px;')
+    expect(css).toContain('--space-2h: 12px;')
     expect(css).toContain('--dur-fast: 120ms;')
-    expect(css).toContain('--ease-pixel: steps(4, end);')
+    expect(css).toContain('--dur-base: 160ms;')
+  })
+
+  it('uses the self-hosted Geist family for sans, mono and the pixel accent', () => {
+    const css = tokensToCss(tokens, 'light')
+    expect(css).toMatch(/--font-sans: 'Geist Variable',/)
+    expect(css).toMatch(/--font-mono: 'Geist Mono Variable',/)
+    expect(css).toMatch(/--font-pixel: 'Geist Pixel',/)
+    expect(css).not.toMatch(/Inter|Silkscreen/)
+  })
+
+  it('emits the micro step (uppercase mono kicker) with its tracking', () => {
+    const css = tokensToCss(tokens, 'light')
+    expect(css).toContain('--text-micro-size: 11px;')
+    expect(css).toContain('--text-micro-line: 16px;')
+    expect(css).toContain('--tracking-micro: 0.08em;')
+  })
+
+  it('uses 32 px default controls and 44 px table rows', () => {
+    const css = tokensToCss(tokens, 'light')
+    expect(css).toContain('--size-default: 32px;')
+    expect(css).toContain('--size-row: 44px;')
   })
 })
 
@@ -86,7 +132,7 @@ describe('reducedMotionCss', () => {
     expect(css).toContain('--dur-fast: 0ms;')
     expect(css).toContain('--dur-base: 0ms;')
     expect(css).toContain('--dur-slow: 0ms;')
-    expect(css).toContain('--dur-sprite: 0ms;')
+    expect(css).toContain('--dur-spin: 0ms;')
     expect(css).toContain('--dur-fade-base: 80ms;')
     expect(css).toContain('--dur-fade-slow: 80ms;')
     expect(css).toContain('--motion-shift: 0px;')

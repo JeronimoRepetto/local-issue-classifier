@@ -23,6 +23,7 @@ import RepoLoadFeedback from './RepoLoadFeedback.vue'
 import ShortcutsHelpDialog from '../ui/ShortcutsHelpDialog.vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiTooltip from '../../ui/UiTooltip.vue'
+import IconDownload from '../../assets/icons/IconDownload.vue'
 
 const analysis = useAnalysis()
 const filters = useFilters()
@@ -85,28 +86,34 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
 
 <template>
   <div class="analysis-view" data-test="analysis-view-container">
-    <ClassifyContainer :filtered-numbers="filteredNumbers" @open-settings="onOpenSettings" />
-
-    <IssuesContainer :refreshing="refreshing" @refresh="onRefresh" @back="onBack" />
-
-    <RepoLoadFeedback show-save-failed @retry="onRefresh" />
-
-    <div class="analysis-view__export-slot" data-test="export-slot">
-      <UiTooltip v-if="!hasVisibleRows" text="No visible issues to export.">
-        <template #default="{ describedBy }">
-          <UiButton
-            data-test="export-open"
-            variant="secondary"
-            disabled
-            :aria-describedby="describedBy"
-            @click="exportOpen = true"
-          >
+    <IssuesContainer :refreshing="refreshing" @refresh="onRefresh" @back="onBack">
+      <template #header-actions>
+        <div class="analysis-view__export-slot" data-test="export-slot">
+          <UiTooltip v-if="!hasVisibleRows" text="No visible issues to export.">
+            <template #default="{ describedBy }">
+              <UiButton
+                data-test="export-open"
+                variant="secondary"
+                disabled
+                :aria-describedby="describedBy"
+                @click="exportOpen = true"
+              >
+                <template #icon><IconDownload /></template>
+                Export
+              </UiButton>
+            </template>
+          </UiTooltip>
+          <UiButton v-else data-test="export-open" variant="secondary" @click="exportOpen = true">
+            <template #icon><IconDownload /></template>
             Export
           </UiButton>
-        </template>
-      </UiTooltip>
-      <UiButton v-else data-test="export-open" variant="secondary" @click="exportOpen = true">Export</UiButton>
-    </div>
+        </div>
+      </template>
+      <template #after-header>
+        <ClassifyContainer :filtered-numbers="filteredNumbers" @open-settings="onOpenSettings" />
+        <RepoLoadFeedback show-save-failed @retry="onRefresh" />
+      </template>
+    </IssuesContainer>
 
     <ExportContainer :open="exportOpen" @close="exportOpen = false" />
 
@@ -118,10 +125,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
 .analysis-view {
   display: grid;
   gap: var(--space-3);
+  max-width: var(--measure-wide);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-6);
 }
 
 .analysis-view__export-slot {
   display: flex;
-  justify-content: flex-end;
 }
 </style>

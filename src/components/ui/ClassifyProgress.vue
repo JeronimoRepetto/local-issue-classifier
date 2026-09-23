@@ -85,6 +85,8 @@ const throttled = computed(() => props.progress.rateLimited > 0)
 .classify-progress {
   display: grid;
   gap: var(--space-2);
+  padding-top: var(--space-2h);
+  border-top: var(--line-thin) solid var(--color-border);
 }
 
 .classify-progress__head {
@@ -98,20 +100,22 @@ const throttled = computed(() => props.progress.rateLimited > 0)
 .classify-progress__note {
   margin: 0;
   color: var(--color-text-muted);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
 }
 
 .classify-progress__track {
-  height: var(--space-2);
+  height: calc(var(--line-thick) + var(--line-thin));
   background: var(--color-surface-2);
-  border-radius: var(--radius-pixel);
+  border-radius: var(--radius-round);
   overflow: hidden;
 }
 
 .classify-progress__fill {
   display: block;
   height: 100%;
+  border-radius: inherit;
   background: var(--color-accent);
 }
 

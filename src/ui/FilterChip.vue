@@ -65,15 +65,22 @@ const emit = defineEmits<{ toggle: []; remove: [] }>()
   display: inline-flex;
   align-items: stretch;
   height: var(--size-compact);
-  border: var(--line-thin) solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-round);
   background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--text-table-size);
-  line-height: var(--text-table-line);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
   transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    border-color var(--dur-fast) var(--ease-standard);
+    background-color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.filter-chip:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
 }
 
 .filter-chip button,
@@ -81,7 +88,7 @@ const emit = defineEmits<{ toggle: []; remove: [] }>()
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-2h);
   border: 0;
   border-radius: inherit;
   background: transparent;
@@ -90,8 +97,8 @@ const emit = defineEmits<{ toggle: []; remove: [] }>()
   cursor: pointer;
 }
 
-.filter-chip button:hover:not(:disabled) {
-  background: var(--color-surface-2);
+.filter-chip__label {
+  cursor: default;
 }
 
 .filter-chip button:disabled {
@@ -99,15 +106,11 @@ const emit = defineEmits<{ toggle: []; remove: [] }>()
   cursor: not-allowed;
 }
 
-.filter-chip--active {
+.filter-chip--active,
+.filter-chip--active:hover {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
   color: var(--color-accent);
-  font-weight: var(--weight-medium);
-}
-
-.filter-chip--active button:hover:not(:disabled) {
-  background: transparent;
 }
 
 .filter-chip--removable .filter-chip__toggle,
@@ -116,7 +119,17 @@ const emit = defineEmits<{ toggle: []; remove: [] }>()
 }
 
 .filter-chip__remove {
-  padding: 0 var(--space-1);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  opacity: 0.7;
+}
+
+.filter-chip__remove:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.filter-chip__remove :deep(svg) {
+  width: calc(var(--icon-sm) - var(--space-1));
+  height: calc(var(--icon-sm) - var(--space-1));
 }
 
 .filter-chip--summary {

@@ -82,6 +82,17 @@ describe('ExportContainer', () => {
     )
   })
 
+  it('lays the dialog out as labelled rows: scope, include, order and preview', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(ExportContainer, { props: { open: true }, attachTo: document.body })
+    await flush()
+
+    const keys = [...document.querySelectorAll('.export-container__row > .export-container__key')].map((el) =>
+      el.textContent?.trim(),
+    )
+    expect(keys).toEqual(['Scope', 'Include', 'Order', 'Preview'])
+  })
+
   it('toggling "Include dismissed" persists into the analysis working state', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     mount(ExportContainer, { props: { open: true }, attachTo: document.body })

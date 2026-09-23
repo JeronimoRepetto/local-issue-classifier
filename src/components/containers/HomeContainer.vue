@@ -77,8 +77,12 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
 
 <template>
   <div class="home" data-test="home-container">
-    <header class="home__header">
-      <h1 class="home__title u-pixel-font">Analyses</h1>
+    <header class="home__hero">
+      <h1 class="home__title u-pixel-font">Triage issues locally.</h1>
+      <p class="home__lede" data-test="home-lede">
+        Score criticality, effort and relevance for any GitHub repository. Keys stay in memory;
+        results stay in this browser.
+      </p>
     </header>
 
     <OnboardingChecklist :steps="onboarding" />
@@ -91,17 +95,25 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
 
     <RepoLoaderContainer />
 
-    <AnalysisList
-      :entries="analyses.state.entries"
-      @open="onOpen"
-      @rename="onRename"
-      @refresh="onRefresh"
-      @delete="onDelete"
-    />
+    <section class="home__saved" aria-labelledby="home-saved-title">
+      <div class="home__kicker" data-test="saved-kicker">
+        <h2 id="home-saved-title" class="u-micro home__kicker-title">Saved analyses</h2>
+        <StorageMeter :used-bytes="analyses.state.usageBytes" />
+      </div>
+
+      <AnalysisList
+        :entries="analyses.state.entries"
+        @open="onOpen"
+        @rename="onRename"
+        @refresh="onRefresh"
+        @delete="onDelete"
+      />
+    </section>
 
     <footer class="home__footer">
-      <StorageMeter :used-bytes="analyses.state.usageBytes" />
-      <UiButton variant="ghost" data-test="clear-all" @click="clearingAll = true">Clear all local data</UiButton>
+      <UiButton variant="ghost" size="compact" data-test="clear-all" @click="clearingAll = true">
+        Clear all local data
+      </UiButton>
     </footer>
 
     <ConfirmDialog
@@ -120,16 +132,14 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
 .home {
   display: grid;
   gap: var(--space-4);
-  /* A comfortable reading width for a card list; space-7 (64) * 15 = 960. */
-  max-width: calc(var(--space-7) * 15);
+  max-width: var(--measure-page);
   margin: 0 auto;
-  padding: var(--space-4);
+  padding: var(--space-6) var(--space-4) var(--space-5);
 }
 
-.home__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.home__hero {
+  display: grid;
+  gap: var(--space-2h);
 }
 
 .home__title {
@@ -138,10 +148,43 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
   line-height: var(--text-h1-line);
 }
 
-.home__footer {
+.home__lede {
+  max-width: calc(var(--measure-narrow) - var(--space-6));
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+}
+
+.home__saved {
+  display: grid;
+  gap: var(--space-2h);
+  margin-top: var(--space-3);
+}
+
+.home__kicker {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--line-thin) solid var(--color-border);
+}
+
+.home__kicker-title {
+  margin: 0;
+}
+
+.home__kicker :deep(.storage-meter) {
+  width: calc(var(--space-7) * 4);
+}
+
+.home__kicker :deep(.storage-meter__label) {
+  white-space: nowrap;
+}
+
+.home__footer {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

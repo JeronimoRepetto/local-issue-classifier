@@ -51,15 +51,13 @@ const counts = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding-top: var(--space-2h);
+  border-top: var(--line-thin) solid var(--color-border);
 }
 
 .run-summary__text {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--line-thick);
 }
 
 .run-summary__title,
@@ -71,12 +69,18 @@ const counts = computed(() => {
 .run-summary__title {
   font-size: var(--text-table-size);
   line-height: var(--text-table-line);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
-.run-summary__counts,
-.run-summary__note {
+.run-summary__counts {
   color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+}
+
+.run-summary__note {
+  color: var(--color-text-subtle);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
 }

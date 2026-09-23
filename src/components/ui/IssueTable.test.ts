@@ -53,6 +53,23 @@ describe('IssueTable — sticky header and native table semantics', () => {
   })
 })
 
+describe('IssueTable — visible columns (design v2)', () => {
+  it('shows every column when no visible set is given', () => {
+    const wrapper = mountTable([row(1)])
+    const labels = wrapper.findAll('th').map((th) => th.text())
+    expect(labels).toEqual(expect.arrayContaining(['#', 'Title', 'Complexity', 'Confidence', 'Comments']))
+  })
+
+  it('renders only the visible columns, plus the select and actions columns', () => {
+    const wrapper = mountTable([row(1), row(2)], { columns: ['number', 'title', 'priority'] })
+    const labels = wrapper.findAll('th').map((th) => th.text())
+    expect(labels).toEqual(['Select', '#', 'Title', 'Priority', 'Actions'])
+    for (const tr of wrapper.findAll('tbody tr')) expect(tr.findAll('td')).toHaveLength(5)
+    expect(wrapper.find('[data-test="priority-cell"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="confidence-cell"]').exists()).toBe(false)
+  })
+})
+
 describe('IssueTable — sortable column headers', () => {
   it('marks the active sort column with aria-sort', () => {
     const wrapper = mountTable([row(1)], { sort: { key: 'relevance', direction: 'desc' } })

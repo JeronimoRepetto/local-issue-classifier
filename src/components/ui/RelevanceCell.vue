@@ -11,5 +11,5 @@ const value = computed(() => props.value?.value ?? null)
 </script>
 
 <template>
-  <ScoreBar :value="value" label="Relevance" />
+  <ScoreBar :value="value" label="Relevance" :bar="false" />
 </template>

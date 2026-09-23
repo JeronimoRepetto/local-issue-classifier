@@ -27,8 +27,9 @@ onBeforeUnmount(() => document.getElementById(STYLE_ID)?.remove())
   <div class="kit" :data-kit-motion="forceReduced ? 'reduced' : undefined">
     <header class="kit__header">
       <h1 class="kit__title">
-        <IconLogo width="32" height="32" />
-        <span class="u-pixel-font">UI kit</span>
+        <IconLogo class="kit__logo" />
+        <span class="kit__wordmark u-pixel-font">local-issue-classifier</span>
+        <span class="kit__badge u-micro">UI kit</span>
       </h1>
       <label class="kit__toggle">
         <input v-model="forceReduced" type="checkbox" data-test="kit-reduced-motion" />
@@ -58,8 +59,9 @@ onBeforeUnmount(() => document.getElementById(STYLE_ID)?.remove())
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-2h) var(--space-4);
+  min-height: calc(var(--size-large) + var(--space-3));
+  padding: 0 var(--space-4);
   border-bottom: var(--line-thin) solid var(--color-border);
 }
 
@@ -68,9 +70,21 @@ onBeforeUnmount(() => document.getElementById(STYLE_ID)?.remove())
   align-items: center;
   gap: var(--space-2);
   margin: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-regular);
+}
+
+.kit__logo {
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--color-accent);
-  font-size: var(--text-h2-size);
-  line-height: var(--text-h2-line);
+}
+
+.kit__badge {
+  padding: 0 var(--space-2);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-round);
 }
 
 .kit__toggle {
@@ -82,7 +96,7 @@ onBeforeUnmount(() => document.getElementById(STYLE_ID)?.remove())
 
 .kit__note {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
   font-size: var(--text-caption-size);
 }
 
@@ -93,7 +107,7 @@ onBeforeUnmount(() => document.getElementById(STYLE_ID)?.remove())
 
 .kit__panel {
   min-width: 0;
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);

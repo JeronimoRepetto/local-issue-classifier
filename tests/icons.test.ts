@@ -83,6 +83,33 @@ describe('renderIconComponent', () => {
   })
 })
 
+describe('renderIconComponent (stroke mode)', () => {
+  it('renders a 1.5-stroke, round-capped, anti-aliased icon at 16 px from a 24 grid', () => {
+    const sfc = renderIconComponent({
+      source: 'design/icons/stroke/x.svg',
+      viewBox: '0 0 24 24',
+      inner: '<path d="M6 6l12 12"/>',
+      mode: 'stroke',
+    })
+    for (const attr of [
+      'viewBox="0 0 24 24"',
+      'width="16"',
+      'height="16"',
+      'fill="none"',
+      'stroke="currentColor"',
+      'stroke-width="1.5"',
+      'stroke-linecap="round"',
+      'stroke-linejoin="round"',
+      'shape-rendering="geometricPrecision"',
+      'aria-hidden="true"',
+      'focusable="false"',
+    ]) {
+      expect(sfc).toContain(attr)
+    }
+    expect(sfc).not.toContain('crispEdges')
+  })
+})
+
 describe('buildIcons', () => {
   it('regenerates exactly the committed icons (run `pnpm icons` if this fails)', () => {
     const out = mkdtempSync(join(tmpdir(), 'ic-icons-'))
@@ -105,12 +132,9 @@ describe('buildIcons', () => {
 describe('generated icons (sanity)', () => {
   const files = readdirSync(ICONS_DIR).filter((f) => f.endsWith('.vue'))
 
-  it('exist, including the logo, the level glyphs and the first UI batch', () => {
+  it('exist, including the logo, the empty-state art and the UI set', () => {
     for (const name of [
       'IconLogo',
-      'IconSignal1',
-      'IconSignal2',
-      'IconSignal3',
       'IconEye',
       'IconEyeOff',
       'IconClose',
@@ -118,6 +142,16 @@ describe('generated icons (sanity)', () => {
       'IconEmptyBox',
     ]) {
       expect(files).toContain(`${name}.vue`)
+    }
+  })
+
+  it('draws every UI icon as a 24-grid stroke icon; pixel art is only the logo and empty-state art', () => {
+    const pixel = files.filter((f) => readFileSync(join(ICONS_DIR, f), 'utf8').includes('crispEdges'))
+    expect(pixel.sort()).toEqual(['IconEmptyBox.vue', 'IconLogo.vue'])
+    for (const name of ['IconColumns', 'IconArrowLeft', 'IconLock', 'IconSearch', 'IconSettings']) {
+      const source = readFileSync(join(ICONS_DIR, `${name}.vue`), 'utf8')
+      expect(source, name).toContain('viewBox="0 0 24 24"')
+      expect(source, name).toContain('stroke-width="1.5"')
     }
   })
 

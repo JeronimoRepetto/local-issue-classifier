@@ -101,11 +101,13 @@ defineExpose({ show, hide, toggle })
   z-index: var(--z-popover);
   min-width: calc(var(--space-7) * 3);
   max-width: var(--measure-popover);
-  padding: var(--space-3);
-  background: var(--color-surface);
+  padding: var(--space-2h);
+  background: var(--color-bg);
   color: var(--color-text);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
   border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--elev-2);
 }
 

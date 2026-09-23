@@ -156,6 +156,20 @@ describe('AnalysisViewContainer', () => {
     wrapper.unmount()
   })
 
+  it('lays out the header (with Refresh and Export), then the classify bar, then the filters and table', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(AnalysisViewContainer, { attachTo: document.body })
+    await flush()
+    const el = (selector: string) => wrapper.get(selector).element
+    const before = (a: string, b: string) =>
+      Boolean(el(a).compareDocumentPosition(el(b)) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before('[data-test="issue-count"]', '[data-test="classify-start"]')).toBe(true)
+    expect(before('[data-test="classify-start"]', '[data-test="search-input"]')).toBe(true)
+    expect(wrapper.get('.analysis-header').find('[data-test="export-open"]').exists()).toBe(true)
+    expect(wrapper.get('.analysis-header').find('[data-test="refresh"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('routes "back" to useView().goHome()', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     viewMod.useView().openSettings() // start somewhere else than home

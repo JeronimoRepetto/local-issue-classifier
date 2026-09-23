@@ -7,6 +7,7 @@ import RelevanceCell from './RelevanceCell.vue'
 import StatusBadge from './StatusBadge.vue'
 import ConfidenceBadge from '../../ui/ConfidenceBadge.vue'
 import { dateBucket } from '../../domain/dates'
+import type { TableColumnId } from '../../domain/columns'
 import type { IssueRow as DomainIssueRow } from '../../domain/types'
 
 // `now` is a Function-typed prop, so Vue would use a function default as-is
@@ -18,6 +19,8 @@ const props = defineProps<{
   dismissed: boolean
   tabindex: number
   now?: () => Date
+  /** Visible data columns (design v2); every column when omitted. */
+  columns?: TableColumnId[]
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +36,8 @@ const stale = computed(() => props.row.status === 'stale')
 const missing = computed(() => props.row.sourceStatus === 'missing')
 const updatedLabel = computed(() => `${dateBucket(issue.value.updatedAt, props.now ?? (() => new Date()))} ago`)
 
+const show = (id: TableColumnId) => !props.columns || props.columns.includes(id)
+
 function onRowClick(event: MouseEvent) {
   if ((event.target as HTMLElement).closest('[data-no-expand]')) return
   emit('expand', issue.value.number)
@@ -42,12 +47,16 @@ function onRowClick(event: MouseEvent) {
 <template>
   <tr
     data-test="issue-row"
-    class="issue-row"
-    :class="{ 'issue-row--dismissed': dismissed, 'issue-row--missing': missing }"
+    class="issue-row ui-table__row"
+    :class="{
+      'issue-row--dismissed': dismissed,
+      'issue-row--missing': missing,
+      'issue-row--selected': selected,
+    }"
     :tabindex="tabindex"
     @click="onRowClick"
   >
-    <td class="issue-row__cell" data-no-expand>
+    <td class="issue-row__cell issue-row__cell--select ui-table__td" data-no-expand>
       <input
         type="checkbox"
         data-test="row-select"
@@ -57,41 +66,45 @@ function onRowClick(event: MouseEvent) {
         @change="emit('toggle-select', issue.number)"
       />
     </td>
-    <td class="issue-row__cell u-tabular">
-      <a :href="issue.htmlUrl" target="_blank" rel="noopener" data-no-expand @click.stop>#{{ issue.number }}</a>
+    <td v-if="show('number')" class="issue-row__cell ui-table__td ui-table__td--mono">
+      <a class="issue-row__number" :href="issue.htmlUrl" target="_blank" rel="noopener" data-no-expand @click.stop
+        >#{{ issue.number }}</a
+      >
     </td>
-    <td class="issue-row__cell issue-row__title">
-      <span>{{ issue.title }}</span>
+    <td v-if="show('title')" class="issue-row__cell issue-row__title ui-table__td ui-table__td--title">
+      <span class="issue-row__title-text">{{ issue.title }}</span>
       <span v-if="issue.labels.length" class="issue-row__labels">
         <span v-for="label in issue.labels" :key="label" class="issue-row__label-chip">{{ label }}</span>
       </span>
     </td>
-    <td class="issue-row__cell">{{ classification?.kind.choice ?? '—' }}</td>
-    <td class="issue-row__cell" data-test="priority-cell">
+    <td v-if="show('kind')" class="issue-row__cell ui-table__td ui-table__td--mono">
+      {{ classification?.kind.choice ?? '—' }}
+    </td>
+    <td v-if="show('priority')" class="issue-row__cell ui-table__td" data-test="priority-cell">
       <slot name="priority" :row="row">—</slot>
     </td>
-    <td class="issue-row__cell">
+    <td v-if="show('criticality')" class="issue-row__cell ui-table__td">
       <LevelCell dimension="Criticality" :value="classification?.criticality ?? null" :stale="stale" />
     </td>
-    <td class="issue-row__cell">
+    <td v-if="show('complexity')" class="issue-row__cell ui-table__td">
       <LevelCell dimension="Complexity" :value="classification?.complexity ?? null" :stale="stale" />
     </td>
-    <td class="issue-row__cell">
+    <td v-if="show('effort')" class="issue-row__cell ui-table__td">
       <LevelCell dimension="Effort" :value="classification?.effort ?? null" :stale="stale" />
     </td>
-    <td class="issue-row__cell">
+    <td v-if="show('relevance')" class="issue-row__cell ui-table__td">
       <RelevanceCell :value="classification?.relevance ?? null" />
     </td>
-    <td class="issue-row__cell" data-test="confidence-cell">
+    <td v-if="show('confidence')" class="issue-row__cell ui-table__td" data-test="confidence-cell">
       <ConfidenceBadge v-if="classification && classification.minConfidence != null" :confidence="classification.minConfidence" />
-      <span v-else aria-hidden="true">—</span>
+      <span v-else class="issue-row__empty" aria-hidden="true">—</span>
     </td>
-    <td class="issue-row__cell">
+    <td v-if="show('status')" class="issue-row__cell ui-table__td">
       <StatusBadge :status="row.status" :missing="missing" :dismissed="dismissed" />
     </td>
-    <td class="issue-row__cell u-tabular">{{ updatedLabel }}</td>
-    <td class="issue-row__cell u-tabular">{{ issue.commentCount }}</td>
-    <td class="issue-row__cell" data-no-expand>
+    <td v-if="show('updated')" class="issue-row__cell ui-table__td ui-table__td--mono">{{ updatedLabel }}</td>
+    <td v-if="show('comments')" class="issue-row__cell ui-table__td ui-table__td--mono">{{ issue.commentCount }}</td>
+    <td class="issue-row__cell issue-row__cell--actions ui-table__td" data-no-expand>
       <button
         v-if="!dismissed"
         type="button"
@@ -116,13 +129,7 @@ function onRowClick(event: MouseEvent) {
 
 <style scoped>
 .issue-row {
-  height: var(--size-row);
   cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease-standard);
-}
-
-.issue-row:hover {
-  background: var(--color-surface-2);
 }
 
 .issue-row:focus-visible {
@@ -130,49 +137,91 @@ function onRowClick(event: MouseEvent) {
   outline-offset: calc(var(--line-thick) * -1);
 }
 
-.issue-row--dismissed {
-  opacity: 0.6;
+.issue-row--selected {
+  background: var(--color-accent-soft);
 }
 
-.issue-row__cell {
-  padding: var(--space-2);
-  border-bottom: var(--line-thin) solid var(--color-border);
-  font-size: var(--text-table-size);
-  line-height: var(--text-table-line);
-  vertical-align: middle;
+.issue-row--selected .issue-row__cell--select {
+  box-shadow: inset var(--line-thick) 0 0 var(--color-accent);
+}
+
+.issue-row--dismissed {
+  opacity: 0.55;
+}
+
+.issue-row__cell--select {
+  width: var(--icon-sm);
+  padding-right: 0;
+}
+
+.issue-row__number {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.issue-row__number:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
 }
 
 .issue-row__title {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  line-height: var(--text-table-line);
+}
+
+.issue-row__title-text {
+  color: var(--color-text);
 }
 
 .issue-row__labels {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   gap: var(--space-1);
+  margin-left: var(--space-2);
+  vertical-align: middle;
 }
 
 .issue-row__label-chip {
   padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
+  white-space: nowrap;
 }
 
+.issue-row__empty {
+  color: var(--color-text-subtle);
+}
+
+.issue-row__cell--actions {
+  text-align: right;
+}
+
+/* Row actions are quiet until the row is hovered or focused; always reachable by keyboard. */
 .issue-row__action {
+  height: var(--size-compact);
+  padding: 0 var(--space-2);
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-accent);
+  color: var(--color-text-subtle);
   font: inherit;
-  font-size: var(--text-table-size);
+  font-size: var(--text-caption-size);
   cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.issue-row:hover .issue-row__action,
+.issue-row:focus-within .issue-row__action {
+  color: var(--color-text-muted);
 }
 
 .issue-row__action:hover {
-  text-decoration: underline;
+  background: var(--color-surface-2);
+  color: var(--color-text);
 }
 </style>
