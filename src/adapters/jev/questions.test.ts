@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { QUESTIONS, QUESTIONS_TOKENS, QUESTIONS_VERSION, QUESTION_IDS } from './questions'
 import { estimateTokens } from '../../domain/text'
+import { ISSUE_KINDS } from '../../domain/classification'
 
 /**
  * Version guard. Each QUESTIONS_VERSION maps to the SHA-256 of the serialized
@@ -57,6 +58,10 @@ describe('QUESTIONS (SPEC §4.2)', () => {
       'maintenance',
       'other',
     ])
+  })
+
+  it('keeps the kind options in sync with the mapping in domain/classification.ts', () => {
+    expect(Object.keys(QUESTIONS.kind.criteria)).toEqual(ISSUE_KINDS)
   })
 
   it('points every question at `issue` in the state', () => {
