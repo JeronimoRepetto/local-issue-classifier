@@ -12,10 +12,15 @@ import { applyTheme } from '../../ui/theme'
 import KeysRequiredBanner from '../ui/KeysRequiredBanner.vue'
 import KeyStatus from '../ui/KeyStatus.vue'
 import PreferencesForm from '../ui/PreferencesForm.vue'
+import ProviderSelector from '../ui/ProviderSelector.vue'
+import HardwareFitPanel from '../ui/HardwareFitPanel.vue'
 import { useSecrets } from '../../composables/useSecrets'
 import { usePreferences } from '../../composables/usePreferences'
 import { useAnalyses } from '../../composables/useAnalyses'
 import { useProvider } from '../../composables/useProvider'
+import { detectHardware } from '../../adapters/hardware/detect'
+import { defaultLocalProviderConfig, providerLabel } from '../../domain/provider'
+import type { ProviderConfig, ProviderRouteStatus } from '../../domain/provider'
 
 const ABOUT_TEXT =
   'local-issue-classifier is MIT-licensed. The UI icons are original line icons and the logo ' +
@@ -33,6 +38,23 @@ function onClearAllConfirm(): void {
   analyses.clearAll()
   secrets.clearKeys()
   clearAllOpen.value = false
+}
+
+// T16, WIRE-2: which server classifies, and, for a local one, the cached probe route.
+const STATUS_LABEL: Record<ProviderRouteStatus, string> = {
+  unknown: 'not tested',
+  direct: 'direct',
+  proxied: 'proxied',
+  unreachable: 'unreachable',
+}
+
+function onProviderChange(value: ProviderConfig): void {
+  prefs.update({ provider: value })
+}
+
+/** docs/hardware-fit.md's recommendation, applied unconditionally to the Kev preset (LOCAL_PRESETS[0]). */
+function applyKevPreset(): void {
+  prefs.update({ provider: defaultLocalProviderConfig() })
 }
 
 // Applies the resolved theme (§10.2) whenever the preference changes, so
@@ -114,6 +136,51 @@ onBeforeUnmount(() => stopTheme?.())
       <div class="settings__actions">
         <UiButton data-test="clear-keys" variant="secondary" @click="secrets.clearKeys()">Clear keys</UiButton>
       </div>
+      </div>
+    </section>
+
+    <section class="settings__section" data-test="classifier">
+      <div class="settings__aside">
+        <h2 class="settings__heading u-micro">Classifier</h2>
+        <p class="settings__lede" data-test="provider-label">{{ providerLabel(prefs.state.provider) }}</p>
+        <p v-if="provider.isLocal.value" class="settings__lede" data-test="provider-status-chip">
+          {{ STATUS_LABEL[provider.status.value] }}
+        </p>
+      </div>
+      <div class="settings__body">
+        <ProviderSelector
+          :model-value="prefs.state.provider"
+          :api-key="secrets.state.localApiKey"
+          :classify-mode="prefs.state.classifyMode"
+          :trimming-floor="prefs.state.trimmingFloor"
+          :probe="provider.probe"
+          @update:model-value="onProviderChange"
+          @update:api-key="secrets.setLocalApiKey($event)"
+          @update:classify-mode="prefs.update({ classifyMode: $event })"
+          @update:trimming-floor="prefs.update({ trimmingFloor: $event })"
+        />
+      </div>
+    </section>
+
+    <section class="settings__section" data-test="hardware-fit-section">
+      <div class="settings__aside">
+        <h2 class="settings__heading u-micro">Hardware</h2>
+        <p class="settings__lede">Local models run on your own machine; nothing is sent.</p>
+      </div>
+      <div class="settings__body">
+        <HardwareFitPanel
+          :detect="() => detectHardware()"
+          :override="prefs.state.hardwareOverride ?? null"
+          @update:override="prefs.setHardwareOverride"
+        />
+        <div class="settings__hardware-actions">
+          <UiButton data-test="use-kev-locally" variant="secondary" size="compact" @click="applyKevPreset">
+            Use Kev locally
+          </UiButton>
+          <a data-test="local-providers-link" href="docs/local-providers.md">
+            See the launch command for your recommended tier
+          </a>
+        </div>
       </div>
     </section>
 
@@ -230,6 +297,18 @@ onBeforeUnmount(() => stopTheme?.())
   color: var(--color-text-muted);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
+}
+
+.settings__hardware-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.settings__hardware-actions a {
+  color: var(--color-accent);
+  font-size: var(--text-caption-size);
 }
 
 .settings__danger {

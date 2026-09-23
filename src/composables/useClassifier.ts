@@ -96,8 +96,9 @@ function counts(filteredNumbers?: readonly number[]): ScopeCounts | null {
   return a ? scopeCounts(a, QUESTIONS_VERSION, filteredNumbers) : null
 }
 
-// TODO(RD): expose Preferences.classifyMode and trimmingFloor in Settings, and
-// show estimate.profile / progress.profile ("1 request, compact profile").
+// Preferences.classifyMode and trimmingFloor are exposed in Settings (ProviderSelector's
+// Advanced disclosure, WIRE-2). Showing estimate.profile / progress.profile in the
+// Classify bar itself ("1 request, compact profile") is not wired up yet.
 const classifyMode = (): ClassifyMode => (prefs.state.classifyMode === 'per-issue' ? 'per-issue' : 'batched')
 
 /**

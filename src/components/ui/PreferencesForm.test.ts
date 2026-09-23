@@ -23,14 +23,6 @@ describe('PreferencesForm', () => {
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([{ theme: 'light' }])
   })
 
-  it('offers a classify-mode slot next to the classification settings', () => {
-    const wrapper = mount(PreferencesForm, {
-      props: { modelValue: defaultPreferences() },
-      slots: { 'classify-mode': '<p data-test="classify-mode-slot">mode</p>' },
-    })
-    expect(wrapper.find('[data-test="classify-mode-slot"]').exists()).toBe(true)
-  })
-
   it('emits an includeClosedByDefault patch as a boolean, not a string', async () => {
     const wrapper = mountForm({ includeClosedByDefault: false })
     await wrapper.get('[data-test="include-closed"] select').setValue('true')

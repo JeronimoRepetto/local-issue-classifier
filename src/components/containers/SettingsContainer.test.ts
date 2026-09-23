@@ -3,7 +3,7 @@
 // useSecrets, usePreferences, useAnalyses and useAnalysis are module singletons
 // wired together by SettingsContainer.vue.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
 
 let storage: MemoryStorage
@@ -120,5 +120,95 @@ describe('SettingsContainer', () => {
     const { default: SettingsContainer } = await import('./SettingsContainer.vue')
     const wrapper = mount(SettingsContainer)
     expect(wrapper.text()).toContain('THIRD_PARTY_NOTICES.md')
+  })
+
+  describe('Classifier (T16, WIRE-2)', () => {
+    it('mounts ProviderSelector, showing the current provider label', async () => {
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      expect(wrapper.find('[data-test="kind-typesafe"]').exists()).toBe(true)
+      expect(wrapper.get('[data-test="provider-label"]').text()).toBe('TypeSafe cloud (Jev)')
+      expect(wrapper.find('[data-test="provider-status-chip"]').exists()).toBe(false)
+    })
+
+    it('switching to Local updates usePreferences().state.provider', async () => {
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      await wrapper.get('[data-test="kind-local"]').setValue(true)
+
+      const { usePreferences } = await import('../../composables/usePreferences')
+      expect(usePreferences().state.provider).toEqual({
+        kind: 'local',
+        baseUrl: 'http://localhost:8009',
+        model: 'kev-latest',
+      })
+      expect(wrapper.get('[data-test="provider-label"]').text()).toContain('Kev')
+    })
+
+    it('typing the local server key updates useSecrets().state.localApiKey, not usePreferences', async () => {
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
+
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      await wrapper.get('[data-test="local-key"] input').setValue('kev-key')
+
+      const { useSecrets } = await import('../../composables/useSecrets')
+      expect(useSecrets().state.localApiKey).toBe('kev-key')
+    })
+
+    it('exposes classifyMode and trimmingFloor, persisted through usePreferences', async () => {
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+
+      await wrapper.get('[data-test="classify-mode"] select').setValue('per-issue')
+      await wrapper.get('[data-test="trimming-floor"] select').setValue('compact')
+
+      const { usePreferences } = await import('../../composables/usePreferences')
+      expect(usePreferences().state.classifyMode).toBe('per-issue')
+      expect(usePreferences().state.trimmingFloor).toBe('compact')
+    })
+
+    it('shows the probe status chip for a local provider, reflecting useProvider().status after Test connection', async () => {
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
+      const { configureProvider } = await import('../../composables/useProvider')
+      configureProvider({ fetch: async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }) })
+
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      expect(wrapper.get('[data-test="provider-status-chip"]').text()).toMatch(/not tested/i)
+
+      await wrapper.get('[data-test="test-connection"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.get('[data-test="provider-status-chip"]').text()).toMatch(/direct/i)
+    })
+  })
+
+  describe('Hardware fit (WIRE-2)', () => {
+    it('mounts HardwareFitPanel, wired to the persisted hardwareOverride', async () => {
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      expect(wrapper.text()).toContain('Can this machine run a local model?')
+
+      await wrapper.get('[data-test="override-gpu"] select').setValue('nvidia-rtx-4060')
+      const { usePreferences } = await import('../../composables/usePreferences')
+      expect(usePreferences().state.hardwareOverride).toEqual({ gpuId: 'nvidia-rtx-4060', vramGb: null })
+    })
+
+    it('"Use Kev locally" applies the Kev preset to the provider config, and links to the local-providers docs', async () => {
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+
+      await wrapper.get('[data-test="use-kev-locally"]').trigger('click')
+      const { usePreferences } = await import('../../composables/usePreferences')
+      expect(usePreferences().state.provider).toEqual({
+        kind: 'local',
+        baseUrl: 'http://localhost:8009',
+        model: 'kev-latest',
+      })
+
+      expect(wrapper.get('[data-test="local-providers-link"]').attributes('href')).toBe('docs/local-providers.md')
+    })
   })
 })

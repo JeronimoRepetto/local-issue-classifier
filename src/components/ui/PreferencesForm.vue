@@ -91,12 +91,6 @@ function patch(value: Partial<Preferences>): void {
 
     <h3 class="preferences-form__group u-micro">Classification</h3>
     <div class="preferences-form__grid">
-      <!--
-        TODO(RB): the batching lane's classify-mode control (Preferences.classifyMode and
-        trimmingFloor) mounts in this slot; SettingsContainer fills it once that lane merges.
-      -->
-      <slot name="classify-mode" />
-
       <UiSlider
         data-test="concurrency"
         label="Classification concurrency"
