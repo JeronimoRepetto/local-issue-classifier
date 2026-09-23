@@ -1,0 +1,8 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`formatAgreementTable > prints one compact row per mode with calls, tokens, seconds and agreement 1`] = `
+"mode             calls  tokens  secs  cmplx       crit  effort  kind  rel±  conf±
+---------------  -----  ------  ----  ----------  ----  ------  ----  ----  -----
+per-issue        4      16000   2.1   (baseline)
+batched compact  1      5000    0.9   75%         100%  100%    100%  0.0   0.00"
+`;

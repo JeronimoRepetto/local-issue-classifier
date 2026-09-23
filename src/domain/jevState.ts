@@ -126,6 +126,7 @@ function renderComments(
   eligible: readonly IssueComment[],
   split: Split,
   total: number,
+  commentChars: number = COMMENT_CHARS,
 ): { comments: JevComment[]; note: string | null } {
   const picked = [
     ...eligible.slice(0, split.head),
@@ -133,7 +134,7 @@ function renderComments(
   ]
   const comments = picked.map((c) => ({
     author_role: c.authorAssociation.toLowerCase(),
-    body: c.body.slice(0, COMMENT_CHARS),
+    body: c.body.slice(0, commentChars),
   }))
   const shown = comments.length
   const outOf = Math.max(total, eligible.length)
@@ -145,19 +146,52 @@ function renderComments(
 
 /**
  * Drops bot and near-empty comments, then keeps the first 2 and the last
- * (max − 2), each trimmed to 1 000 chars. `total` is GitHub's comment count.
+ * (max − 2), each trimmed to `commentChars` (1 000 by default). `total` is
+ * GitHub's comment count.
  */
 export function selectComments(
   comments: readonly IssueComment[],
   total: number,
   max: number = DEFAULT_MAX_COMMENTS,
+  commentChars: number = COMMENT_CHARS,
 ): { comments: JevComment[]; note: string | null } {
   const eligible = comments.filter(isEligible)
-  return renderComments(eligible, initialSplit(eligible.length, max), total)
+  return renderComments(eligible, initialSplit(eligible.length, max), total, commentChars)
+}
+
+/** The note shown instead of comments that were never fetched. */
+export function commentsNotLoaded(issue: Issue): { comments: JevComment[]; note: string } | null {
+  return !issue.commentsFetched && issue.commentCount > 0
+    ? { comments: [], note: `comments not loaded (${issue.commentCount} on GitHub)` }
+    : null
+}
+
+/** The state's `issue` for an already trimmed body and comment selection. */
+export function toJevIssue(
+  issue: Issue,
+  now: Clock,
+  body: string,
+  selection: { comments: JevComment[]; note: string | null },
+): JevIssue {
+  return {
+    number: issue.number,
+    title: issue.title,
+    state: issue.state,
+    labels: [...issue.labels],
+    author_role: issue.authorAssociation.toLowerCase(),
+    age: dateBucket(issue.createdAt, now),
+    last_activity: dateBucket(issue.updatedAt, now),
+    comment_count: issue.commentCount,
+    reactions: issue.reactionsTotal,
+    body,
+    comments: selection.comments,
+    comments_note: selection.note,
+  }
 }
 
 // ── Issue state + size guard ─────────────────────────────────────────
-function trimBody(body: string): string {
+/** Standard body trimming: over 8 000 chars keeps the first 6 000 and the last 1 500. */
+export function trimBody(body: string): string {
   return body.length <= BODY_CHARS ? body : trimMiddle(body, BODY_HEAD, BODY_TAIL)
 }
 
@@ -180,32 +214,17 @@ export function buildIssueState(
   const maxComments = opts.maxCommentsPerIssue ?? DEFAULT_MAX_COMMENTS
   const baseProject = toJevProject(ctx)
   const eligible = issue.comments.filter(isEligible)
-  const notLoaded = !issue.commentsFetched && issue.commentCount > 0
+  const notLoaded = commentsNotLoaded(issue)
 
   let split = initialSplit(eligible.length, maxComments)
   let body = trimBody(issue.body)
   let readme = baseProject.readme_excerpt
 
   const compose = (): JevState => {
-    const selection = notLoaded
-      ? { comments: [], note: `comments not loaded (${issue.commentCount} on GitHub)` }
-      : renderComments(eligible, split, issue.commentCount)
+    const selection = notLoaded ?? renderComments(eligible, split, issue.commentCount)
     return {
       project: { ...baseProject, readme_excerpt: readme },
-      issue: {
-        number: issue.number,
-        title: issue.title,
-        state: issue.state,
-        labels: [...issue.labels],
-        author_role: issue.authorAssociation.toLowerCase(),
-        age: dateBucket(issue.createdAt, opts.now),
-        last_activity: dateBucket(issue.updatedAt, opts.now),
-        comment_count: issue.commentCount,
-        reactions: issue.reactionsTotal,
-        body,
-        comments: selection.comments,
-        comments_note: selection.note,
-      },
+      issue: toJevIssue(issue, opts.now, body, selection),
     }
   }
 

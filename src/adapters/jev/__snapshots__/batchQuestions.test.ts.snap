@@ -1,0 +1,127 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`batchQuestionsFor > matches the snapshot 1`] = `
+{
+  "c_123": {
+    "criteria": [
+      {
+        "examples": [
+          "fix a typo in an error message",
+          "bump a dependency version",
+          "add a missing config option that is already supported elsewhere",
+        ],
+        "what": "Straightforward change in one obvious place; no design decisions",
+      },
+      {
+        "examples": [
+          "fix a bug that spans two modules",
+          "add a new option that changes existing behavior",
+        ],
+        "what": "Requires understanding several parts of the codebase or making a small design decision",
+      },
+      {
+        "examples": [
+          "race condition in a scheduler",
+          "redesign a plugin API",
+          "memory leak with unknown cause",
+        ],
+        "what": "Requires deep knowledge, a non-trivial design, or touches concurrency, security, performance, data migration, or public API compatibility",
+      },
+    ],
+    "instructions": {
+      "focus": "Judge the difficulty of the problem and the solution, not the amount of typing.",
+      "question": "How technically complex is the change needed to resolve \`issues[3]\` (the issue with id #123), given \`project\`?",
+    },
+    "type": "score",
+  },
+  "e_123": {
+    "criteria": [
+      {
+        "examples": [
+          "one-line fix with a test",
+          "documentation clarification",
+        ],
+        "what": "Small; a few hours at most",
+      },
+      {
+        "examples": [
+          "new small feature with tests",
+          "bug fix that needs investigation and a regression test",
+        ],
+        "what": "Moderate; roughly one to a few days",
+      },
+      {
+        "examples": [
+          "major refactor",
+          "new subsystem",
+          "breaking change that needs a migration guide",
+        ],
+        "what": "Large; a week or more, several pull requests, or coordination with other people",
+      },
+    ],
+    "instructions": {
+      "focus": "Judge the amount of work, not how important the issue is.",
+      "question": "How much work would it take a maintainer of \`project\` to resolve \`issues[3]\` (the issue with id #123), including tests and documentation?",
+    },
+    "type": "score",
+  },
+  "k_123": {
+    "criteria": [
+      {
+        "examples": [
+          "typo in docs",
+          "feature suggestion",
+          "usage question",
+        ],
+        "what": "No functional impact; cosmetic, nice-to-have, question, or idea",
+      },
+      {
+        "examples": [
+          "option ignored on one platform",
+          "misleading error message",
+        ],
+        "what": "A feature is broken or degraded but a workaround exists, or few users are affected",
+      },
+      {
+        "examples": [
+          "install fails for everyone",
+          "credentials leaked in logs",
+          "crash on startup",
+        ],
+        "what": "Blocking, data loss, security vulnerability, crash, or broken core functionality with no workaround",
+      },
+    ],
+    "instructions": {
+      "focus": "Judge impact on users: breakage, data loss, security, or blocked workflows.",
+      "question": "How critical is \`issues[3]\` (the issue with id #123) for the users of \`project\` if it is left unresolved?",
+    },
+    "type": "score",
+  },
+  "r_123": {
+    "criteria": [
+      "Unrelated to this project: spam, off-topic, or about a different product",
+      "Tangential: about the user's environment, third-party tools, or general programming help rather than this project",
+      "About a minor, peripheral, or rarely used part of the project",
+      "About a documented feature or a common way of using the project",
+      "About the core purpose or main functionality of the project",
+    ],
+    "instructions": {
+      "focus": "Judge whether the issue is about what this project is for, not whether it is important.",
+      "question": "How relevant is \`issues[3]\` (the issue with id #123) to the purpose of \`project\` as described in its README, description and topics?",
+    },
+    "type": "score",
+  },
+  "t_123": {
+    "criteria": {
+      "bug": "Something is broken or behaves differently from what is documented or expected",
+      "documentation": "Missing, wrong, or unclear documentation",
+      "feature": "A request for new functionality or a change in behavior",
+      "maintenance": "Refactoring, dependencies, build, CI, or tooling",
+      "other": "None of the above",
+      "question": "A usage or support question",
+    },
+    "instructions": "What kind of request is \`issues[3]\` (the issue with id #123)?",
+    "type": "choice",
+  },
+}
+`;

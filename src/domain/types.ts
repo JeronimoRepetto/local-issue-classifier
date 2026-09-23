@@ -157,6 +157,13 @@ export interface Secrets {
   githubToken: string // fine-grained or classic PAT; '' = anonymous
 }
 
+// ── Batched classification (docs/batching.md) ────────────────────────
+/** One request per issue, or every selected issue in as few requests as fit. */
+export type ClassifyMode = 'batched' | 'per-issue'
+
+/** Per-issue trimming profiles of a batched request, loosest → tightest. */
+export type TrimmingProfileId = 'standard' | 'compact' | 'condensed' | 'tight' | 'minimal'
+
 // ── Preferences (non-secret, persisted in localStorage) ──────────────
 export interface Preferences {
   lastRepo: string // raw text of the last repo input
@@ -168,6 +175,8 @@ export interface Preferences {
   concurrency: number // default 4, clamp 1..8
   jevModel: string // default 'jev-latest'
   lowConfidenceThreshold: number // default 0.5
+  classifyMode: ClassifyMode // default 'batched'; 'per-issue' is the fallback (docs/batching.md)
+  trimmingFloor: TrimmingProfileId // tightest profile the batch fitter may use; default 'minimal'
   defaultExportOptions: ExportOptions // seed for new analyses' working state
   theme: 'system' | 'light' | 'dark' // §10.2, default 'system'
   onboarding: { keys: boolean; repo: boolean; classify: boolean } // first-run checklist, §10.1
@@ -318,6 +327,8 @@ export function defaultPreferences(): Preferences {
     concurrency: 4,
     jevModel: DEFAULT_JEV_MODEL,
     lowConfidenceThreshold: 0.5,
+    classifyMode: 'batched',
+    trimmingFloor: 'minimal',
     defaultExportOptions: defaultExportOptions(),
     theme: 'system',
     onboarding: { keys: false, repo: false, classify: false },

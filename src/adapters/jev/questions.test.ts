@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { QUESTIONS, QUESTIONS_TOKENS, QUESTIONS_VERSION, QUESTION_IDS } from './questions'
 import { estimateTokens } from '../../domain/text'
 import { ISSUE_KINDS } from '../../domain/classification'
+import { batchQuestionsFor } from './batchQuestions'
 
 /**
  * Version guard. Each QUESTIONS_VERSION maps to the SHA-256 of the serialized
@@ -13,14 +14,19 @@ import { ISSUE_KINDS } from '../../domain/classification'
  */
 const QUESTIONS_HASHES: Record<number, string> = {
   1: '16bd2149f518fb3218c03dfd085e0dee49c491df8e3fb9520c9c12c753397a69',
+  // v2: batched classification adds the namespaced per-issue questions (docs/batching.md).
+  2: '2bf992e6619f6efff34ea29c855d2abd7880671a61be5da5878278143fa7fd48',
 }
+
+/** From v2 on, the guard covers the per-issue questions AND the batched template. */
+const versioned = () => ({ questions: QUESTIONS, batched: batchQuestionsFor(0, 123) })
 
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 
 describe('QUESTIONS (SPEC §4.2)', () => {
   it('is pinned to its version: a text change needs a QUESTIONS_VERSION bump', () => {
-    expect(QUESTIONS_VERSION).toBe(1)
-    expect(hash(QUESTIONS), 'QUESTIONS changed: bump QUESTIONS_VERSION').toBe(
+    expect(QUESTIONS_VERSION).toBe(2)
+    expect(hash(versioned()), 'questions changed: bump QUESTIONS_VERSION').toBe(
       QUESTIONS_HASHES[QUESTIONS_VERSION],
     )
   })

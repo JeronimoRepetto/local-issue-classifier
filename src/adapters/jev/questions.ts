@@ -43,7 +43,7 @@ export type JevQuestion = ScoreQuestion | ChoiceQuestion
 export type QuestionId = 'complexity' | 'criticality' | 'effort' | 'relevance' | 'kind'
 
 /** Bump on ANY text change below; see the rules at the top of this file. */
-export const QUESTIONS_VERSION = 1
+export const QUESTIONS_VERSION = 2 // 2: batched questions (batchQuestions.ts)
 
 export const QUESTIONS = {
   // Complexity: how hard the problem and its solution are (not how long they take).

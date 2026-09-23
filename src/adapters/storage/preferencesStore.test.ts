@@ -41,6 +41,33 @@ describe('loadPreferences', () => {
     expect(prefs.concurrency).toBe(defaultPreferences().concurrency)
     expect(prefs.onboarding).toEqual(defaultPreferences().onboarding)
   })
+
+  it('an entry saved before batching loads with the batching defaults', () => {
+    const storage = new MemoryStorage()
+    const legacy: Record<string, unknown> = { ...defaultPreferences() }
+    delete legacy.classifyMode
+    delete legacy.trimmingFloor
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify(legacy))
+    expect(loadPreferences(storage)).toMatchObject({ classifyMode: 'batched', trimmingFloor: 'minimal' })
+  })
+
+  it('an unknown classify mode or trimming floor falls back to its default', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(
+      STORAGE_KEYS.preferences,
+      JSON.stringify({ ...defaultPreferences(), classifyMode: 'turbo', trimmingFloor: 'nano' }),
+    )
+    expect(loadPreferences(storage)).toMatchObject({ classifyMode: 'batched', trimmingFloor: 'minimal' })
+  })
+
+  it('keeps valid batching choices', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(
+      STORAGE_KEYS.preferences,
+      JSON.stringify({ ...defaultPreferences(), classifyMode: 'per-issue', trimmingFloor: 'compact' }),
+    )
+    expect(loadPreferences(storage)).toMatchObject({ classifyMode: 'per-issue', trimmingFloor: 'compact' })
+  })
 })
 
 describe('savePreferences', () => {

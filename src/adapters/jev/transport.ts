@@ -9,6 +9,7 @@
 // - Framework-free: `fetch` and the clock are injected.
 // - Nothing here logs. Results never contain the request or the key.
 import type { JevState } from '../../domain/jevState'
+import type { JevBatchState } from '../../domain/jevBatchState'
 import type { JevQuestion } from './questions'
 
 export const DEFAULT_JEV_BASE_URL = '/jev'
@@ -16,7 +17,8 @@ export const DEFAULT_JEV_TIMEOUT_MS = 20_000
 
 export interface SystemOneRequestBody {
   model: string
-  state: JevState
+  /** One issue (per-issue mode) or the composite state of a batch (docs/batching.md). */
+  state: JevState | JevBatchState
   questions: Readonly<Record<string, JevQuestion>>
 }
 

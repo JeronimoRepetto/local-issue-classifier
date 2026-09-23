@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   toClassification,
+  toBatchClassifications,
   isClassificationCurrent,
   levelOf,
   relevanceValue,
@@ -172,5 +173,75 @@ describe('isClassificationCurrent (SPEC §4.8 validity)', () => {
     expect(isClassificationCurrent(c, meta.issueUpdatedAt, 1)).toBe(true)
     expect(isClassificationCurrent(c, '2026-09-10T00:00:00Z', 1)).toBe(false)
     expect(isClassificationCurrent(c, meta.issueUpdatedAt, 2)).toBe(false)
+  })
+})
+
+// ── Batched responses (docs/batching.md) ─────────────────────────────
+describe('toBatchClassifications', () => {
+  const entries = [
+    { issueNumber: 7, issueUpdatedAt: '2026-09-01T00:00:00Z' },
+    { issueNumber: 123, issueUpdatedAt: '2026-09-02T00:00:00Z' },
+    { issueNumber: 9, issueUpdatedAt: '2026-09-03T00:00:00Z' },
+  ]
+  const batchMeta = { requestedModel: 'jev-latest', questionsVersion: 2, classifiedAt: '2026-09-23T00:00:00Z' }
+  const ids = (n: number) => ({
+    [`c_${n}`]: score3(0.2),
+    [`k_${n}`]: score3(n === 123 ? 2 : 1),
+    [`e_${n}`]: score3(1),
+    [`r_${n}`]: { type: 'score', score: 4, probabilities: { '0': 0, '1': 0, '2': 0, '3': 0.2, '4': 0.8 }, confidence: 0.9 },
+    [`t_${n}`]: { type: 'choice', choice: n === 9 ? 'feature' : 'bug', confidence: 0.7 },
+  })
+  const body = (answers: Record<string, unknown>, inputTokens = 1_000) => ({
+    model: 'jev-1.13.0',
+    answers,
+    usage: { input_tokens: inputTokens },
+  })
+
+  it('splits the answers back per issue by id suffix', () => {
+    const result = toBatchClassifications(body({ ...ids(7), ...ids(123), ...ids(9) }), entries, batchMeta)
+    expect([...result.keys()]).toEqual([7, 123, 9])
+    const c123 = result.get(123)
+    expect(c123?.ok).toBe(true)
+    if (c123?.ok) {
+      expect(c123.classification.criticality.level).toBe('high')
+      expect(c123.classification.issueUpdatedAt).toBe('2026-09-02T00:00:00Z')
+      expect(c123.classification.questionsVersion).toBe(2)
+      expect(c123.classification.model).toBe('jev-1.13.0')
+    }
+    const c9 = result.get(9)
+    expect(c9?.ok && c9.classification.kind.choice).toBe('feature')
+  })
+
+  it('splits the request usage across issues so the total is preserved', () => {
+    const result = toBatchClassifications(body({ ...ids(7), ...ids(123), ...ids(9) }, 1_000), entries, batchMeta)
+    const tokens = [...result.values()].map((o) => (o.ok ? o.classification.inputTokens : 0))
+    expect(tokens.reduce((a, b) => a + b, 0)).toBe(1_000)
+    expect(Math.max(...tokens) - Math.min(...tokens)).toBeLessThanOrEqual(1)
+  })
+
+  it('a missing subset fails only that issue', () => {
+    const answers: Record<string, unknown> = { ...ids(7), ...ids(123), ...ids(9) }
+    delete answers.r_123
+    const result = toBatchClassifications(body(answers), entries, batchMeta)
+    expect(result.get(123)).toEqual({ ok: false, error: UNEXPECTED_JEV_RESPONSE })
+    expect(result.get(7)?.ok).toBe(true)
+    expect(result.get(9)?.ok).toBe(true)
+  })
+
+  it('a malformed subset fails only that issue', () => {
+    const answers = { ...ids(7), ...ids(123), ...ids(9), t_7: { type: 'choice', choice: 'nonsense' } }
+    const result = toBatchClassifications(body(answers), entries, batchMeta)
+    expect(result.get(7)).toEqual({ ok: false, error: UNEXPECTED_JEV_RESPONSE })
+    expect([result.get(123)?.ok, result.get(9)?.ok]).toEqual([true, true])
+  })
+
+  it('a body without answers fails each issue individually, never throws', () => {
+    const result = toBatchClassifications({ nope: true }, entries, batchMeta)
+    expect([...result.values()]).toEqual(entries.map(() => ({ ok: false, error: UNEXPECTED_JEV_RESPONSE })))
+  })
+
+  it('ignores answers for issues outside the batch', () => {
+    const result = toBatchClassifications(body({ ...ids(7), ...ids(555) }), entries.slice(0, 1), batchMeta)
+    expect([...result.keys()]).toEqual([7])
   })
 })

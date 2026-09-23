@@ -1,8 +1,11 @@
 // local-issue-classifier — maps a Jev `/v1/systemone` response to a Classification
 // (SPEC.md §4.4). Pure. Validates the untrusted response shape: any missing or
 // malformed answer fails the whole classification, so partial answers are never
-// stored. Tolerant where compatible providers may differ: `confidence` and the
-// echoed `model` are optional, and nothing depends on the model string.
+// stored. A batched response is split per issue first (toBatchClassifications),
+// so there the unit of failure is one issue. Tolerant where compatible
+// providers may differ: `confidence` and the echoed `model` are optional, and
+// nothing depends on the model string.
+import type { ClassificationOutcome } from './analysis'
 import type {
   Classification,
   IssueKind,
@@ -34,6 +37,23 @@ export const ISSUE_KINDS: readonly IssueKind[] = [
   'maintenance',
   'other',
 ]
+
+/** The five answers of a classification, in request order. */
+export type AnswerDimension = 'complexity' | 'criticality' | 'effort' | 'relevance' | 'kind'
+export const ANSWER_DIMENSIONS: readonly AnswerDimension[] = ['complexity', 'criticality', 'effort', 'relevance', 'kind']
+
+/** Short prefixes of the namespaced answer ids in a batched request (docs/batching.md). */
+export const BATCH_ANSWER_PREFIXES: Readonly<Record<AnswerDimension, string>> = {
+  complexity: 'c',
+  criticality: 'k',
+  effort: 'e',
+  relevance: 'r',
+  kind: 't',
+}
+
+/** e.g. `c_123`: the complexity answer for issue #123 in a batched response. */
+export const batchAnswerId = (dimension: AnswerDimension, issueNumber: number) =>
+  `${BATCH_ANSWER_PREFIXES[dimension]}_${issueNumber}`
 
 const LEVELS: readonly Level[] = ['low', 'medium', 'high']
 const RELEVANCE_TOP_LEVEL = 4 // 5 levels: 0..4
@@ -173,6 +193,52 @@ export function toClassification(response: unknown, meta: ClassificationMeta): C
   }
   if (confidences.length > 0) classification.minConfidence = Math.min(...confidences)
   return classification
+}
+
+// ── Batched responses (docs/batching.md) ─────────────────────────────
+export interface BatchEntry {
+  issueNumber: number
+  issueUpdatedAt: string
+}
+
+/**
+ * Splits a batched `/v1/systemone` response back into one outcome per issue,
+ * keyed by issue number in batch order. Each issue's five answers are read by
+ * id suffix (`c_123`, …) and validated on their own: a missing or malformed
+ * subset fails that issue only. The request's input tokens are shared evenly.
+ */
+export function toBatchClassifications(
+  response: unknown,
+  entries: readonly BatchEntry[],
+  meta: Omit<ClassificationMeta, 'issueUpdatedAt'>,
+): Map<number, ClassificationOutcome> {
+  const outcomes = new Map<number, ClassificationOutcome>()
+  const body = isObject(response) ? response : {}
+  const answers = isObject(body.answers) ? body.answers : null
+  const usage = isObject(body.usage) ? body.usage : {}
+  const total = isNumber(usage.input_tokens) ? Math.max(0, Math.round(usage.input_tokens)) : 0
+  const share = entries.length > 0 ? Math.floor(total / entries.length) : 0
+  const remainder = total - share * entries.length
+
+  entries.forEach((entry, index) => {
+    if (answers === null) {
+      outcomes.set(entry.issueNumber, { ok: false, error: UNEXPECTED_JEV_RESPONSE })
+      return
+    }
+    const own = Object.fromEntries(
+      ANSWER_DIMENSIONS.map((d) => [d, answers[batchAnswerId(d, entry.issueNumber)]]),
+    )
+    try {
+      const classification = toClassification(
+        { model: body.model, answers: own, usage: { input_tokens: share + (index < remainder ? 1 : 0) } },
+        { ...meta, issueUpdatedAt: entry.issueUpdatedAt },
+      )
+      outcomes.set(entry.issueNumber, { ok: true, classification })
+    } catch {
+      outcomes.set(entry.issueNumber, { ok: false, error: UNEXPECTED_JEV_RESPONSE })
+    }
+  })
+  return outcomes
 }
 
 /** A stored classification is current only for the same issue update and questions version (§4.8). */

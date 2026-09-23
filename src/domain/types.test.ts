@@ -54,6 +54,8 @@ describe('defaultPreferences', () => {
     expect(prefs.concurrency).toBe(4)
     expect(prefs.jevModel).toBe('jev-latest')
     expect(prefs.lowConfidenceThreshold).toBe(0.5)
+    expect(prefs.classifyMode).toBe('batched')
+    expect(prefs.trimmingFloor).toBe('minimal')
     expect(prefs.theme).toBe('system')
     expect(prefs.onboarding).toEqual({ keys: false, repo: false, classify: false })
     expect(prefs.keysBannerDismissed).toBe(false)

@@ -105,3 +105,71 @@ export function createThrottle(options: ThrottleOptions): Throttle {
     },
   }
 }
+
+// ── Rate pacer (models.md: jev-1.13.0 account limits) ────────────────
+export interface RateLimits {
+  tokensPerSecond: number
+  requestsPerMinute: number
+}
+
+/** 250 000 tokens/s and 1 200 requests/min (models.md), minus a 10% margin. */
+export const DEFAULT_RATE_LIMITS: RateLimits = { tokensPerSecond: 225_000, requestsPerMinute: 1_080 }
+
+const SECOND_MS = 1_000
+const MINUTE_MS = 60_000
+
+export interface RatePacerOptions extends RateLimits {
+  now?: () => number
+}
+
+export interface RatePacer {
+  /** Milliseconds to wait before sending `tokens`; 0 when it fits now. */
+  delayFor(tokens: number): number
+  /** Records a request as sent now. */
+  commit(tokens: number): void
+}
+
+/**
+ * Proactive pacing over rolling windows, so large batched requests stay under
+ * the documented rate limits instead of discovering them through 429s. A
+ * request larger than the whole budget is let through alone rather than
+ * blocking forever; the reactive 429 handling still backs it.
+ */
+export function createRatePacer(options: RatePacerOptions): RatePacer {
+  const now = options.now ?? Date.now
+  let sent: { at: number; tokens: number }[] = []
+
+  const prune = (t: number) => {
+    sent = sent.filter((s) => t - s.at < MINUTE_MS)
+  }
+
+  return {
+    delayFor(tokens) {
+      const t = now()
+      prune(t)
+      let delay = 0
+      const lastSecond = sent.filter((s) => t - s.at < SECOND_MS)
+      const used = lastSecond.reduce((sum, s) => sum + s.tokens, 0)
+      if (lastSecond.length > 0 && used + tokens > options.tokensPerSecond) {
+        // Wait until enough of the window has expired, oldest first.
+        let freed = 0
+        for (const s of lastSecond) {
+          freed += s.tokens
+          if (used - freed + tokens <= options.tokensPerSecond || freed === used) {
+            delay = s.at + SECOND_MS - t
+            break
+          }
+        }
+      }
+      if (sent.length >= options.requestsPerMinute) {
+        delay = Math.max(delay, sent[sent.length - options.requestsPerMinute].at + MINUTE_MS - t)
+      }
+      return Math.max(0, delay)
+    },
+    commit(tokens) {
+      const t = now()
+      prune(t)
+      sent.push({ at: t, tokens })
+    },
+  }
+}
