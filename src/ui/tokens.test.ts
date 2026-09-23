@@ -5,6 +5,7 @@ import {
   COLOR_ROLES,
   THEMES,
   buildStylesheet,
+  reducedMotionBlock,
   reducedMotionCss,
   tokens,
   tokensToCss,
@@ -64,6 +65,12 @@ describe('tokensToCss', () => {
     expect(tokensToCss(tokens, 'dark').startsWith(':root[data-theme="dark"] {')).toBe(true)
   })
 
+  it('can scope a theme to any selector, for side-by-side previews', () => {
+    const css = tokensToCss(tokens, 'dark', '[data-kit-theme="dark"]')
+    expect(css.startsWith('[data-kit-theme="dark"] {')).toBe(true)
+    expect(css).toContain('--color-bg: #111318;')
+  })
+
   it('emits spacing in px and durations in ms', () => {
     const css = tokensToCss(tokens, 'light')
     expect(css).toContain('--space-2: 8px;')
@@ -79,10 +86,20 @@ describe('reducedMotionCss', () => {
     expect(css).toContain('--dur-fast: 0ms;')
     expect(css).toContain('--dur-base: 0ms;')
     expect(css).toContain('--dur-slow: 0ms;')
+    expect(css).toContain('--dur-sprite: 0ms;')
     expect(css).toContain('--dur-fade-base: 80ms;')
     expect(css).toContain('--dur-fade-slow: 80ms;')
     expect(css).toContain('--motion-shift: 0px;')
     expect(css).toContain('--motion-scale: 1;')
+  })
+})
+
+describe('reducedMotionBlock', () => {
+  it('emits the reduced-motion variables under an arbitrary selector, without a media query', () => {
+    const css = reducedMotionBlock(tokens, '[data-kit-motion="reduced"]')
+    expect(css.startsWith('[data-kit-motion="reduced"] {')).toBe(true)
+    expect(css).toContain('--dur-base: 0ms;')
+    expect(css).not.toContain('@media')
   })
 })
 

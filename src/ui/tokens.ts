@@ -57,7 +57,8 @@ export interface Tokens {
   font: { sans: string; pixel: string; mono: string }
   type: Record<'caption' | 'table' | 'body' | 'h3' | 'h2' | 'h1', TypeStep>
   weight: { regular: number; medium: number; semibold: number }
-  duration: { fast: number; base: number; slow: number }
+  /** `sprite` is one loop of a stepped pixel sprite (spinner, mascot). */
+  duration: { fast: number; base: number; slow: number; sprite: number }
   /** Upper bound for opacity fades under `prefers-reduced-motion` (SPEC §10.6). */
   reducedFadeCap: number
   easing: { out: string; in: string; standard: string; pixel: string }
@@ -169,7 +170,7 @@ export const tokens: Tokens = {
     h1: { size: 32, lineHeight: 40 },
   },
   weight: { regular: 400, medium: 500, semibold: 600 },
-  duration: { fast: 120, base: 200, slow: 320 },
+  duration: { fast: 120, base: 200, slow: 320, sprite: 800 },
   reducedFadeCap: 80,
   easing: {
     out: 'cubic-bezier(0, 0, 0.2, 1)',
@@ -232,7 +233,7 @@ const px = (n: number) => `${n}px`
 const ms = (n: number) => `${n}ms`
 
 function themeVariables(t: Tokens, theme: ThemeName): [string, string][] {
-  const vars: [string, string][] = []
+  const vars: [string, string][] = [['color-scheme', theme]]
   for (const role of COLOR_ROLES) vars.push([`--color-${role}`, t.color[theme][role]])
   vars.push(['--color-overlay', t.overlay[theme]])
   for (const level of [1, 2, 3] as const) vars.push([`--elev-${level}`, t.elevation[theme][level]])
@@ -260,22 +261,37 @@ function block(selector: string, vars: [string, string][], indent = ''): string 
   return `${indent}${selector} {\n${body}\n${indent}}`
 }
 
-/** CSS custom properties for one theme, scoped to `:root[data-theme="<theme>"]`. */
-export function tokensToCss(t: Tokens, theme: ThemeName): string {
-  return block(`:root[data-theme="${theme}"]`, themeVariables(t, theme))
+/**
+ * CSS custom properties for one theme, scoped to `:root[data-theme="<theme>"]`.
+ * A custom `selector` scopes it to a subtree instead (the kit page previews both
+ * themes side by side this way).
+ */
+export function tokensToCss(
+  t: Tokens,
+  theme: ThemeName,
+  selector = `:root[data-theme="${theme}"]`,
+): string {
+  return block(selector, themeVariables(t, theme))
 }
 
-/** Reduced-motion override: durations to 0 ms, fades capped, no transforms. */
-export function reducedMotionCss(t: Tokens): string {
-  const fade = ms(Math.min(t.reducedFadeCap, t.duration.base))
-  const vars: [string, string][] = [
+function reducedMotionVariables(t: Tokens): [string, string][] {
+  return [
     ...Object.keys(t.duration).map((k): [string, string] => [`--dur-${k}`, ms(0)]),
-    ['--dur-fade-base', fade],
+    ['--dur-fade-base', ms(Math.min(t.reducedFadeCap, t.duration.base))],
     ['--dur-fade-slow', ms(Math.min(t.reducedFadeCap, t.duration.slow))],
     ['--motion-shift', px(0)],
     ['--motion-scale', '1'],
   ]
-  return `@media (prefers-reduced-motion: reduce) {\n${block(':root', vars, '  ')}\n}`
+}
+
+/** Reduced-motion variables under any selector (the kit uses it to force the mode). */
+export function reducedMotionBlock(t: Tokens, selector: string): string {
+  return block(selector, reducedMotionVariables(t))
+}
+
+/** Reduced-motion override: durations to 0 ms, fades capped, no transforms. */
+export function reducedMotionCss(t: Tokens): string {
+  return `@media (prefers-reduced-motion: reduce) {\n${block(':root', reducedMotionVariables(t), '  ')}\n}`
 }
 
 /** The full token stylesheet: both themes plus the reduced-motion override. */

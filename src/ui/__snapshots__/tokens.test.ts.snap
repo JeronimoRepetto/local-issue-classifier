@@ -2,6 +2,7 @@
 
 exports[`tokensToCss > emits the dark theme variables 1`] = `
 ":root[data-theme="dark"] {
+  color-scheme: dark;
   --color-bg: #111318;
   --color-surface: #1A1D24;
   --color-surface-2: #232733;
@@ -78,6 +79,7 @@ exports[`tokensToCss > emits the dark theme variables 1`] = `
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+  --dur-sprite: 800ms;
   --dur-fade-base: 200ms;
   --dur-fade-slow: 320ms;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -98,6 +100,7 @@ exports[`tokensToCss > emits the dark theme variables 1`] = `
 
 exports[`tokensToCss > emits the light theme variables 1`] = `
 ":root[data-theme="light"] {
+  color-scheme: light;
   --color-bg: #F7F7FA;
   --color-surface: #FFFFFF;
   --color-surface-2: #F0F1F5;
@@ -174,6 +177,7 @@ exports[`tokensToCss > emits the light theme variables 1`] = `
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+  --dur-sprite: 800ms;
   --dur-fade-base: 200ms;
   --dur-fade-slow: 320ms;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);

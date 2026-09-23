@@ -1,0 +1,135 @@
+/* Global base styles for the kit. Values come only from the token variables
+   emitted by tokens.ts (installed at startup by theme.ts). */
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-regular);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* SPEC §10.7: a 2 px accent ring with a 2 px offset, shown instantly. */
+:focus-visible {
+  outline: var(--line-thick) solid var(--color-accent);
+  outline-offset: var(--line-thick);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+.u-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.u-pixel-font {
+  font-family: var(--font-pixel);
+  font-weight: var(--weight-regular);
+  -webkit-font-smoothing: none;
+}
+
+.u-visually-hidden {
+  position: absolute;
+  width: var(--line-thin);
+  height: var(--line-thin);
+  margin: calc(var(--line-thin) * -1);
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Stepped 2 px pixel outline; reserved for the Home cards' hover accent. */
+.u-pixel-border {
+  box-shadow:
+    0 calc(var(--line-thick) * -1) 0 0 var(--color-accent),
+    0 var(--line-thick) 0 0 var(--color-accent),
+    calc(var(--line-thick) * -1) 0 0 0 var(--color-accent),
+    var(--line-thick) 0 0 0 var(--color-accent);
+}
+
+/* Shared form-field anatomy for UiInput, UiSecretInput, UiSelect and UiSlider. */
+.ui-field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ui-field__label {
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+}
+
+.ui-field__hint {
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  color: var(--color-text-muted);
+}
+
+.ui-field__error {
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  color: var(--color-danger);
+}
+
+.ui-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-default);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--color-surface);
+  border: var(--line-thin) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+
+.ui-control:hover {
+  border-color: var(--color-text-muted);
+}
+
+.ui-control:focus-within {
+  border-color: var(--color-accent);
+}
+
+.ui-control--invalid {
+  border-color: var(--color-danger);
+}
+
+.ui-control__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-table-size);
+}
+
+.ui-control__input:focus-visible {
+  outline: none; /* the ring is drawn on .ui-control via :focus-within */
+}
+
+.ui-control:has(.ui-control__input:focus-visible) {
+  outline: var(--line-thick) solid var(--color-accent);
+  outline-offset: var(--line-thick);
+}
+
+.ui-control__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.ui-control__prefix {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
