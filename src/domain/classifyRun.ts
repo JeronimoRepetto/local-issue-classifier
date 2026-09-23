@@ -81,10 +81,11 @@ export function scopeCounts(
 }
 
 /**
- * §4.7 assumption: about 1.5 s per call, spread over the pool. Unmeasured;
- * update SECONDS_PER_CALL once a real run has been timed.
+ * §4.7 measured on 2026-09-23: 22 issues classified in 11 s at concurrency 4
+ * (TypeSafe cloud API). ≈2 s per call, spread over the pool. Remains an approximation
+ * across different issue complexities and network conditions.
  */
-export const SECONDS_PER_CALL = 1.5
+export const SECONDS_PER_CALL = 2
 
 export function estimateSeconds(requests: number, concurrency: number): number {
   return Math.ceil((requests * SECONDS_PER_CALL) / Math.max(1, concurrency))

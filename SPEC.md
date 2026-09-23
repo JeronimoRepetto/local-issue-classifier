@@ -811,7 +811,7 @@ The response is mapped as in §4.4. `usage.input_tokens` is stored with each cla
 | **200 issues** | ≈ 0.8 M input tokens | |
 | **Price** | ≈ **\$0.03–0.06** | \$0.042 per million input tokens; output is free (`models.md`) |
 | Requests | 200 | far below 1 200 per minute |
-| Latency | ≈ 40–100 s at concurrency 4 | **Assumption:** 1–2 s per call, because the docs give no absolute latency. Measure in Task 11 and update this row. |
+| Latency | ≈ 11 s per 22 issues at concurrency 4 | **Measured 2026-09-23:** 22 issues in 11 s at concurrency 4 (TypeSafe cloud API). ≈2 s per call. |
 
 The in-app estimator uses the same formula: the sum over issues of `estimateTokens(buildIssueState(...)) + QUESTIONS_TOKENS`.
 

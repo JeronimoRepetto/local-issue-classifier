@@ -69,9 +69,10 @@ describe('scopeCounts', () => {
 })
 
 describe('estimateSeconds', () => {
-  it('assumes 1.5 s per call spread over the concurrency, rounded up', () => {
-    expect(estimateSeconds(200, 4)).toBe(75)
+  it('assumes 2 s per call spread over the concurrency, rounded up', () => {
+    expect(estimateSeconds(22, 4)).toBe(11)
+    expect(estimateSeconds(200, 4)).toBe(100)
     expect(estimateSeconds(0, 4)).toBe(0)
-    expect(estimateSeconds(3, 0)).toBe(5)
+    expect(estimateSeconds(3, 0)).toBe(6)
   })
 })
