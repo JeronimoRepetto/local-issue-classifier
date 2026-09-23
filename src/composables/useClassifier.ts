@@ -11,16 +11,14 @@ import { planBatches } from '../domain/jevBatchState'
 import { estimateBatchedSeconds, estimateSeconds, scopeCounts, selectForClassification } from '../domain/classifyRun'
 import type { ClassifyMode, Issue, ProjectContext, TrimmingProfileId } from '../domain/types'
 import type { ClassifyScope, RunProgress, RunSummary, ScopeCounts } from '../domain/classifyRun'
-import { createJevClient } from '../adapters/jev/client'
 import type { JevClient } from '../adapters/jev/client'
-import { createHttpJevTransport, resolveJevBaseUrl } from '../adapters/jev/transport'
 import { QUESTIONS_TOKENS, QUESTIONS_VERSION } from '../adapters/jev/questions'
 import { BATCH_QUESTION_BUDGET } from '../adapters/jev/batchQuestions'
 import { runClassification } from '../adapters/jev/runner'
 import type { Sleep } from '../adapters/jev/runner'
 import { useAnalysis } from './useAnalysis'
 import { usePreferences } from './usePreferences'
-import { useSecrets } from './useSecrets'
+import { useProvider } from './useProvider'
 import { setRunActive } from './useRunGuard'
 
 export type ClassifierPhase = 'idle' | 'running' | 'finished'
@@ -56,15 +54,9 @@ export interface ClassifierConfig {
   now?: () => Date
 }
 
+// T16: the selected provider (TypeSafe via /jev, or a local server) builds the client.
 const defaultClientFactory: ClientFactory = ({ getApiKey, model }) =>
-  createJevClient({
-    transport: createHttpJevTransport({
-      baseUrl: resolveJevBaseUrl(import.meta.env.VITE_JEV_BASE_URL),
-      getApiKey,
-      fetch: (input, init) => globalThis.fetch(input, init),
-    }),
-    model,
-  })
+  useProvider().createClient({ getApiKey, model })
 
 let config: Required<Pick<ClassifierConfig, 'createClient' | 'now'>> & ClassifierConfig = {
   createClient: defaultClientFactory,
@@ -86,7 +78,7 @@ const state = reactive<{
 let controller: AbortController | null = null
 
 const analysis = useAnalysis()
-const secrets = useSecrets()
+const provider = useProvider()
 const prefs = usePreferences()
 
 const hasIssues = computed(() => {
@@ -96,8 +88,8 @@ const hasIssues = computed(() => {
   return a.rows.some((r) => !dismissed.has(r.issue.number))
 })
 
-/** §2.4: a Jev key in memory and at least one non-dismissed issue. */
-const canClassify = computed(() => secrets.hasJevKey.value && hasIssues.value)
+/** §2.4: a ready provider (TypeSafe: a Jev key; local: a valid base URL) and at least one non-dismissed issue. */
+const canClassify = computed(() => provider.ready.value && hasIssues.value)
 
 function counts(filteredNumbers?: readonly number[]): ScopeCounts | null {
   const a = analysis.current.value
@@ -120,7 +112,10 @@ function estimate(request: ClassifyRequest = {}): ClassifyEstimate | null {
     only: request.only,
     questionsVersion: QUESTIONS_VERSION,
   })
-  return classifyMode() === 'batched' ? estimateBatched(issues, a.projectContext) : estimatePerIssue(issues, a.projectContext)
+  const run =
+    classifyMode() === 'batched' ? estimateBatched(issues, a.projectContext) : estimatePerIssue(issues, a.projectContext)
+  // A local server costs nothing per token; requests and latency still apply (T16).
+  return provider.isLocal.value ? { ...run, costUsd: 0 } : run
 }
 
 function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): ClassifyEstimate {
@@ -162,7 +157,7 @@ function estimatePerIssue(issues: readonly Issue[], ctx: ProjectContext): Classi
 }
 
 async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> {
-  if (state.phase === 'running' || !secrets.hasJevKey.value) return null
+  if (state.phase === 'running' || !provider.ready.value) return null
   // Classifications from an older questions version become stale (§4.8).
   analysis.update((a) => markStale(a, QUESTIONS_VERSION), 'classification')
   const current = analysis.current.value
@@ -186,7 +181,7 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
     summary = await runClassification({
       issues,
       projectContext: current.projectContext,
-      client: config.createClient({ getApiKey: () => secrets.state.jevApiKey, model: prefs.state.jevModel }),
+      client: config.createClient({ getApiKey: provider.getApiKey, model: provider.model() }),
       concurrency: prefs.state.concurrency,
       mode: classifyMode(),
       trimmingFloor: prefs.state.trimmingFloor,
@@ -216,8 +211,8 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
     state.phase = 'finished'
   }
 
-  // §2.4: the key was rejected, so it is dropped from memory. The GitHub token stays.
-  if (summary.status === 'auth-failed') secrets.setJevKey('')
+  // §2.4: the key was rejected, so the provider's key is dropped from memory. The GitHub token stays.
+  if (summary.status === 'auth-failed') provider.dropKey()
   state.summary = summary
   state.lastFailed = summary.failedNumbers
   return summary

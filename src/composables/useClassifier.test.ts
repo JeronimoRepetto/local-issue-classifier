@@ -289,3 +289,44 @@ describe('useClassifier: batched mode (the default)', () => {
     expect(summary?.profile).toBe('standard')
   })
 })
+
+describe('useClassifier: local provider (T16)', () => {
+  const LOCAL = { kind: 'local' as const, baseUrl: 'http://localhost:8009', model: 'kev-latest' }
+
+  it('prices a local run at 0 but keeps the request count and latency estimate', async () => {
+    await load(() => ok(), { classifyMode: 'per-issue', provider: LOCAL })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const estimate = mods.classifier.useClassifier().estimate({ scope: 'unclassified' })
+    expect(estimate).toMatchObject({ mode: 'per-issue', requests: 2, costUsd: 0, seconds: 1 })
+    expect(estimate?.inputTokens).toBeGreaterThan(0)
+  })
+
+  it('classifies with a local provider without any key, using the local model', async () => {
+    const factory = vi.fn()
+    await load(() => ok(), { classifyMode: 'per-issue', provider: LOCAL })
+    mods.classifier.configureClassifier({
+      createClient: (options) => {
+        factory(options.model, options.getApiKey())
+        return client
+      },
+    })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const classifier = mods.classifier.useClassifier()
+    expect(classifier.canClassify.value).toBe(true)
+    const summary = await classifier.start()
+    expect(summary).toMatchObject({ status: 'completed', classified: 2 })
+    expect(factory).toHaveBeenCalledWith('kev-latest', '')
+  })
+
+  it('a rejected local key drops the local key, never the Jev key', async () => {
+    await load(() => http(401), { classifyMode: 'per-issue', provider: LOCAL })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const secrets = mods.secrets.useSecrets()
+    secrets.setJevKey('jev-test')
+    secrets.setLocalApiKey('local-test')
+    const summary = await mods.classifier.useClassifier().start()
+    expect(summary?.status).toBe('auth-failed')
+    expect(secrets.state.localApiKey).toBe('')
+    expect(secrets.state.jevApiKey).toBe('jev-test')
+  })
+})
