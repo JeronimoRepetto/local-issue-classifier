@@ -13,3 +13,6 @@ coverage
 .env
 .env.*
 !.env.example
+
+# local CodeGraph index (machine-local, per worktree)
+.codegraph/
