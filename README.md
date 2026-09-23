@@ -1,22 +1,35 @@
-# issue-criticity
+# local-issue-classifier
 
-## What it is
+Local-first web app that pulls a GitHub repo's issues and README, then asks Jev (TypeSafe AI's
+decision model) to rate each issue by complexity, criticality, effort and relevance. Filter,
+dismiss, sort by weighted priority and export as plain text. Keys stay in memory; results stay in
+your browser.
 
-issue-criticity is a local-only tool that helps a maintainer or contributor triage a GitHub issue
-backlog quickly. It fetches issues directly from the GitHub API, asks Jev four narrow, calibrated
-questions per issue, and turns the answers into complexity, criticality, cost and relevance
-scores you can sort, filter and export. All deterministic work — fetching, trimming, sorting,
-filtering and exporting — stays in code; Jev only makes the four judgments (see `SPEC.md` §1).
+## How it works
+
+1. Paste a GitHub repository URL (or `owner/repo`) and pick a state: Open, Closed or All.
+2. The app fetches the repository's issues, README and project metadata directly from the GitHub
+   API, and saves them as a new **analysis** in this browser.
+3. **Classify** sends one request per issue to Jev, carrying the issue and a trimmed project
+   summary. Jev answers four narrow questions — Complexity, Criticality, Effort and Relevance —
+   plus a fifth, speculative Kind (bug / feature / documentation / question / maintenance / other).
+4. The table shows every issue with its scores. Filter, sort (including by a weighted
+   **Priority** score), dismiss what you don't care about, and **Export** the current view as a
+   plain-text report.
+
+All deterministic work — fetching, trimming, sorting, filtering and exporting — stays in code;
+Jev only makes the four judgments. See [`docs/jev-questions.md`](docs/jev-questions.md) for what
+each question asks and how its answer becomes a value.
 
 ## Screenshots
 
-_Section pending (Task 15)._
+Screenshots coming soon.
 
 ## Requirements
 
 - Node.js 20 or newer
 - pnpm 11
-- A Jev API key (required)
+- A Jev API key (required to classify issues)
 - A GitHub personal access token (optional — raises the GitHub API rate limit)
 
 ## Install
@@ -29,13 +42,36 @@ pnpm 11 ignores the `pnpm` field in `package.json` for build approvals and overr
 declares both instead in `pnpm-workspace.yaml` (`allowBuilds` as a YAML map, e.g.
 `allowBuilds: { esbuild: true }`), which is what actually grants esbuild's native postinstall step.
 
+## Run
+
+```bash
+pnpm dev
+```
+
+Serves the app at http://localhost:5200 (fixed port, `strictPort: true`). For a production-style
+build:
+
+```bash
+pnpm build     # vue-tsc --noEmit && vite build
+pnpm preview   # serves the build at http://localhost:5200
+```
+
+## First run
+
+A new analysis needs, in order: **1 Keys → 2 Repository → 3 Classify**. A small checklist on
+Home tracks this the first time and disappears once each step has happened once:
+
+1. Open **Settings** and paste your Jev API key (and, optionally, a GitHub token).
+2. On Home, click **New analysis** and paste a repository URL.
+3. Open the analysis and click **Classify unclassified**.
+
 ## Getting a Jev API key
 
 1. Sign in to the TypeSafe console and open the API keys dashboard at
    <https://console.typesafe.ai/keys>.
 2. Create a key.
-3. Paste it into issue-criticity's Settings. It is kept in memory only: a reload or **Clear keys**
-   forgets it, and it is never written to disk, `localStorage` or the export.
+3. Paste it into local-issue-classifier's Settings. It is kept in memory only: a reload or
+   **Clear keys** forgets it, and it is never written to disk, `localStorage` or the export.
 
 What the Jev docs do not cover: account sign-up, key scopes, key rotation, spending limits and
 plans. For those, see <https://docs.typesafe.ai>. From the docs' Models page: Jev charges only input
@@ -48,7 +84,7 @@ issues costs roughly $0.03–0.06.
 A token is optional. Without one, public repositories load at 60 requests/hour and comments are skipped by default. With one, the limit is 5 000 requests/hour.
 
 1. On GitHub, open **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
-2. Name it (for example `issue-criticity`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
+2. Name it (for example `local-issue-classifier`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
 3. Under **Repository access**, choose **Public repositories** (read-only) or **Only select repositories** for the private repos you want to analyse.
 4. Under **Permissions → Repository permissions**, set:
    - **Issues: Read-only**, for issues and their comments;
@@ -58,32 +94,26 @@ A token is optional. Without one, public repositories load at 60 requests/hour a
 
 Classic tokens also work, but private repos need the `repo` scope, which also grants write access. Prefer the fine-grained token.
 
-## Run
-
-```bash
-pnpm dev
-```
-
-Serves the app at http://localhost:5200 (fixed port, `strictPort: true`).
-
 ## Development
 
 ```bash
 pnpm test        # vitest run
 pnpm test:watch  # vitest watch mode
 pnpm typecheck   # vue-tsc -p tsconfig.json && tsc -p tsconfig.node.json
+pnpm hygiene     # public-repo hygiene checks (secrets, personal data, stray assets)
 ```
 
 `pnpm icons` regenerates the icon components from `design/icons/`. The dev-only component kit
-is at http://localhost:5200/?kit.
+is at http://localhost:5200/?kit — it shows every component in both themes side by side, with a
+switch to force reduced motion.
 
-## How classification works
-
-_Section pending (Task 9)._
+This project is developed with **strict TDD**: a test is written first and confirmed to fail for
+the expected reason (RED), then the minimum implementation is added (GREEN), then refactored.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full convention and the architecture rules.
 
 ## Keys
 
-issue-criticity uses two keys, both entered in **Settings**:
+local-issue-classifier uses two keys, both entered in **Settings**:
 
 - **Jev API key** — required to classify issues. See
   [Getting a Jev API key](#getting-a-jev-api-key).
@@ -99,8 +129,8 @@ wipes both immediately, and so does **Clear all local data**.
 
 ## Local data and privacy
 
-issue-criticity is local-only: everything below lives in this browser profile, under
-`localStorage` keys prefixed with `issue-criticity:`. Nothing is ever sent anywhere except
+local-issue-classifier is local-only: everything below lives in this browser profile, under
+`localStorage` keys prefixed with `local-issue-classifier:`. Nothing is ever sent anywhere except
 GitHub (`api.github.com`, for the repository you analyse) and, when you classify issues, the
 local Jev proxy.
 
@@ -121,7 +151,7 @@ the export file — a reload or **Clear keys** in Settings loses them, by design
 
 - **Delete** on an analysis card (Home) removes just that one analysis and its entry in the list,
   after a confirmation.
-- **Clear all local data**, at the bottom of Home, removes every `issue-criticity:*` key —
+- **Clear all local data**, at the bottom of Home, removes every `local-issue-classifier:*` key —
   every saved analysis and your preferences — after you type "delete" to confirm. It also clears
   your keys from memory. This cannot be undone.
 - You can also wipe everything at once from your browser's own settings, under site data for
@@ -135,11 +165,34 @@ excerpts are stored **in plain text, unencrypted**, in this browser profile unti
 them. Anyone with access to your OS account or browser profile — or a browser extension allowed
 on `localhost` — can read them. The New-analysis flow shows this note the first time you load a
 private repository in a session; Settings repeats it permanently. Encryption at rest is out of
-scope for v1 (see "Limitations").
+scope for v1 (see "Known limitations").
 
 ## Using saved analyses
 
-_Section pending (Task 8)._
+**Home** lists every saved analysis as a card: its name, repository and state, when it was last
+fetched, and its counts (total / classified / stale / dismissed) and approximate storage size.
+Each card supports:
+
+- **Open** (click the card) — reopens the analysis with its issues, classifications and working
+  state (filters, sort, dismissed issues) exactly as you left them.
+- **Rename** — an inline edit of the analysis name.
+- **Refresh** — re-fetches the repository and merges the result:
+  - new issues are added as unclassified;
+  - changed issues (a different `updatedAt`) get their data replaced, and any existing
+    classification is kept but marked **stale**;
+  - unchanged issues are untouched;
+  - issues no longer returned by GitHub (closed, transferred, deleted, or beyond the load cap)
+    are kept with a **"No longer in source"** badge rather than deleted silently — you can
+    restore them individually or remove them all at once with **Remove missing**;
+  - your filters, sort, dismissed issues and export options are never touched by a refresh.
+- **Delete** — removes that one analysis and its entry in the list, after a confirmation.
+
+An **unreadable** entry (corrupt storage) can only be deleted.
+
+Within an open analysis, **Dismiss** hides a row from the working table (with an undo toast); a
+**Show dismissed** toggle brings dismissed rows back into view, and each still offers **Restore**.
+**Clear all local data** on Home removes every saved analysis and your preferences at once (see
+"Local data and privacy" above).
 
 ## Priority
 
@@ -182,9 +235,10 @@ worked example — is specified in [`docs/export-format.md`](docs/export-format.
 
 v1 runs locally only (`pnpm dev` or `pnpm preview` on `localhost:5200`). The Jev API rejects
 browser origins, so the browser calls `/jev/v1/...` and the Vite server forwards it to
-`https://api.typesafe.ai`. The proxy forwards only `/v1/systemone` and `/v1/models`, strips
-`origin`, `referer` and `cookie`, logs nothing and stores nothing; your key passes through in
-transit only. GitHub is called directly from the browser.
+`https://api.typesafe.ai` (configurable through the server-only `JEV_UPSTREAM_URL`). The proxy
+forwards only `/v1/systemone` and `/v1/models`, strips `origin`, `referer` and `cookie`, logs
+nothing and stores nothing; your key passes through in transit only. GitHub is called directly
+from the browser.
 
 A hosted mode (for example Firebase Hosting with a serverless proxy function) is a future option,
 not implemented. Switching is configuration only (`VITE_JEV_BASE_URL`). See
@@ -208,6 +262,37 @@ Run `pnpm dev` and open http://localhost:5200/?kit to see every component in bot
 kit page exists only in development). Tokens, components, motion rules and the icon pipeline
 (`pnpm icons`) are documented in [`docs/design.md`](docs/design.md).
 
+## Roadmap / backlog
+
+Not implemented in v1; tracked as future work:
+
+- **Pin-to-top** for individual issues, independent of sort (SPEC.md §2.5).
+- **Responsive filter collapse** below 1280 px — the filter bar does not yet collapse into a
+  compact form at narrower widths (the table itself already scrolls within its container at
+  1024 px, per the design-quality checklist).
+- **Local Jev-compatible providers** — `JevTransport` is a single seam by design (see
+  `docs/deployment.md`), so a self-hosted, Jev-API-compatible model server (for example a local
+  `jaredpalmer/kev`- or `allebee/jevk5`-style deployment) is a plausible future backend; none is
+  wired up or tested today.
+- **Hardware fit detection** — surfacing whether the machine running a local provider has enough
+  memory/compute for a given model size is not implemented.
+- **Hosted deployment mode** (§9 mode b): a serverless proxy function for a public deployment,
+  with its own review of abuse and rate limiting.
+
+## Known limitations
+
+- **Jev classification latency has not been measured.** SPEC.md §4.7 carries an assumed 1–2 s
+  per call; no Jev key was available while building the runner. See "Measuring classification
+  latency" in [`docs/deployment.md`](docs/deployment.md) for how to measure and record it.
+- **Browser CORS forces the local proxy.** The Jev API rejects browser origins outright, so every
+  mode needs a proxy (`server/jevProxy.ts` in v1); there is no way to call Jev directly from the
+  browser.
+- **Local storage only, unencrypted.** There is no encryption at rest; see "Local data and
+  privacy" above.
+- **No automated cross-browser check.** Development and testing target current Chromium-based
+  browsers; no manual Firefox or Safari pass has been recorded for this release.
+- **v1 is local-only.** There is no hosted deployment yet (see "Roadmap / backlog").
+
 ## Credits
 
 - **Fonts:** [Inter](https://github.com/rsms/inter) and
@@ -218,10 +303,7 @@ kit page exists only in development). Tokens, components, motion rules and the i
 
 Full notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-## Limitations
-
-_Section pending (Task 10)._
-
 ## License
 
-_Section pending (Task 15)._
+MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own licenses; see
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

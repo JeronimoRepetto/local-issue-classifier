@@ -3,6 +3,16 @@
 The local-issue-classifier source code is MIT-licensed. The third-party assets below are bundled with
 the app and keep their own licenses; they are **not** relicensed under MIT.
 
+## Runtime dependencies
+
+| Package | Version | License | Notes |
+|---|---|---|---|
+| `vue` | 3.5.43 | MIT | UI framework. |
+| `@tanstack/vue-virtual` | 3.13.39 | MIT | Row virtualization for the issues table above 200 rows. |
+
+Both are MIT, the same license as this project, so no separate notice is required beyond this
+table; their own `LICENSE` files ship in `node_modules/<package>/`.
+
 ## Fonts
 
 Both fonts are installed from npm and bundled by Vite. They are self-hosted: no font CDN is
