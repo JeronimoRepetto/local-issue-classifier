@@ -99,7 +99,43 @@ wipes both immediately, and so does **Clear all local data**.
 
 ## Local data and privacy
 
-_Section pending (Task 8)._
+issue-criticity is local-only: everything below lives in this browser profile, under
+`localStorage` keys prefixed with `issue-criticity:`. Nothing is ever sent anywhere except
+GitHub (`api.github.com`, for the repository you analyse) and, when you classify issues, the
+local Jev proxy.
+
+**What is stored, and where.** All of it is non-secret and lives in `localStorage`:
+
+- **Preferences**: the last repository you entered, the last analysis you had open, and your
+  defaults (max issues to load, max comments per issue, theme, and so on).
+- **Saved analyses**, one entry per analysis: the repository's metadata and project context
+  (README/CONTRIBUTING excerpts, manifest, `docs/` names), issue titles, trimmed bodies and a
+  selection of comments, labels, authors and dates, any classifications, and your working state
+  (filters, sort, dismissed issues).
+
+**What is never stored.** Your Jev API key and GitHub token live only in memory for the current
+tab. They are never written to `localStorage`, `sessionStorage`, cookies, IndexedDB, a URL, or
+the export file — a reload or **Clear keys** in Settings loses them, by design (see "Keys" above).
+
+**Deleting your data.**
+
+- **Delete** on an analysis card (Home) removes just that one analysis and its entry in the list,
+  after a confirmation.
+- **Clear all local data**, at the bottom of Home, removes every `issue-criticity:*` key —
+  every saved analysis and your preferences — after you type "delete" to confirm. It also clears
+  your keys from memory. This cannot be undone.
+- You can also wipe everything at once from your browser's own settings, under site data for
+  `localhost:5200`.
+- If saving ever fails because the browser's storage is full, the analysis stays open for that
+  session and a notice offers **Retry save** — delete older analyses, or lower "Max issues to
+  load" in preferences, then retry.
+
+**Private repositories.** If you analyse a private repository, its issue text and README
+excerpts are stored **in plain text, unencrypted**, in this browser profile until you delete
+them. Anyone with access to your OS account or browser profile — or a browser extension allowed
+on `localhost` — can read them. The New-analysis flow shows this note the first time you load a
+private repository in a session; Settings repeats it permanently. Encryption at rest is out of
+scope for v1 (see "Limitations").
 
 ## Using saved analyses
 

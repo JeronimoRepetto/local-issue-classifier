@@ -14,5 +14,9 @@ coverage
 .env.*
 !.env.example
 
+<<<<<<< HEAD
 # CodeGraph local index
+=======
+# local CodeGraph index (machine-local, per worktree)
+>>>>>>> lane/home
 .codegraph/
