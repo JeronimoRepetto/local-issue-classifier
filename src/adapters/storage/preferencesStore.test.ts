@@ -7,6 +7,14 @@ import { loadPreferences, savePreferences } from './preferencesStore'
 import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
 
 describe('loadPreferences', () => {
+  it('keeps a valid hardwareOverride and drops a malformed one (docs/hardware-fit.md)', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ hardwareOverride: { gpuId: 'nvidia-rtx-5070', vramGb: 12 } }))
+    expect(loadPreferences(storage).hardwareOverride).toEqual({ gpuId: 'nvidia-rtx-5070', vramGb: 12 })
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ hardwareOverride: { gpuId: 42, vramGb: 'lots' } }))
+    expect(loadPreferences(storage).hardwareOverride).toBeNull()
+  })
+
   it('returns defaults when nothing is stored', () => {
     const storage = new MemoryStorage()
     expect(loadPreferences(storage)).toEqual(defaultPreferences())

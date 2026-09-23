@@ -1,6 +1,7 @@
 // local-issue-classifier — typed domain model + defaultX() factories + STORAGE_KEYS.
 // SPEC.md §3. Plain serializable interfaces, no Vue, no fetch, no storage,
 // no browser APIs: the clock and randomness are always injected by the caller.
+import type { HardwareOverride } from './hardware'
 
 /** The one place the default Jev model name lives (Preferences.jevModel, Jev client). */
 export const DEFAULT_JEV_MODEL = 'jev-latest'
@@ -181,6 +182,8 @@ export interface Preferences {
   theme: 'system' | 'light' | 'dark' // §10.2, default 'system'
   onboarding: { keys: boolean; repo: boolean; classify: boolean } // first-run checklist, §10.1
   keysBannerDismissed: boolean // §2.1 step 2, Task 4: "Keys required" banner dismissal
+  /** Manual GPU/VRAM correction for the hardware-fit panel (docs/hardware-fit.md). Detected values are never persisted. */
+  hardwareOverride?: HardwareOverride | null // default null
 }
 
 // ── Filters, sorting, export ─────────────────────────────────────────
@@ -333,6 +336,7 @@ export function defaultPreferences(): Preferences {
     theme: 'system',
     onboarding: { keys: false, repo: false, classify: false },
     keysBannerDismissed: false,
+    hardwareOverride: null,
   }
 }
 

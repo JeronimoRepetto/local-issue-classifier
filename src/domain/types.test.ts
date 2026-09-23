@@ -59,6 +59,7 @@ describe('defaultPreferences', () => {
     expect(prefs.theme).toBe('system')
     expect(prefs.onboarding).toEqual({ keys: false, repo: false, classify: false })
     expect(prefs.keysBannerDismissed).toBe(false)
+    expect(prefs.hardwareOverride).toBeNull()
     expect(prefs.defaultExportOptions).toEqual(defaultExportOptions())
   })
 

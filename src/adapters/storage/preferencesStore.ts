@@ -5,6 +5,7 @@
 import { STORAGE_KEYS, defaultPreferences } from '../../domain/types'
 import type { Preferences } from '../../domain/types'
 import { TRIMMING_PROFILE_IDS } from '../../domain/jevBatchState'
+import { sanitizeHardwareOverride } from '../../domain/hardware'
 import type { StorageLike } from './analysisStore'
 
 const CLASSIFY_MODES: readonly string[] = ['batched', 'per-issue']
@@ -18,6 +19,7 @@ function sanitize(prefs: Preferences): Preferences {
     trimmingFloor: (TRIMMING_PROFILE_IDS as readonly string[]).includes(prefs.trimmingFloor)
       ? prefs.trimmingFloor
       : defaults.trimmingFloor,
+    hardwareOverride: sanitizeHardwareOverride(prefs.hardwareOverride),
   }
 }
 
