@@ -2,14 +2,13 @@
 // storage, no browser APIs: the clock is always injected as `now`. Only
 // imports other domain modules, per SPEC.md §7.2.
 //
-// Task 14 owns `domain/priority.ts` (`priorityOf`, `clampWeights`, §4.9), but
-// its own file list does not include this one, so the §6.5 Priority/Weights
-// lines have to work today. `priorityForExport` below is a private copy of
-// the exact §4.9 formula for that reason only. When Task 14 lands, this
-// local copy should be deleted in favor of importing `priorityOf`.
+// The §6.5 Priority/Weights lines use `domain/priority.ts`'s `priorityOf`
+// (Task 14, §4.9) directly, so this formatter and the table's own `priority`
+// sort key (`domain/sort.ts`) share the exact same computation.
 import { filterRows } from './filter'
 import { sortRowsBy } from './sort'
 import { defaultAnalysisName } from './analysis'
+import { priorityOf } from './priority'
 import type {
   Analysis,
   Classification,
@@ -27,18 +26,6 @@ const LABEL_WIDTH = 11
 const DIVIDER = '='.repeat(72)
 const NOTE_TEXT =
   'Levels, relevance and priority are model-based estimates; relevance and priority are ordinal 0–100 signals.'
-
-function priorityForExport(c: Classification | null, w: PriorityWeights): number | null {
-  if (!c) return null
-  const total = w.criticality + w.relevance + w.complexity + w.effort
-  if (total <= 0) return null
-  const crit = c.criticality.score / 2
-  const rel = c.relevance.score / 4
-  const simp = 1 - c.complexity.score / 2
-  const ease = 1 - c.effort.score / 2
-  const raw = (w.criticality * crit + w.relevance * rel + w.complexity * simp + w.effort * ease) / total
-  return Math.round(100 * raw)
-}
 
 /** Forces a title onto one line (§6.5 "Titles are forced onto one line"). */
 function oneLine(title: string): string {
@@ -189,7 +176,7 @@ function buildMainEntry(
   const c = row.classification as Classification
   const idx = String(index + 1).padStart(width, ' ')
   const title = oneLine(row.issue.title)
-  const priority = priorityForExport(c, weights)
+  const priority = priorityOf(c, weights)
 
   const line1 = `${idx}. #${row.issue.number}  ${title}`
   const line2 = labelLine('Priority', priority === null ? '—' : `${priority}/100`)
