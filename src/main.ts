@@ -3,12 +3,12 @@ import { createApp } from 'vue'
 import '@fontsource-variable/inter'
 import '@fontsource/silkscreen'
 import App from './App.vue'
-import { applyTheme, installTokenStylesheet } from './ui/theme'
+import { installTokenStylesheet } from './ui/theme'
 import './ui/base.css'
 import './style.css'
 
 installTokenStylesheet(document)
-// The theme preference is wired to Preferences in Task 4; until then follow the system.
-applyTheme('system', { root: document.documentElement, matchMedia: (q) => window.matchMedia(q) })
+// The theme preference (and the rest of the integration wiring) is applied by
+// App.vue's setup, which runs usePreferences before the app ever paints.
 
 createApp(App).mount('#app')

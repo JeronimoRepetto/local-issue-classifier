@@ -1,7 +1,6 @@
 // The App shell's view state (SPEC.md §6.1): App.vue has no router, it just
-// switches between Home, the current analysis and Settings based on this.
-// Placeholder containers stand in for Settings and the analysis view until
-// Task 4 and Task 12 land theirs (see App.vue's TODO(INT) comments).
+// switches between Home, the current analysis (AnalysisViewContainer) and
+// Settings (SettingsContainer) based on this.
 import { reactive } from 'vue'
 import type { LoadResult } from '../adapters/storage/analysisStore'
 import { useAnalyses } from './useAnalyses'
