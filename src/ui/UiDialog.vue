@@ -15,8 +15,10 @@ const props = withDefaults(
     confirmPhrase?: string
     confirmLabel?: string
     cancelLabel?: string
+    /** Teleport target; the kit page uses it to keep a dialog inside its themed panel. */
+    teleportTo?: string
   }>(),
-  { confirmLabel: 'Delete', cancelLabel: 'Cancel' },
+  { confirmLabel: 'Delete', cancelLabel: 'Cancel', teleportTo: 'body' },
 )
 
 const emit = defineEmits<{ close: []; confirm: [] }>()
@@ -67,7 +69,7 @@ function confirm() {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="teleportTo" defer>
     <Transition name="ui-dialog">
       <div v-if="open" class="ui-dialog__backdrop" @mousedown.self="emit('close')">
         <div
