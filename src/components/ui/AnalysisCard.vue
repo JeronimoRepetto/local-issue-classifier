@@ -33,8 +33,6 @@ const isOk = computed(() => props.entry.status === 'ok')
 const summary = computed(() => (props.entry.status === 'ok' ? props.entry.summary : null))
 const id = computed(() => (props.entry.status === 'ok' ? props.entry.summary.id : props.entry.id))
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 const formatBytes = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`
 
 /** Key/value metadata grid (design v2): keys in micro mono, values in mono. */
@@ -47,7 +45,7 @@ const meta = computed(() => {
     { key: 'Stale', value: String(s.counts.stale) },
     { key: 'Dismissed', value: String(s.counts.dismissed) },
     { key: 'State', value: s.stateFilter },
-    { key: 'Fetched', value: formatDate(s.fetchedAt) },
+    { key: 'Fetched', value: s.fetchedAt.slice(0, 10) },
     { key: 'Size', value: formatBytes(s.approxBytes) },
   ]
 })
@@ -230,13 +228,23 @@ function confirmDelete() {
   line-height: var(--text-caption-line);
 }
 
-/* Actions stay in the DOM and keyboard order; they fade in on hover/focus on
-   pointer devices and are always visible on touch. */
+/* Actions stay in the DOM and keyboard order; they fade in over the top-right
+   corner on hover/focus on pointer devices and are always visible on touch. */
 .analysis-card__actions {
   display: flex;
   flex: none;
   gap: var(--space-1);
   transition: opacity var(--dur-fade-base) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .analysis-card__actions:not(.analysis-card__actions--always) {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    padding-left: var(--space-2);
+    background: var(--color-surface);
+  }
 }
 
 @media (hover: hover) {
@@ -250,9 +258,9 @@ function confirmDelete() {
 }
 
 .analysis-card__meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-7) + var(--space-3)), 1fr));
-  gap: var(--space-2) var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2h) var(--space-4);
   margin: 0;
 }
 
