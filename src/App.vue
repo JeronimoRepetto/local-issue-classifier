@@ -1,22 +1,30 @@
 <script setup lang="ts">
 // App shell (SPEC §6.1): a tiny view state (home | analysis | settings) plus
-// a top bar with the pixel logo/wordmark. Home renders HomeContainer; the
-// other two views render placeholders until Task 4 (Settings) and Task 12
-// (Issues) land their real containers — see the TODO(INT) markers below.
+// a top bar with the pixel logo/wordmark. Home renders HomeContainer, Settings
+// renders SettingsContainer and the analysis view renders AnalysisViewContainer.
 //
-// TODO(INT): Task 4's usePreferences.ts must be imported here (or in main.ts)
-// at bootstrap, before any useAnalysis().setCurrent() call, so the theme and
-// other preferences are applied before the app renders and reload restores
-// Preferences.lastAnalysisId. Not imported yet: Task 4 is not in this lane's
-// base branch, so the file does not exist here.
-import { defineAsyncComponent } from 'vue'
+// This is also where the integration task wires the pieces built in
+// isolation by the other tasks: usePreferences is imported first so its
+// lastOpened hook is in place before restoreLastOpened() runs below;
+// configureRepo() binds the GitHub loader to the in-memory secrets; the
+// keys-required banner is shown on Home/Analysis; and the last-opened
+// analysis is restored once, on boot.
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { isKitRequested } from './ui/kitRoute'
 import { useView } from './composables/useView'
+import { usePreferences } from './composables/usePreferences'
+import { useAnalysis } from './composables/useAnalysis'
+import { useSecrets } from './composables/useSecrets'
+import { configureRepo } from './composables/useRepo'
+import { applyTheme } from './ui/theme'
 import IconLogo from './assets/icons/IconLogo.vue'
 import IconSettings from './assets/icons/IconSettings.vue'
 import HomeContainer from './components/containers/HomeContainer.vue'
-import AnalysisViewPlaceholder from './components/containers/AnalysisViewPlaceholder.vue'
-import SettingsPlaceholder from './components/containers/SettingsPlaceholder.vue'
+import AnalysisViewContainer from './components/containers/AnalysisViewContainer.vue'
+import SettingsContainer from './components/containers/SettingsContainer.vue'
+import KeysRequiredBanner from './components/ui/KeysRequiredBanner.vue'
+import UiToastStack from './ui/UiToastStack.vue'
+import type { ToastItem } from './ui/UiToastStack.vue'
 
 // Dev-only UI kit (SPEC §10.4). In production `import.meta.env.DEV` is the
 // literal `false`, so the dynamic import and the kit chunk are dropped.
@@ -26,6 +34,49 @@ const KitPage =
     : null
 
 const view = useView()
+// Importing usePreferences here (not lazily) wires useAnalysis's lastOpened
+// hook to Preferences' own reactive state before restoreLastOpened() below
+// ever runs, so opening an analysis and a later preferences save can never
+// clobber each other (see usePreferences.ts).
+const prefs = usePreferences()
+const secrets = useSecrets()
+const analysis = useAnalysis()
+
+let toastId = 0
+const toasts = ref<ToastItem[]>([])
+function pushToast(kind: ToastItem['kind'], message: string): void {
+  toasts.value = [...toasts.value, { id: ++toastId, kind, message }]
+}
+function dismissToast(id: ToastItem['id']): void {
+  toasts.value = toasts.value.filter((t) => t.id !== id)
+}
+
+configureRepo({
+  getToken: () => secrets.state.githubToken,
+  onUnauthorized: () => {
+    secrets.setGitHubToken('')
+    pushToast('warning', 'Your GitHub token was rejected and has been cleared. Enter it again in Settings.')
+  },
+  getPreferences: () => prefs.state,
+})
+
+// Applies the resolved theme before first paint, and keeps following the
+// preference for as long as the shell is mounted (i.e. for the app's lifetime).
+const themeEnv = { root: document.documentElement, matchMedia: (q: string) => window.matchMedia(q) }
+let stopTheme = applyTheme(prefs.state.theme, themeEnv)
+watch(
+  () => prefs.state.theme,
+  (theme) => {
+    stopTheme()
+    stopTheme = applyTheme(theme, themeEnv)
+  },
+)
+onBeforeUnmount(() => stopTheme())
+
+// Restores Preferences.lastAnalysisId once, on boot (SPEC §2.2 item 2).
+if (analysis.restoreLastOpened()) view.state.view = 'analysis'
+
+const showKeysBanner = computed(() => !secrets.hasJevKey.value && !prefs.state.keysBannerDismissed)
 </script>
 
 <template>
@@ -47,10 +98,18 @@ const view = useView()
       </button>
     </header>
     <main class="app-shell__body">
-      <HomeContainer v-if="view.state.view === 'home'" />
-      <AnalysisViewPlaceholder v-else-if="view.state.view === 'analysis'" />
-      <SettingsPlaceholder v-else />
+      <template v-if="view.state.view === 'home'">
+        <KeysRequiredBanner v-if="showKeysBanner" @dismiss="prefs.dismissKeysBanner()" />
+        <HomeContainer :on-clear-all="() => secrets.clearKeys()" />
+      </template>
+      <template v-else-if="view.state.view === 'analysis'">
+        <KeysRequiredBanner v-if="showKeysBanner" @dismiss="prefs.dismissKeysBanner()" />
+        <AnalysisViewContainer />
+      </template>
+      <SettingsContainer v-else />
     </main>
+
+    <UiToastStack :toasts="toasts" @dismiss="dismissToast" />
   </div>
 </template>
 
