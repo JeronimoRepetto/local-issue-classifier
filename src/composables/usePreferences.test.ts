@@ -53,6 +53,18 @@ describe('usePreferences singleton', () => {
     expect(JSON.parse(storage.getItem(STORAGE_KEYS.preferences) as string).keysBannerDismissed).toBe(true)
   })
 
+  it('setHardwareOverride persists only the manual override (docs/hardware-fit.md)', async () => {
+    const mod: PreferencesModule = await import('./usePreferences')
+    mod.usePreferences().setHardwareOverride({ gpuId: 'apple-m2-pro', vramGb: 32 })
+    expect(mod.usePreferences().state.hardwareOverride).toEqual({ gpuId: 'apple-m2-pro', vramGb: 32 })
+    expect(JSON.parse(storage.getItem(STORAGE_KEYS.preferences) as string).hardwareOverride).toEqual({
+      gpuId: 'apple-m2-pro',
+      vramGb: 32,
+    })
+    mod.usePreferences().setHardwareOverride(null)
+    expect(JSON.parse(storage.getItem(STORAGE_KEYS.preferences) as string).hardwareOverride).toBeNull()
+  })
+
   it('completeOnboardingStep persists a single onboarding flag', async () => {
     const mod: PreferencesModule = await import('./usePreferences')
     mod.usePreferences().completeOnboardingStep('keys')

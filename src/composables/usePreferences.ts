@@ -5,6 +5,7 @@
 // opened" write share one source of truth and never clobber each other.
 import { reactive } from 'vue'
 import type { Preferences } from '../domain/types'
+import type { HardwareOverride } from '../domain/hardware'
 import { getAppStorage } from '../adapters/storage/appStorage'
 import { loadPreferences, savePreferences } from '../adapters/storage/preferencesStore'
 import type { SavePreferencesResult } from '../adapters/storage/preferencesStore'
@@ -46,6 +47,11 @@ function completeOnboardingStep(step: keyof Preferences['onboarding']): SavePref
   return update({ onboarding: { ...state.onboarding, [step]: true } })
 }
 
+/** Stores (or clears, with null) the hardware-fit manual override; detected values are never persisted. */
+function setHardwareOverride(override: HardwareOverride | null): SavePreferencesResult {
+  return update({ hardwareOverride: override })
+}
+
 /** Shares one source of truth with useAnalysis's Preferences.lastAnalysisId
  *  (Task 4 wiring): both reads and writes go through this module's own
  *  reactive `state`, so useAnalysis never has to write raw storage behind
@@ -66,6 +72,7 @@ export function usePreferences() {
     update,
     dismissKeysBanner,
     completeOnboardingStep,
+    setHardwareOverride,
     retrySave: persist,
   }
 }
