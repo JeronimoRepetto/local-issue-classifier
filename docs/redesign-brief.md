@@ -302,7 +302,7 @@ icon button. The content column is at most 1120 px (Analysis) or 880 px (Home, S
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ▪ issue-criticity                          analyses  settings   ☾    │
+│ ▪ local-issue-classifier                   analyses  settings   ☾    │
 ├──────────────────────────────────────────────────────────────────────┤  hairline
 │                         Triage issues locally.                        │  pixel H1 (B)
 │        Score criticality, effort and relevance with calibrated Jev.   │  lede, muted
