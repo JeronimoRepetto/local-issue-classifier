@@ -32,6 +32,27 @@ export function jevBody(confidence = 0.8, inputTokens = 1000): SystemOneResponse
   }
 }
 
+const BATCH_PREFIXES = { complexity: 'c', criticality: 'k', effort: 'e', relevance: 'r', kind: 't' } as const
+
+/** A per-issue body's answers, renamed to that issue's batched ids (`c_123`, …). */
+export function namespaced(issueNumber: number, body: SystemOneResponseBody = jevBody()): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(body.answers).map(([id, answer]) => [
+      `${BATCH_PREFIXES[id as keyof typeof BATCH_PREFIXES] ?? id}_${issueNumber}`,
+      answer,
+    ]),
+  )
+}
+
+/** A valid batched body: five namespaced answers per issue, one usage for the request. */
+export function batchBody(issueNumbers: readonly number[], confidence = 0.8, inputTokens = 1000): SystemOneResponseBody {
+  return {
+    model: 'jev-1.13.0',
+    answers: Object.assign({}, ...issueNumbers.map((n) => namespaced(n, jevBody(confidence)))),
+    usage: { input_tokens: inputTokens },
+  }
+}
+
 export const ok = (body: unknown = jevBody()): Result => ({
   status: 200,
   ok: true,
