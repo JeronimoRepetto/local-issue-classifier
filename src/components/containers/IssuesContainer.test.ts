@@ -1,0 +1,181 @@
+// Task 12 — SPEC.md §2.5, §6.1 screen 3: the Issues screen container. Wires
+// useAnalysis()/useFilters() to FilterBar, DismissToggle, IssueTable and the
+// detail drawer; owns bulk dismiss/undo, Show dismissed, Remove missing and
+// the "/" shortcut (D/Enter/arrows are IssueTable's own, tested there).
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { createAnalysis } from '../../domain/analysis'
+import type { Analysis } from '../../domain/types'
+import { defaultPreferences, defaultProjectContext } from '../../domain/types'
+import { fakeClassification, fakeIssue, fakeRepo } from '../../../tests/fakes/domainFixtures'
+import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
+
+type AnalysisModule = typeof import('../../composables/useAnalysis')
+type ContainerModule = typeof import('./IssuesContainer.vue')
+
+let storage: MemoryStorage
+let analysisMod: AnalysisModule
+let IssuesContainer: ContainerModule['default']
+
+function seedAnalysis(id = 'a1'): Analysis {
+  return createAnalysis({
+    id,
+    repo: fakeRepo(),
+    stateFilter: 'open',
+    now: '2026-03-01T10:00:00Z',
+    prefs: defaultPreferences(),
+    projectContext: defaultProjectContext('acme/widgets'),
+    issues: [
+      fakeIssue(1, { title: 'Crash on empty list', labels: ['bug'] }),
+      fakeIssue(2, { title: 'Improve docs', labels: ['docs'] }),
+      fakeIssue(3, { title: 'Ghost issue' }),
+    ],
+    commentsFetched: false,
+  })
+}
+
+async function freshEnv() {
+  vi.resetModules()
+  storage = new MemoryStorage()
+  const storageModule = await import('../../adapters/storage/appStorage')
+  storageModule.setAppStorage(storage)
+  analysisMod = await import('../../composables/useAnalysis')
+  analysisMod.configureAnalysis({ clock: () => '2026-03-05T00:00:00Z' })
+  const mod: ContainerModule = await import('./IssuesContainer.vue')
+  IssuesContainer = mod.default
+}
+
+const flush = async () => {
+  await nextTick()
+  await nextTick()
+}
+
+describe('IssuesContainer', () => {
+  beforeEach(async () => {
+    await freshEnv()
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('shows "K of N issues" for the current analysis', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+    expect(wrapper.get('[data-test="issue-count"]').text()).toBe('3 of 3 issues')
+  })
+
+  it('filters the table via FilterBar and updates the count', async () => {
+    const analysis = seedAnalysis()
+    analysis.rows[0].status = 'done'
+    analysis.rows[0].classification = fakeClassification({
+      criticality: { level: 'high', score: 2, confidence: 0.9, probabilities: [0, 0, 1] },
+    })
+    analysisMod.useAnalysis().setCurrent(analysis)
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('[data-test="filter-criticality"] [data-test="multiselect-trigger"]').trigger('click')
+    await wrapper.get('[data-test="filter-criticality"] .ui-multiselect__option').trigger('click')
+    await flush()
+
+    expect(wrapper.get('[data-test="issue-count"]').text()).toBe('1 of 3 issues')
+  })
+
+  it('dismisses a row and shows an undo toast that restores it', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('[data-test="row-dismiss"]').trigger('click')
+    await flush()
+
+    expect(analysisMod.useAnalysis().current.value?.working.dismissed).toEqual([1])
+    expect(wrapper.get('[data-test="issue-count"]').text()).toBe('2 of 3 issues')
+    expect(wrapper.text()).toContain('Issue dismissed')
+
+    await wrapper.get('[data-test="toast-action"]').trigger('click')
+    await flush()
+    expect(analysisMod.useAnalysis().current.value?.working.dismissed).toEqual([])
+  })
+
+  it('bulk-dismisses selected rows with a single undo toast', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    const checkboxes = wrapper.findAll('[data-test="row-select"]')
+    await checkboxes[0].setValue(true)
+    await checkboxes[1].setValue(true)
+    await flush()
+
+    await wrapper.get('[data-test="bulk-dismiss"]').trigger('click')
+    await flush()
+
+    expect(analysisMod.useAnalysis().current.value?.working.dismissed?.sort()).toEqual([1, 2])
+    expect(wrapper.text()).toContain('2 issues dismissed')
+  })
+
+  it('Show dismissed brings dismissed rows back with Restore, and updates the count text', async () => {
+    const analysis = seedAnalysis()
+    analysisMod.useAnalysis().setCurrent(analysis)
+    analysisMod.useAnalysis().dismiss([1])
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    expect(wrapper.get('[data-test="issue-count"]').text()).toBe('2 of 3 issues')
+    await wrapper.get('[role="switch"]').trigger('click')
+    await flush()
+
+    expect(wrapper.get('[data-test="issue-count"]').text()).toBe('3 of 3 issues (1 dismissed)')
+    await wrapper.get('[data-test="row-restore"]').trigger('click')
+    await flush()
+    expect(analysisMod.useAnalysis().current.value?.working.dismissed).toEqual([])
+  })
+
+  it('Remove missing asks for confirmation before deleting missing rows', async () => {
+    const analysis = seedAnalysis()
+    analysis.rows[2].sourceStatus = 'missing'
+    analysisMod.useAnalysis().setCurrent(analysis)
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    expect(wrapper.text()).toContain('No longer in source')
+    await wrapper.get('[data-test="remove-missing"]').trigger('click')
+    await flush()
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+
+    const confirmButton = document.querySelector('[data-test="confirm-remove-missing"]') as HTMLButtonElement
+    confirmButton.click()
+    await flush()
+
+    expect(analysisMod.useAnalysis().current.value?.rows).toHaveLength(2)
+  })
+
+  it('opens the detail drawer for a row and closes it', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('[data-test="issue-row"]').trigger('click')
+    await flush()
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog.textContent).toContain('Crash on empty list')
+
+    ;(document.querySelector('[data-test="drawer-close"]') as HTMLButtonElement).click()
+    await flush()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('"/" focuses the search input', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }))
+    await flush()
+    expect(document.activeElement).toBe(document.querySelector('[data-test="search-input"] input'))
+  })
+})
