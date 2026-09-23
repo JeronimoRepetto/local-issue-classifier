@@ -1,0 +1,12 @@
+{
+  "name": "widgets",
+  "full_name": "acme/widgets",
+  "owner": { "login": "acme" },
+  "description": null,
+  "topics": [],
+  "default_branch": "main",
+  "private": false,
+  "has_issues": false,
+  "open_issues_count": 0,
+  "html_url": "https://github.com/acme/widgets"
+}

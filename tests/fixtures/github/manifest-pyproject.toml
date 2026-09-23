@@ -1,0 +1,6 @@
+[build-system]
+requires = ["hatchling"]
+
+[project]
+name = "widgets-py"
+description = "Synthetic widgets for Python"

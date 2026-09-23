@@ -1,0 +1,31 @@
+[
+  {
+    "number": 7, "title": "Widget crashes on resize", "body": "Steps: resize the widget window quickly.",
+    "state": "open", "state_reason": null, "labels": [{ "name": "bug" }],
+    "user": { "login": "user-one", "type": "User" }, "author_association": "CONTRIBUTOR",
+    "created_at": "2026-05-01T10:00:00Z", "updated_at": "2026-09-20T10:00:00Z", "closed_at": null,
+    "comments": 250, "reactions": { "total_count": 4 }, "html_url": "https://github.com/acme/widgets/issues/7"
+  },
+  {
+    "number": 6, "title": "Add dark theme", "body": null,
+    "state": "open", "state_reason": null, "labels": [],
+    "user": { "login": "user-two", "type": "User" }, "author_association": "NONE",
+    "created_at": "2026-04-01T10:00:00Z", "updated_at": "2026-09-19T10:00:00Z", "closed_at": null,
+    "comments": 0, "reactions": { "total_count": 0 }, "html_url": "https://github.com/acme/widgets/issues/6"
+  },
+  {
+    "number": 5, "title": "Bump dependency", "body": "Automated update.",
+    "state": "open", "state_reason": null, "labels": [],
+    "user": { "login": "deps-helper[bot]", "type": "Bot" }, "author_association": "NONE",
+    "created_at": "2026-04-01T10:00:00Z", "updated_at": "2026-09-18T10:00:00Z", "closed_at": null,
+    "comments": 1, "reactions": { "total_count": 0 }, "html_url": "https://github.com/acme/widgets/pull/5",
+    "pull_request": { "url": "https://api.github.com/repos/acme/widgets/pulls/5" }
+  },
+  {
+    "number": 4, "title": "Docs typo in intro", "body": "The intro says 'widgte'.",
+    "state": "open", "state_reason": null, "labels": [{ "name": "docs" }],
+    "user": { "login": "user-three", "type": "User" }, "author_association": "MEMBER",
+    "created_at": "2026-03-01T10:00:00Z", "updated_at": "2026-09-17T10:00:00Z", "closed_at": null,
+    "comments": 2, "reactions": { "total_count": 1 }, "html_url": "https://github.com/acme/widgets/issues/4"
+  }
+]

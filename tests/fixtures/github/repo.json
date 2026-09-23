@@ -1,0 +1,12 @@
+{
+  "name": "widgets",
+  "full_name": "acme/widgets",
+  "owner": { "login": "acme" },
+  "description": "Synthetic widget toolkit used only by tests",
+  "topics": ["widgets", "ui"],
+  "default_branch": "main",
+  "private": false,
+  "has_issues": true,
+  "open_issues_count": 6,
+  "html_url": "https://github.com/acme/widgets"
+}

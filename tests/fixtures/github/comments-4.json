@@ -1,0 +1,4 @@
+[
+  { "id": 401, "user": { "login": "user-two", "type": "User" }, "author_association": "NONE", "created_at": "2026-03-02T10:00:00Z", "body": "Confirmed, the intro has a typo." },
+  { "id": 402, "user": { "login": "user-three", "type": "User" }, "author_association": "MEMBER", "created_at": "2026-03-03T10:00:00Z", "body": "+1" }
+]

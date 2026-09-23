@@ -38,3 +38,11 @@ export class RateLimitedError extends GitHubHttpError {
     this.resetAt = resetAt
   }
 }
+
+/** The repository exists but has issues disabled (`has_issues: false`, SPEC §2.3). */
+export class IssuesDisabledError extends Error {
+  constructor() {
+    super('This repository has issues disabled.')
+    this.name = 'IssuesDisabledError'
+  }
+}

@@ -1,0 +1,5 @@
+[
+  { "name": "getting-started.md", "type": "file" },
+  { "name": "guides", "type": "dir" },
+  { "name": "api.md", "type": "file" }
+]

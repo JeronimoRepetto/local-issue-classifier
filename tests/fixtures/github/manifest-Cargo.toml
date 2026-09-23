@@ -1,0 +1,6 @@
+[package]
+name = "widgets-rs"
+description = "Synthetic widgets for Rust"
+
+[dependencies]
+serde = "1"
