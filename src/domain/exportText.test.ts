@@ -2,16 +2,17 @@
 // golden fixture is generated and audited by hand against the format rules
 // (§6.5 "Format rules"), then locked; the Generated line is normalized to a
 // placeholder before comparison since it carries the injected clock.
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+// Read via Vite's `?raw` import (a relative specifier), not `node:fs`: a
+// domain co-located test may only import `vitest` besides relative modules
+// (tests/architecture.test.ts).
 import { describe, expect, it } from 'vitest'
+import golden from '../../tests/fixtures/export/basic-report.txt?raw'
 import { exportFilenameStem, exportScopeCount, formatExport } from './exportText'
 import { createAnalysis, updateWorking } from './analysis'
 import { defaultExportOptions, defaultFilter, defaultPreferences, defaultProjectContext } from './types'
 import type { Analysis, ExportOptions, IssueRow } from './types'
 import { fakeClassification, fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
 
-const GOLDEN_PATH = join(__dirname, '..', '..', 'tests', 'fixtures', 'export', 'basic-report.txt')
 const GENERATED_LINE_RE = /^Generated {2}: .*$/m
 
 function normalizeGenerated(text: string): string {
@@ -94,7 +95,6 @@ describe('formatExport — golden file (SPEC.md §6.5)', () => {
     )
 
     const actual = formatExport(analysis, analysis.working.exportOptions, new Date('2026-09-23T14:05:00'))
-    const golden = readFileSync(GOLDEN_PATH, 'utf8')
     expect(normalizeGenerated(actual)).toBe(golden)
   })
 })
