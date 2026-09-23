@@ -20,6 +20,7 @@ import ClassifyContainer from './ClassifyContainer.vue'
 import ExportContainer from './ExportContainer.vue'
 import IssuesContainer from './IssuesContainer.vue'
 import RepoLoadFeedback from './RepoLoadFeedback.vue'
+import SortPopoverContainer from './SortPopoverContainer.vue'
 import ShortcutsHelpDialog from '../ui/ShortcutsHelpDialog.vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiTooltip from '../../ui/UiTooltip.vue'
@@ -112,6 +113,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       <template #after-header>
         <ClassifyContainer :filtered-numbers="filteredNumbers" @open-settings="onOpenSettings" />
         <RepoLoadFeedback show-save-failed @retry="onRefresh" />
+      </template>
+      <template #sort-popover>
+        <SortPopoverContainer />
       </template>
     </IssuesContainer>
 

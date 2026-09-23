@@ -252,6 +252,40 @@ describe('AnalysisViewContainer', () => {
     wrapper.unmount()
   })
 
+  describe('Sort popover (WIRE-2)', () => {
+    it('mounts SortPopoverContainer in the sort-popover slot, editing the same multi-key sort as shift-click', async () => {
+      analysisMod.useAnalysis().setCurrent(seedAnalysis())
+      const wrapper = mount(AnalysisViewContainer, { attachTo: document.body })
+      await flush()
+
+      await wrapper.get('[data-test="sort-popover-trigger"]').trigger('click')
+      await flush()
+      const items = wrapper.findAll('[data-test="sort-rule"]')
+      expect(items.map((item) => item.text().replace(/[0-9↑↓]/g, '').trim())).toEqual([
+        expect.stringContaining('Criticality'),
+        expect.stringContaining('Relevance'),
+        expect.stringContaining('Effort'),
+      ])
+
+      await wrapper.findAll('[data-test="sort-rule-remove"]')[0].trigger('click')
+      await flush()
+      expect(analysisMod.useAnalysis().current.value?.working.tableSort).toEqual([
+        { key: 'relevance', direction: 'desc' },
+        { key: 'effort', direction: 'asc' },
+      ])
+
+      // The same working state also edits from a plain shift-click on a sortable header.
+      await wrapper.get('[data-test="sort-updatedAt"]').trigger('click', { shiftKey: true })
+      await flush()
+      expect(analysisMod.useAnalysis().current.value?.working.tableSort).toEqual([
+        { key: 'relevance', direction: 'desc' },
+        { key: 'effort', direction: 'asc' },
+        { key: 'updatedAt', direction: 'desc' },
+      ])
+      wrapper.unmount()
+    })
+  })
+
   describe('Export (Task FU)', () => {
     it('the Export button opens ExportContainer, and closing it hides the dialog again', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis())
