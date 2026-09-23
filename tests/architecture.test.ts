@@ -52,10 +52,17 @@ describe('architecture import rules (SPEC.md §7.2)', () => {
   })
 
   it('src/domain imports nothing outside itself (no Vue, no adapters, no browser APIs)', () => {
+    // Co-located domain tests (src/domain/*.test.ts, allowed by SPEC.md §7.1)
+    // are the verification harness, not the domain module itself, so they
+    // alone may additionally import the test runner. Production domain
+    // files, and any other import in a test file, still must be relative.
+    const TEST_FILE_ALLOWED_SPECIFIERS = new Set(['vitest'])
     const files = listSourceFiles(join(SRC_ROOT, 'domain'))
     for (const file of files) {
       const source = readFileSync(file, 'utf8')
+      const isTestFile = file.endsWith('.test.ts')
       for (const spec of importSpecifiers(source)) {
+        if (isTestFile && TEST_FILE_ALLOWED_SPECIFIERS.has(spec)) continue
         expect(spec, `${relative(SRC_ROOT, file)} imports "${spec}"`).toMatch(/^\.\.?\//)
       }
     }
