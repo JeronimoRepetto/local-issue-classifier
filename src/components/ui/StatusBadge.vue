@@ -40,18 +40,35 @@ const label = computed(() => {
 </template>
 
 <style scoped>
+/* Mono label with a leading status dot; color is never the only signal. */
 .status-badge {
   display: inline-flex;
   align-items: center;
-  height: var(--space-4);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-sm);
+  gap: var(--space-1);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
-  font-weight: var(--weight-medium);
+  text-transform: lowercase;
   white-space: nowrap;
-  background: var(--color-surface-2);
   color: var(--color-text-muted);
+}
+
+.status-badge::before {
+  content: '';
+  width: calc(var(--space-1) + var(--line-thick));
+  height: calc(var(--space-1) + var(--line-thick));
+  border-radius: var(--radius-round);
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.status-badge--unclassified,
+.status-badge--pending {
+  color: var(--color-text-subtle);
+}
+
+.status-badge--done {
+  color: var(--color-success);
 }
 
 .status-badge--stale {
@@ -62,12 +79,13 @@ const label = computed(() => {
   color: var(--color-danger);
 }
 
-.status-badge--missing {
-  border: var(--line-thin) dashed var(--color-border-strong);
+.status-badge--missing::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 var(--line-thin) currentColor;
 }
 
 .status-badge--dismissed {
   font-style: italic;
-  opacity: 0.8;
+  color: var(--color-text-subtle);
 }
 </style>

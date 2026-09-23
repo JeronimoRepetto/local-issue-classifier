@@ -123,6 +123,10 @@ function cancel(): void {
 <style scoped>
 .classify-container {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2h);
+  padding: var(--space-2h) var(--space-3);
+  background: var(--color-surface);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 </style>

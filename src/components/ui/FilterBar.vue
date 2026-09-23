@@ -73,6 +73,8 @@ function onStatuses(values: string[]) {
       <template #prefix><IconSearch aria-hidden="true" /></template>
     </UiInput>
 
+    <div class="filter-bar__facets">
+
     <UiMultiSelect
       data-test="filter-criticality"
       label="Criticality"
@@ -115,7 +117,11 @@ function onStatuses(values: string[]) {
       :model-value="filter.labels"
       @update:model-value="emit('update', { labels: $event })"
     />
+    </div>
 
+    <details class="filter-bar__ranges">
+      <summary class="filter-bar__ranges-toggle">Relevance and confidence ranges</summary>
+      <div class="filter-bar__ranges-body">
     <UiSlider
       data-test="relevance-min"
       label="Min relevance"
@@ -137,20 +143,54 @@ function onStatuses(values: string[]) {
       :model-value="filter.minConfidence"
       @update:model-value="emit('update', { minConfidence: $event })"
     />
+      </div>
+    </details>
 
-    <UiButton data-test="reset-filters" variant="ghost" @click="emit('reset')">Reset filters</UiButton>
+    <UiButton class="filter-bar__reset" data-test="reset-filters" variant="ghost" size="compact" @click="emit('reset')">
+      Reset filters
+    </UiButton>
   </div>
 </template>
 
 <style scoped>
 .filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2h) var(--space-3);
 }
 
-.filter-bar :deep(.ui-slider) {
-  min-width: calc(var(--space-7) * 2);
+.filter-bar > :first-child,
+.filter-bar__facets {
+  grid-column: 1 / -1;
+}
+
+.filter-bar__facets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-7) * 2 + var(--space-4)), 1fr));
+  gap: var(--space-2h);
+}
+
+.filter-bar__ranges-toggle {
+  width: fit-content;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  line-height: var(--size-compact);
+  cursor: pointer;
+}
+
+.filter-bar__ranges-toggle:hover {
+  color: var(--color-text);
+}
+
+.filter-bar__ranges-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-7) * 3), 1fr));
+  gap: var(--space-2h) var(--space-4);
+  padding-top: var(--space-2);
+}
+
+.filter-bar__reset {
+  align-self: start;
 }
 </style>

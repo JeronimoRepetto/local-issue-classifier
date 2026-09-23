@@ -94,8 +94,11 @@ const estimateText = computed(() => {
 
 <style scoped>
 .classify-button {
-  display: grid;
-  gap: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
 }
 
 .classify-button__row {
@@ -110,8 +113,10 @@ const estimateText = computed(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
+  min-height: var(--size-default);
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
 }

@@ -10,6 +10,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import IssueRow from './IssueRow.vue'
 import { tokens } from '../../ui/tokens'
+import type { TableColumnId } from '../../domain/columns'
 import type { IssueRow as DomainIssueRow, SortKey, SortRule } from '../../domain/types'
 
 const VIRTUALIZE_THRESHOLD = 200
@@ -17,6 +18,8 @@ const ROW_HEIGHT = tokens.size.row
 const VISIBLE_ROWS_ESTIMATE = 12
 
 interface ColumnDef {
+  /** Hideable data column; the select and actions columns have none and always show. */
+  id?: TableColumnId
   key?: SortKey
   label: string
   hiddenLabel?: boolean
@@ -24,21 +27,20 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
   { label: 'Select', hiddenLabel: true },
-  { key: 'number', label: '#' },
-  { label: 'Title' },
-  { label: 'Kind' },
-  { key: 'priority', label: 'Priority' },
-  { key: 'criticality', label: 'Criticality' },
-  { key: 'complexity', label: 'Complexity' },
-  { key: 'effort', label: 'Effort' },
-  { key: 'relevance', label: 'Relevance' },
-  { key: 'minConfidence', label: 'Confidence' },
-  { label: 'Status' },
-  { key: 'updatedAt', label: 'Updated' },
-  { key: 'commentCount', label: 'Comments' },
-  { label: 'Actions' },
+  { id: 'number', key: 'number', label: '#' },
+  { id: 'title', label: 'Title' },
+  { id: 'kind', label: 'Kind' },
+  { id: 'priority', key: 'priority', label: 'Priority' },
+  { id: 'criticality', key: 'criticality', label: 'Criticality' },
+  { id: 'complexity', key: 'complexity', label: 'Complexity' },
+  { id: 'effort', key: 'effort', label: 'Effort' },
+  { id: 'relevance', key: 'relevance', label: 'Relevance' },
+  { id: 'confidence', key: 'minConfidence', label: 'Confidence' },
+  { id: 'status', label: 'Status' },
+  { id: 'updated', key: 'updatedAt', label: 'Updated' },
+  { id: 'comments', key: 'commentCount', label: 'Comments' },
+  { label: 'Actions', hiddenLabel: true },
 ]
-const COLUMN_COUNT = COLUMNS.length
 
 const props = defineProps<{
   rows: DomainIssueRow[]
@@ -48,6 +50,8 @@ const props = defineProps<{
   dismissedNumbers?: number[]
   sort: SortRule | null
   now?: () => Date
+  /** Visible data columns (design v2 Columns menu); every column when omitted. */
+  columns?: TableColumnId[]
 }>()
 
 const emit = defineEmits<{
@@ -69,6 +73,11 @@ watch(
     if (focusedIndex.value > length - 1) focusedIndex.value = Math.max(0, length - 1)
   },
 )
+
+const shownColumns = computed(() =>
+  COLUMNS.filter((column) => !column.id || !props.columns || props.columns.includes(column.id)),
+)
+const COLUMN_COUNT = computed(() => shownColumns.value.length)
 
 const selectedSet = computed(() => new Set(props.selected))
 const dismissedSet = computed(() => new Set(props.dismissedNumbers ?? []))
@@ -147,15 +156,18 @@ function onKeydown(event: KeyboardEvent) {
 
 <template>
   <div ref="scrollRef" class="issue-table__scroll">
-    <table class="issue-table" @keydown="onKeydown">
+    <table class="issue-table ui-table" @keydown="onKeydown">
       <thead>
         <tr>
           <th
-            v-for="column in COLUMNS"
+            v-for="column in shownColumns"
             :key="column.label"
             scope="col"
-            class="issue-table__th"
-            :class="{ 'issue-table__th--sortable': column.key }"
+            class="issue-table__th ui-table__th"
+            :class="{
+              'issue-table__th--sortable': column.key,
+              'issue-table__th--sorted': column.key && ariaSort(column.key) !== 'none',
+            }"
             :aria-sort="column.key ? ariaSort(column.key) : undefined"
             :data-test="column.key ? `sort-${column.key}` : undefined"
             @click="onHeaderClick(column, $event)"
@@ -181,6 +193,7 @@ function onKeydown(event: KeyboardEvent) {
           :dismissed="isDismissed(row)"
           :tabindex="index === focusedIndex ? 0 : -1"
           :now="now"
+          :columns="columns"
           @toggle-select="emit('toggle-select', $event)"
           @dismiss="emit('dismiss', $event)"
           @restore="emit('restore', $event)"
@@ -208,6 +221,7 @@ function onKeydown(event: KeyboardEvent) {
           :dismissed="isDismissed(rows[item.index])"
           :tabindex="item.index === focusedIndex ? 0 : -1"
           :now="now"
+          :columns="columns"
           @toggle-select="emit('toggle-select', $event)"
           @dismiss="emit('dismiss', $event)"
           @restore="emit('restore', $event)"
@@ -228,34 +242,35 @@ function onKeydown(event: KeyboardEvent) {
 <style scoped>
 .issue-table__scroll {
   overflow: auto;
-  max-height: calc(var(--size-row) * 12);
+  max-height: calc(var(--size-row) * 14);
   border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-md);
 }
 
-.issue-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
 .issue-table__th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: var(--space-2);
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
-  text-align: left;
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
-  font-weight: var(--weight-semibold);
-  white-space: nowrap;
-  box-shadow: 0 var(--line-thin) 0 var(--color-border);
+  background: var(--color-surface);
 }
 
 .issue-table__th--sortable {
   cursor: pointer;
   user-select: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.issue-table__th--sortable:hover,
+.issue-table__th--sorted {
+  color: var(--color-text);
+}
+
+/* Direction mark drawn in CSS, so header text (and its tests) stay the label. */
+.issue-table__th[aria-sort='ascending'] > span::after,
+.issue-table__th[aria-sort='descending'] > span::after {
+  margin-left: var(--space-1);
+  content: '↓';
+}
+
+.issue-table__th[aria-sort='ascending'] > span::after {
+  content: '↑';
 }
 
 .issue-table__spacer td {

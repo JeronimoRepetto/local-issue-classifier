@@ -208,7 +208,7 @@ input[type='checkbox'] {
   top: 0;
   z-index: 1;
   height: var(--size-default);
-  padding: 0 var(--space-2h);
+  padding: 0 var(--space-2);
   background: var(--color-bg);
   border-bottom: var(--line-thin) solid var(--color-border);
   text-align: left;
@@ -232,7 +232,7 @@ input[type='checkbox'] {
 }
 
 .ui-table__td {
-  padding: 0 var(--space-2h);
+  padding: 0 var(--space-2);
   border-bottom: var(--line-thin) solid var(--color-border);
   vertical-align: middle;
 }
@@ -247,6 +247,6 @@ input[type='checkbox'] {
 /* The title column takes the remaining width but never collapses to a sliver. */
 .ui-table__td--title {
   width: 100%;
-  min-width: calc(var(--space-7) * 4);
+  min-width: calc(var(--space-7) * 3 + var(--space-5));
   padding-block: var(--space-2);
 }

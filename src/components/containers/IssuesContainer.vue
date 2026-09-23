@@ -7,6 +7,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAnalysis } from '../../composables/useAnalysis'
 import { useFilters } from '../../composables/useFilters'
+import { useColumns } from '../../composables/useColumns'
 import { summarize, visibleRows } from '../../domain/analysis'
 import { filterRows } from '../../domain/filter'
 import { sortRowsBy } from '../../domain/sort'
@@ -14,6 +15,7 @@ import { priorityOf } from '../../domain/priority'
 import { defaultPriorityWeights } from '../../domain/types'
 import type { ExportOrder, IssueRow as DomainIssueRow, PriorityWeights } from '../../domain/types'
 import AnalysisHeader from '../ui/AnalysisHeader.vue'
+import ColumnsMenu from '../ui/ColumnsMenu.vue'
 import DismissToggle from '../ui/DismissToggle.vue'
 import FilterBar from '../ui/FilterBar.vue'
 import IssueTable from '../ui/IssueTable.vue'
@@ -31,6 +33,7 @@ const emit = defineEmits<{ refresh: []; back: [] }>()
 
 const analysis = useAnalysis()
 const filters = useFilters()
+const columns = useColumns()
 
 const filterBarRef = ref<{ focusSearch: () => void } | null>(null)
 
@@ -177,7 +180,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       :refreshing="refreshing"
       @refresh="emit('refresh')"
       @back="emit('back')"
-    />
+    >
+      <template #actions><slot name="header-actions" /></template>
+    </AnalysisHeader>
+
+    <!-- The analysis view mounts the classify bar and load feedback here, under the header. -->
+    <slot name="after-header" />
 
     <div class="issues-container__toolbar">
       <FilterBar
@@ -191,6 +199,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
         :model-value="analysis.current.value.working.showDismissed"
         @update:model-value="(value: boolean) => analysis.updateWorking({ showDismissed: value })"
       />
+      <span class="issues-container__spacer" />
       <UiButton v-if="hasMissing" data-test="remove-missing" variant="ghost" @click="removeMissingOpen = true">
         Remove missing
       </UiButton>
@@ -200,13 +209,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
         wired below so it only needs to replace this fallback trigger.
       -->
       <slot name="sort-popover" :sort="filters.sort.value" :set-sort="filters.setSort" />
+      <ColumnsMenu :visible="columns.visible.value" @toggle="columns.toggle" @reset="columns.reset" />
     </div>
 
-    <div v-if="selected.size > 0" class="issues-container__bulk-bar">
-      <span>{{ selected.size }} selected</span>
-      <UiButton data-test="bulk-dismiss" variant="secondary" @click="bulkDismiss">Dismiss selected</UiButton>
-      <UiButton data-test="bulk-restore" variant="ghost" @click="bulkRestore">Restore selected</UiButton>
-      <UiButton variant="ghost" @click="clearSelection">Clear selection</UiButton>
+    <div v-if="selected.size > 0" class="issues-container__bulk-bar" role="region" aria-label="Bulk actions">
+      <span class="issues-container__bulk-count u-mono">{{ selected.size }} selected</span>
+      <UiButton data-test="bulk-dismiss" variant="secondary" size="compact" @click="bulkDismiss">Dismiss selected</UiButton>
+      <UiButton data-test="bulk-restore" variant="ghost" size="compact" @click="bulkRestore">Restore selected</UiButton>
+      <UiButton variant="ghost" size="compact" @click="clearSelection">Clear selection</UiButton>
     </div>
 
     <EmptyState
@@ -224,6 +234,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       :selected="[...selected]"
       :dismissed-numbers="analysis.current.value.working.dismissed"
       :sort="filters.sort.value"
+      :columns="columns.visible.value"
       @toggle-select="toggleSelect"
       @dismiss="dismissOne"
       @restore="restoreOne"
@@ -271,15 +282,30 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--space-3);
+  gap: var(--space-2);
+}
+
+.issues-container__toolbar > :first-child {
+  flex: 1 1 100%;
+}
+
+.issues-container__spacer {
+  flex: 1;
 }
 
 .issues-container__bulk-bar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2h);
+  background: var(--color-accent-soft);
+  border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-md);
+}
+
+.issues-container__bulk-count {
+  margin-right: auto;
+  color: var(--color-accent);
+  font-size: var(--text-caption-size);
 }
 </style>

@@ -60,6 +60,21 @@ describe('IssuesContainer', () => {
     document.body.innerHTML = ''
   })
 
+  it('hides the secondary columns by default and re-enables them from the Columns menu', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+    const headers = () => wrapper.findAll('th').map((th) => th.text())
+    expect(headers()).not.toContain('Complexity')
+    await wrapper.get('[data-test="columns-trigger"]').trigger('click')
+    await wrapper.get('[data-test="column-toggle-complexity"]').setValue(true)
+    await flush()
+    expect(headers()).toContain('Complexity')
+    expect((analysisMod.useAnalysis().current.value?.working as { visibleColumns?: string[] }).visibleColumns).toContain(
+      'complexity',
+    )
+  })
+
   it('shows "K of N issues" for the current analysis', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     const wrapper = mount(IssuesContainer, { attachTo: document.body })

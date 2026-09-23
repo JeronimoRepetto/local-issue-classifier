@@ -216,12 +216,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   height: auto;
   min-height: var(--size-default);
-  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-1);
+  padding: 0 var(--line-thick);
   gap: var(--space-1);
 }
 
 .ui-multiselect__control :deep(.filter-chip) {
   height: calc(var(--size-compact) - var(--space-1));
+  margin: var(--line-thick) 0;
 }
 
 .ui-multiselect__trigger {
@@ -231,8 +232,8 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: var(--space-2);
   min-width: calc(var(--space-7) + var(--space-5));
-  height: calc(var(--size-compact) - var(--space-1));
-  padding: 0 var(--space-2);
+  height: calc(var(--size-default) - var(--line-thin) * 2);
+  padding: 0 var(--space-1) 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
