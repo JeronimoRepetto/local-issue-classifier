@@ -24,16 +24,26 @@ defineProps<{ jevKeySet: boolean; githubTokenSet: boolean }>()
 .key-status {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .key-status__item {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--color-text-muted);
+  height: var(--size-compact);
+  padding: 0 var(--space-2h) 0 var(--space-2);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-round);
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
+}
+
+.key-status__item :deep(svg) {
+  width: calc(var(--icon-sm) - var(--space-1));
+  height: calc(var(--icon-sm) - var(--space-1));
 }
 
 .key-status__item--set {

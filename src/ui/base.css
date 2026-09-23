@@ -87,6 +87,7 @@ input[type='checkbox'] {
 /* Shared form-field anatomy for UiInput, UiSecretInput, UiSelect and UiSlider. */
 .ui-field {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
   min-width: 0;
 }

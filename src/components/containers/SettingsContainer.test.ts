@@ -16,6 +16,17 @@ beforeEach(async () => {
 })
 
 describe('SettingsContainer', () => {
+  it('has one Settings heading and an About block naming the product and its fonts', async () => {
+    const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+    const wrapper = mount(SettingsContainer)
+    const headings = wrapper.findAll('h1')
+    expect(headings.map((h) => h.text())).toEqual(['Settings'])
+    const about = wrapper.get('[data-test="about"]').text()
+    expect(about).toContain('local-issue-classifier')
+    expect(about).toContain('Geist')
+    expect(about).not.toMatch(/Inter|Silkscreen/)
+  })
+
   it('shows the keys-required banner until a Jev key is set', async () => {
     const { default: SettingsContainer } = await import('./SettingsContainer.vue')
     const wrapper = mount(SettingsContainer)
@@ -74,7 +85,7 @@ describe('SettingsContainer', () => {
   it('changing a preference persists it through usePreferences', async () => {
     const { default: SettingsContainer } = await import('./SettingsContainer.vue')
     const wrapper = mount(SettingsContainer)
-    await wrapper.get('[data-test="theme"] select').setValue('dark')
+    await wrapper.get('[data-test="theme"] [data-test="segment-dark"]').trigger('click')
 
     const { usePreferences } = await import('../../composables/usePreferences')
     expect(usePreferences().state.theme).toBe('dark')
