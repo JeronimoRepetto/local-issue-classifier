@@ -64,7 +64,8 @@ pnpm test:watch  # vitest watch mode
 pnpm typecheck   # vue-tsc -p tsconfig.json && tsc -p tsconfig.node.json
 ```
 
-The dev-only component kit page (`?kit`) lands in Task 2.
+`pnpm icons` regenerates the icon components from `design/icons/`. The dev-only component kit
+is at http://localhost:5200/?kit.
 
 ## How classification works
 
@@ -96,11 +97,31 @@ _Section pending (Task 10)._
 
 ## Design
 
-_Section pending (Task 2)._
+A modern, friendly interface with pixel art as its identity: the logo, icons, level glyphs and
+empty states are pixel art, while all reading text (body, tables, numbers) uses Inter. The
+design system lives in `src/ui/`:
+
+- typed design tokens (`tokens.ts`) turned into CSS variables for the light and dark themes;
+  the theme follows your system unless you pick one;
+- WCAG 2.2 AA contrast, enforced by a test over every color pair in both themes;
+- an 8 px spacing grid, square pixel frames and three elevation levels;
+- short, purposeful motion that turns off under `prefers-reduced-motion`;
+- a component kit (buttons, inputs, secret input, selects, slider, dialog, popover, tooltip,
+  toasts, level and confidence badges, score bars, chips and empty states).
+
+Run `pnpm dev` and open http://localhost:5200/?kit to see every component in both themes (the
+kit page exists only in development). Tokens, components, motion rules and the icon pipeline
+(`pnpm icons`) are documented in [`docs/design.md`](docs/design.md).
 
 ## Credits
 
-_Section pending (Task 2/15)._
+- **Fonts:** [Inter](https://github.com/rsms/inter) and
+  [Silkscreen](https://github.com/googlefonts/silkscreen), both under the SIL Open Font License
+  1.1, bundled from `@fontsource` packages (no font CDN).
+- **Icons:** all icons, the logo and illustrations are original pixel art made for this project
+  (MIT). No Streamline icons are bundled; see [`docs/design.md`](docs/design.md#icon-source-decision-2026-09-23).
+
+Full notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Limitations
 

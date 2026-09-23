@@ -1,14 +1,7 @@
-:root {
-  color-scheme: light dark;
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-}
+/* App-level styles. Design tokens and kit base styles live in src/ui
+   (tokens.ts, base.css); this file only holds app-shell rules. */
 
-body {
-  margin: 0;
+html {
+  /* Before the token stylesheet resolves a theme, let the UA follow the system. */
+  color-scheme: light dark;
 }
