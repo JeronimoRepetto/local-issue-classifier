@@ -2,7 +2,9 @@
 // building block kept for callers that only need one key; `sortRowsBy` is
 // Task 13's full multi-key sort ("reorder"): it chains `compareBy` once per
 // rule, in order, before falling back to the same final number tie-break.
+import { defaultPriorityWeights } from './types'
 import type { IssueRow, PriorityWeights, SortDirection, SortKey, SortRule } from './types'
+import { priorityOf } from './priority'
 
 /** Keys whose value comes from the classification; unclassified rows have none. */
 const CLASSIFICATION_KEYS = new Set<SortKey>([
@@ -14,8 +16,14 @@ const CLASSIFICATION_KEYS = new Set<SortKey>([
   'minConfidence',
 ])
 
-/** 0 = has a value for this key, 1 = no value — always sorts after, any direction. */
-function classificationRank(row: IssueRow, key: SortKey): 0 | 1 {
+/**
+ * 0 = has a value for this key, 1 = no value — always sorts after, any
+ * direction. `priority` is special-cased on `priorityOf` itself (§4.9): a
+ * classified row still has no priority value when every weight is 0, so it
+ * ranks with unclassified rows rather than by a raw score of 0.
+ */
+function classificationRank(row: IssueRow, key: SortKey, weights: PriorityWeights): 0 | 1 {
+  if (key === 'priority') return priorityOf(row.classification, weights) === null ? 1 : 0
   if (!CLASSIFICATION_KEYS.has(key)) return 0
   if (!row.classification) return 1
   // minConfidence is optional; undefined should sort after defined values
@@ -30,7 +38,7 @@ function dateValue(row: IssueRow, key: SortKey): string | null {
 }
 
 /** The primary numeric value for `key`; NaN-safe callers only reach this after the rank check. */
-function rawValue(row: IssueRow, key: SortKey): number {
+function rawValue(row: IssueRow, key: SortKey, weights: PriorityWeights): number {
   const c = row.classification
   switch (key) {
     case 'criticality':
@@ -48,9 +56,9 @@ function rawValue(row: IssueRow, key: SortKey): number {
     case 'number':
       return row.issue.number
     case 'priority':
-      // domain/priority.ts (priorityOf) lands in Task 14. Until then every row
-      // ties on this key, and the number tie-break decides the order.
-      return 0
+      // Only reached once classificationRank has already confirmed a value
+      // exists (rank 0); the `?? 0` is defensive, never the deciding value.
+      return priorityOf(c, weights) ?? 0
     default:
       return 0
   }
@@ -66,10 +74,15 @@ function secondaryValue(row: IssueRow, key: SortKey): number {
  * An ascending comparator for one `SortKey` (SPEC.md §3.1 `Pure functions in
  * domain/analysis.ts` list `sortRows`; this is its single-rule building
  * block). Task 13 composes several of these, one per `SortRule`, in order.
+ * `weights` only matters for the `priority` key (§4.9); every other key
+ * ignores it, so callers that never sort by priority may omit it.
  */
-export function compareBy(key: SortKey): (a: IssueRow, b: IssueRow) => number {
+export function compareBy(
+  key: SortKey,
+  weights: PriorityWeights = defaultPriorityWeights(),
+): (a: IssueRow, b: IssueRow) => number {
   return (a, b) => {
-    const rankDiff = classificationRank(a, key) - classificationRank(b, key)
+    const rankDiff = classificationRank(a, key, weights) - classificationRank(b, key, weights)
     if (rankDiff !== 0) return rankDiff
 
     const aDate = dateValue(a, key)
@@ -78,7 +91,7 @@ export function compareBy(key: SortKey): (a: IssueRow, b: IssueRow) => number {
       return aDate < bDate ? -1 : aDate > bDate ? 1 : 0
     }
 
-    const diff = rawValue(a, key) - rawValue(b, key)
+    const diff = rawValue(a, key, weights) - rawValue(b, key, weights)
     if (diff !== 0) return diff
     return secondaryValue(a, key) - secondaryValue(b, key)
   }
@@ -101,18 +114,19 @@ export function sortRows(rows: IssueRow[], key: SortKey, direction: SortDirectio
  * has a value, regardless of direction. The final tie-break is always issue
  * number ascending. Never mutates `rows`.
  *
- * `weights` is accepted for `RowSort`'s shape (SPEC.md §6.4: "priority
- * compares by `priorityOf(classification, working.priorityWeights)`") but
- * unused today: Task 14 adds `domain/priority.ts`'s `priorityOf`, and until
- * it lands every row ties on the `priority` key (see `rawValue` above), so
- * the number tie-break decides that key's order. Unclassified rows already
- * sort last on `priority` because it is in `CLASSIFICATION_KEYS`.
+ * `weights` feeds the `priority` key (Task 14, SPEC.md §6.4: "priority
+ * compares by `priorityOf(classification, working.priorityWeights)`"). It
+ * defaults to `defaultPriorityWeights()` when omitted, so callers that never
+ * sort by priority need not pass it.
  */
-export function sortRowsBy(rows: IssueRow[], rules: SortRule[], weights?: PriorityWeights): IssueRow[] {
-  void weights
+export function sortRowsBy(
+  rows: IssueRow[],
+  rules: SortRule[],
+  weights: PriorityWeights = defaultPriorityWeights(),
+): IssueRow[] {
   const compiled = rules.map((rule) => ({
     key: rule.key,
-    cmp: compareBy(rule.key),
+    cmp: compareBy(rule.key, weights),
     sign: rule.direction === 'asc' ? 1 : -1,
   }))
 
@@ -120,7 +134,7 @@ export function sortRowsBy(rows: IssueRow[], rules: SortRule[], weights?: Priori
     .map((row, index) => ({ row, index }))
     .sort((a, b) => {
       for (const { key, cmp, sign } of compiled) {
-        const rankDiff = classificationRank(a.row, key) - classificationRank(b.row, key)
+        const rankDiff = classificationRank(a.row, key, weights) - classificationRank(b.row, key, weights)
         if (rankDiff !== 0) return rankDiff
         const diff = cmp(a.row, b.row) * sign
         if (diff !== 0) return diff

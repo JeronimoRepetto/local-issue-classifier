@@ -130,15 +130,10 @@ Dismissed (1)
 | `downloadText(text, filename)` | `src/adapters/download.ts` | Anchor-based download: Blob URL → `<a download>` click → revoke on the next tick. |
 | `useExport()` | `src/composables/useExport.ts` | `options`, `setOptions`, `setOrder`, `useCurrentTableSort`, `previewText`, `scopeCount`, `download`. |
 
-## A note on Priority before Task 14
+## Priority (Task 14)
 
-`domain/priority.ts` (`priorityOf`, `clampWeights`, SPEC.md §4.9) is Task 14's file, and Task 14's
-own scope never touches `exportText.ts`. Since the `Priority`/`Weights` lines above are part of this
-task's required format, `exportText.ts` currently carries a private, unexported copy of the exact
-§4.9 formula (`priorityForExport`) so those lines can render today. Once `domain/priority.ts` lands,
-that private copy should be deleted and `exportText.ts` should import `priorityOf` instead — the
-formula is identical, so the golden fixture does not need to change.
-
-The table's own `priority` sort key is unaffected by this: `sort.ts`'s `rawValue('priority')` still
-ties every row at 0 until Task 14 wires the real computation there too (unclassified rows already
-sort last on that key, since `priority` is in `sort.ts`'s `CLASSIFICATION_KEYS`).
+`exportText.ts` imports `priorityOf` from `domain/priority.ts` (SPEC.md §4.9) directly; the golden
+fixture stayed byte-identical after the swap, since the formula was already the exact one used
+here. The table's own `priority` sort key (`sort.ts`) uses the same `priorityOf`, so the export
+order and the table order agree: `null` (unclassified, or every weight 0) always sorts last in
+both directions, with the final tie-break by issue number.

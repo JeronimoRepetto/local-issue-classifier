@@ -127,12 +127,31 @@ describe('sortRows — stability and purity', () => {
   })
 })
 
-describe('sortRows — priority (Task 14 wires the real computation)', () => {
-  it('ties every row on priority today, so the number tie-break decides the order', () => {
+describe('sortRows — priority (Task 14, SPEC.md §4.9: priorityOf(classification, weights))', () => {
+  it('rows with identical classifications tie on priority, so the number tie-break decides', () => {
     const a = classifiedRow(5, {})
     const b = classifiedRow(2, {})
     expect(sortRows([a, b], 'priority', 'asc')).toEqual([b, a])
     expect(sortRows([a, b], 'priority', 'desc')).toEqual([b, a])
+  })
+
+  it('orders rows by the real priorityOf computation with the default weights', () => {
+    // Higher criticality (weighted 40) dominates the default weights, so it
+    // should outrank a row that only wins on the lower-weighted dimensions.
+    const highPriority = classifiedRow(1, { criticality: 2, relevance: 4, complexity: 0, effort: 0 })
+    const lowPriority = classifiedRow(2, { criticality: 0, relevance: 0, complexity: 2, effort: 2 })
+    expect(sortRows([lowPriority, highPriority], 'priority', 'desc')).toEqual([highPriority, lowPriority])
+    expect(sortRows([lowPriority, highPriority], 'priority', 'asc')).toEqual([lowPriority, highPriority])
+  })
+})
+
+describe('sortRowsBy — priority key with all-zero weights (SPEC.md §4.9 "every weight 0 → null")', () => {
+  it('treats every classified row as valueless when every weight is 0, so the number tie-break decides regardless of direction', () => {
+    const a = classifiedRow(5, { criticality: 2, relevance: 4, complexity: 0, effort: 0 })
+    const b = classifiedRow(2, { criticality: 0, relevance: 0, complexity: 2, effort: 2 })
+    const zeroWeights = { criticality: 0, relevance: 0, complexity: 0, effort: 0 }
+    expect(sortRowsBy([a, b], [{ key: 'priority', direction: 'desc' }], zeroWeights)).toEqual([b, a])
+    expect(sortRowsBy([a, b], [{ key: 'priority', direction: 'asc' }], zeroWeights)).toEqual([b, a])
   })
 })
 

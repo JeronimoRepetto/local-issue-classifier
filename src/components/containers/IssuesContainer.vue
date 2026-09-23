@@ -10,12 +10,16 @@ import { useFilters } from '../../composables/useFilters'
 import { summarize, visibleRows } from '../../domain/analysis'
 import { filterRows } from '../../domain/filter'
 import { sortRowsBy } from '../../domain/sort'
+import { priorityOf } from '../../domain/priority'
+import { defaultPriorityWeights } from '../../domain/types'
 import type { ExportOrder, IssueRow as DomainIssueRow, PriorityWeights } from '../../domain/types'
 import AnalysisHeader from '../ui/AnalysisHeader.vue'
 import DismissToggle from '../ui/DismissToggle.vue'
 import FilterBar from '../ui/FilterBar.vue'
 import IssueTable from '../ui/IssueTable.vue'
 import IssueDetailDrawer from '../ui/IssueDetailDrawer.vue'
+import PriorityCell from '../ui/PriorityCell.vue'
+import PriorityContainer from './PriorityContainer.vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiDialog from '../../ui/UiDialog.vue'
 import UiToastStack from '../../ui/UiToastStack.vue'
@@ -52,6 +56,11 @@ const availableLabels = computed(() => {
 })
 
 const hasMissing = computed(() => (analysis.current.value?.rows ?? []).some((r) => r.sourceStatus === 'missing'))
+
+/** The current analysis's priority weights (Task 14, §4.9), for the Priority cell. */
+const priorityWeights = computed<PriorityWeights>(
+  () => analysis.current.value?.working.priorityWeights ?? defaultPriorityWeights(),
+)
 
 // ── Bulk selection ──────────────────────────────────────────────────────
 const selected = ref<Set<number>>(new Set())
@@ -221,7 +230,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       @expand="openDrawer"
       @sort="filters.setSort"
       @shift-sort="filters.addSortKey"
-    />
+    >
+      <!-- Task 14, SPEC.md §6.3 column 4: the Weights popover trigger next to the Priority header. -->
+      <template #priority-header>
+        <PriorityContainer />
+      </template>
+      <!-- Task 14: each row's Priority cell, scoped to that row's classification. -->
+      <template #priority="{ row }">
+        <PriorityCell :value="priorityOf(row.classification, priorityWeights)" />
+      </template>
+    </IssueTable>
 
     <IssueDetailDrawer :open="expandedIssueNumber !== null" :issue="expandedIssue" @close="closeDrawer" />
 

@@ -110,6 +110,36 @@ Each request costs its state tokens plus the question tokens (about 900). Jev ch
 tokens, at $0.042 per million, so 200 typical issues cost roughly $0.03–0.06. The in-app estimate
 uses `estimateRun()` from `src/domain/estimate.ts`.
 
+## Priority
+
+Priority is a single 0–100 **ranking aid**, computed on the fly by `src/domain/priority.ts`'s
+`priorityOf(classification, weights)` from a row's four scores above and four user-adjustable
+weights. It is never sent to or returned by Jev, and it is never stored: changing a weight never
+touches a classification, only how the same stored scores are combined.
+
+Each dimension is normalized to 0–1 first. Complexity and effort are **inverted** — a simpler,
+lower-effort issue ranks higher — then the four are combined as a weighted mean:
+
+| Dimension | Normalized as | Direction |
+|---|---|---|
+| Criticality | `score / 2` | higher score → higher priority |
+| Relevance | `score / 4` | higher score → higher priority |
+| Complexity | `1 − score / 2` | **inverted** — lower score → higher priority |
+| Effort | `1 − score / 2` | **inverted** — lower score → higher priority |
+
+```text
+priority = round(100 × (wCrit·crit + wRel·rel + wCx·simp + wEf·ease) / (wCrit + wRel + wCx + wEf))
+```
+
+Weights default to 40 / 30 / 15 / 15 (Criticality / Relevance / Complexity / Effort;
+`defaultPriorityWeights()`), run 0–100 in steps of 5 (`clampWeights` rounds to the nearest
+multiple of 5 and clamps to that range), and are edited in the **Weights** popover next to the
+table's Priority column header. Priority is `null` — shown as "—" — for an unclassified row, or
+when every weight is 0: there is nothing to rank on.
+
+Like relevance, priority inherits the ordinal nature of the Jev scores: it is a **ranking aid, not
+a measurement**, and the UI caption next to the Weights popover says so.
+
 ## Changing a question
 
 1. Edit the text in `src/adapters/jev/questions.ts`.
