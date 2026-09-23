@@ -3,12 +3,18 @@
 // action), inline rename, refresh, delete (with confirmation), and the
 // read-only "unreadable" state for a corrupt entry.
 import { computed, nextTick, ref } from 'vue'
-import type { IndexEntry } from '../../adapters/storage/analysisStore'
+import type { AnalysisSummary } from '../../domain/types'
 import UiButton from '../../ui/UiButton.vue'
 import UiInput from '../../ui/UiInput.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import IconRefresh from '../../assets/icons/IconRefresh.vue'
 import IconTrash from '../../assets/icons/IconTrash.vue'
+
+// Structurally identical to adapters/storage/analysisStore's IndexEntry, redeclared
+// here (never imported) because src/components/ui must not import adapters/.
+export type IndexEntry =
+  | { status: 'ok'; summary: AnalysisSummary }
+  | { status: 'unreadable'; id: string; approxBytes: number }
 
 const props = defineProps<{ entry: IndexEntry }>()
 const emit = defineEmits<{

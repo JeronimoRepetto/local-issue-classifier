@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AnalysisCard from './AnalysisCard.vue'
-import type { IndexEntry } from '../../adapters/storage/analysisStore'
+import type { IndexEntry } from './AnalysisCard.vue'
 
-function okEntry(overrides: Partial<IndexEntry & { status: 'ok' }> = {}): IndexEntry {
+function okEntry(): IndexEntry {
   return {
     status: 'ok',
     summary: {
@@ -15,7 +15,6 @@ function okEntry(overrides: Partial<IndexEntry & { status: 'ok' }> = {}): IndexE
       updatedAt: '2026-06-01T00:00:00Z',
       counts: { total: 10, classified: 4, stale: 1, dismissed: 2, missing: 0 },
       approxBytes: 20480,
-      ...(overrides as { summary?: unknown }).summary,
     },
   }
 }

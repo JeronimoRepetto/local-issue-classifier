@@ -3,7 +3,8 @@
 // the Open/Closed/All state picker, and the screen's one primary action.
 import { ref, watch } from 'vue'
 import { parseRepoRef } from '../../domain/repoRef'
-import type { RepoRef, RepoRefError } from '../../domain/repoRef'
+import type { RepoRefError } from '../../domain/repoRef'
+import type { RepoRef } from '../../domain/types'
 import UiButton from '../../ui/UiButton.vue'
 import UiInput from '../../ui/UiInput.vue'
 import UiSelect from '../../ui/UiSelect.vue'

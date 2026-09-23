@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AnalysisList from './AnalysisList.vue'
-import type { IndexEntry } from '../../adapters/storage/analysisStore'
+import type { IndexEntry } from './AnalysisCard.vue'
 
 function entry(id: string): IndexEntry {
   return {

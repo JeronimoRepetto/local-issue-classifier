@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // The Home list (SPEC §2.2): newest-updated first, with the empty state when
 // there are no saved analyses yet.
-import type { IndexEntry } from '../../adapters/storage/analysisStore'
 import EmptyState from '../../ui/EmptyState.vue'
 import AnalysisCard from './AnalysisCard.vue'
+import type { IndexEntry } from './AnalysisCard.vue'
 
 defineProps<{ entries: IndexEntry[] }>()
 const emit = defineEmits<{
@@ -36,7 +36,9 @@ const emit = defineEmits<{
 <style scoped>
 .analysis-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* --measure-tooltip is reused only for its numeric value (280): the
+     smallest comfortable card width before wrapping to the next row. */
+  grid-template-columns: repeat(auto-fill, minmax(var(--measure-tooltip), 1fr));
   gap: var(--space-3);
 }
 </style>
