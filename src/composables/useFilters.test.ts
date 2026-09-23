@@ -1,0 +1,144 @@
+// Task 12 — SPEC.md §2.5: filter/sort/search state, persisted into the current
+// analysis working state through useAnalysis().updateWorking, restored on reopen.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createAnalysis } from '../domain/analysis'
+import type { Analysis } from '../domain/types'
+import { defaultFilter, defaultPreferences, defaultProjectContext } from '../domain/types'
+import { fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
+import { MemoryStorage } from '../../tests/fakes/memoryStorage'
+
+type AnalysisModule = typeof import('./useAnalysis')
+type FiltersModule = typeof import('./useFilters')
+
+let analysisMod: AnalysisModule
+let filtersMod: FiltersModule
+let storage: MemoryStorage
+
+function analysis(id = 'a1'): Analysis {
+  return createAnalysis({
+    id,
+    repo: fakeRepo(),
+    stateFilter: 'open',
+    now: '2026-03-01T10:00:00Z',
+    prefs: defaultPreferences(),
+    projectContext: defaultProjectContext('acme/widgets'),
+    issues: [fakeIssue(1), fakeIssue(2), fakeIssue(3)],
+    commentsFetched: false,
+  })
+}
+
+beforeEach(async () => {
+  vi.useFakeTimers()
+  vi.resetModules()
+  storage = new MemoryStorage()
+  const storageModule = await import('../adapters/storage/appStorage')
+  storageModule.setAppStorage(storage)
+  analysisMod = await import('./useAnalysis')
+  analysisMod.configureAnalysis({ clock: () => '2026-03-05T00:00:00Z' })
+  filtersMod = await import('./useFilters')
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+describe('useFilters — reading the current filter and sort', () => {
+  it('defaults to defaultFilter() and no sort when no analysis is current', () => {
+    const { filter, sort } = filtersMod.useFilters()
+    expect(filter.value).toEqual(defaultFilter())
+    expect(sort.value).toBeNull()
+  })
+
+  it('reflects the current analysis working state', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { filter, sort } = filtersMod.useFilters()
+    expect(filter.value).toEqual(defaultFilter())
+    expect(sort.value).toEqual({ key: 'criticality', direction: 'desc' })
+  })
+})
+
+describe('useFilters — setFilter merges a patch and resetFilters clears it', () => {
+  it('setFilter merges into the existing filter without dropping other fields', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { filter, setFilter } = filtersMod.useFilters()
+    setFilter({ criticality: ['high'] })
+    setFilter({ labels: ['bug'] })
+    expect(filter.value).toMatchObject({ criticality: ['high'], labels: ['bug'] })
+  })
+
+  it('setSearch is a convenience wrapper that sets filter.text', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { filter, setSearch } = filtersMod.useFilters()
+    setSearch('crash')
+    expect(filter.value.text).toBe('crash')
+  })
+
+  it('resetFilters restores defaultFilter()', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { filter, setFilter, resetFilters } = filtersMod.useFilters()
+    setFilter({ criticality: ['high'], text: 'crash' })
+    resetFilters()
+    expect(filter.value).toEqual(defaultFilter())
+  })
+})
+
+describe('useFilters — setSort toggles direction on the same key, replaces on a new one', () => {
+  it('a new key becomes the sole sort key', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { sort, setSort } = filtersMod.useFilters()
+    setSort('relevance')
+    expect(sort.value).toEqual({ key: 'relevance', direction: 'desc' })
+  })
+
+  it('clicking the same key again reverses direction', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { sort, setSort } = filtersMod.useFilters()
+    setSort('relevance')
+    setSort('relevance')
+    expect(sort.value).toEqual({ key: 'relevance', direction: 'asc' })
+    setSort('relevance')
+    expect(sort.value).toEqual({ key: 'relevance', direction: 'desc' })
+  })
+
+  it('an explicit direction is honored as-is', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { sort, setSort } = filtersMod.useFilters()
+    setSort('number', 'asc')
+    expect(sort.value).toEqual({ key: 'number', direction: 'asc' })
+  })
+})
+
+describe('useFilters — filter and sort persist per analysis and survive a reload', () => {
+  it('is restored after the analysis is closed and reopened', () => {
+    const store = analysisMod.useAnalysis()
+    store.setCurrent(analysis('a1'))
+    const { setFilter, setSort, setSearch } = filtersMod.useFilters()
+    setFilter({ criticality: ['high'] })
+    setSort('relevance', 'asc')
+    setSearch('crash')
+    vi.advanceTimersByTime(500) // working-state debounce (Task 7)
+
+    store.close()
+    expect(store.open('a1')).toMatchObject({ ok: true })
+
+    const { filter, sort } = filtersMod.useFilters()
+    expect(filter.value).toMatchObject({ criticality: ['high'], text: 'crash' })
+    expect(sort.value).toEqual({ key: 'relevance', direction: 'asc' })
+  })
+
+  it('is restored after a fresh module load, simulating a page reload', async () => {
+    const store = analysisMod.useAnalysis()
+    store.setCurrent(analysis('a1'))
+    filtersMod.useFilters().setFilter({ labels: ['bug'] })
+    vi.advanceTimersByTime(500)
+
+    vi.resetModules()
+    const reloadedStorageModule = await import('../adapters/storage/appStorage')
+    reloadedStorageModule.setAppStorage(storage) // simulates the same browser localStorage after reload
+    const reloadedAnalysis: AnalysisModule = await import('./useAnalysis')
+    const reloadedFilters: FiltersModule = await import('./useFilters')
+    reloadedAnalysis.useAnalysis().open('a1')
+
+    expect(reloadedFilters.useFilters().filter.value).toMatchObject({ labels: ['bug'] })
+  })
+})
