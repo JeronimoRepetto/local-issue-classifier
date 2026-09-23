@@ -70,27 +70,14 @@ function redact(s) {
 // not personal data.
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 const ALLOWED_EMAIL_DOMAINS = /@([a-z0-9-]+\.)*example\.(com|org|net|test)$/i
-const LOCAL_PATH_PATTERNS = [/C:\\Users\\/i, /\/Users\//, /\/home\//]
-
-// Exact, justified exceptions: a documented placeholder that legitimately
-// *names* one of the patterns above without being a real leak. Matched by an
-// exact substring on the offending line, so a real occurrence elsewhere in
-// the same file still fails.
-const PERSONAL_DATA_ALLOWLIST = [
-  {
-    path: 'SPEC.md',
-    contains: 'C:\\Users\\…',
-    reason:
-      'Documents the local-machine-path pattern this checker looks for; ends in an ellipsis, not a real path.',
-  },
-]
+// A trailing ellipsis ("C:\Users\…") means the text is *documenting* the
+// pattern (as SPEC.md and docs/release-checklist.md legitimately do), not
+// naming a real path; a negative lookahead keeps a real "C:\Users\jane\..."
+// failing while sparing that documented form.
+const LOCAL_PATH_PATTERNS = [/C:\\Users\\(?!…)/i, /\/Users\/(?!…)/, /\/home\/(?!…)/]
 
 export function isFixtureOrDoc(path) {
   return path.startsWith('tests/fixtures/') || path.endsWith('.md') || path === 'LICENSE'
-}
-
-function isAllowlisted(path, line) {
-  return PERSONAL_DATA_ALLOWLIST.some((entry) => entry.path === path && line.includes(entry.contains))
 }
 
 export function findPersonalData(files, { scope = isFixtureOrDoc } = {}) {
@@ -99,8 +86,6 @@ export function findPersonalData(files, { scope = isFixtureOrDoc } = {}) {
     if (content == null || !scope(path)) continue
     const lines = content.split(/\r?\n/)
     for (const line of lines) {
-      if (isAllowlisted(path, line)) continue
-
       EMAIL_RE.lastIndex = 0
       let match
       while ((match = EMAIL_RE.exec(line))) {

@@ -120,9 +120,10 @@ describe('findPersonalData', () => {
     expect(findings).toEqual([])
   })
 
-  it('allows the documented placeholder path in SPEC.md via the explicit allowlist', () => {
+  it('allows a documented placeholder path ending in an ellipsis, in any doc', () => {
     const findings = findPersonalData([
       { path: 'SPEC.md', content: 'No machine paths such as `C:\\Users\\…`.' },
+      { path: 'docs/release-checklist.md', content: 'No machine paths such as `C:\\Users\\…`.' },
     ])
     expect(findings).toEqual([])
   })
