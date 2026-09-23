@@ -1,0 +1,24 @@
+issue-criticity report
+Repository : acme/widgets (open issues)
+Generated  : <TIMESTAMP>
+Model      : jev-1.13.0 · questions v1
+Order      : Priority (high→low), Effort (low→high)
+Weights    : Criticality 40 · Relevance 30 · Complexity 15 (inverted) · Effort 15 (inverted)
+Scope      : filtered view — 1 of 3 issues (filters: Relevance ≥ 50)
+Note       : Levels, relevance and priority are model-based estimates; relevance and priority are ordinal 0–100 signals.
+
+========================================================================
+ 1. #812  Crash when rendering empty list
+    Priority   : 83/100
+    Criticality: HIGH (conf 0.91) · Complexity: MEDIUM (conf 0.74) · Effort: LOW (conf 0.82)
+    Relevance  : 88/100 (0.77) · Kind: bug · Labels: bug, regression
+    Opened 2026-09-02 by @jdoe · updated 2026-09-20 · 3 comments
+    https://github.com/acme/widgets/issues/812
+
+========================================================================
+Unclassified (1)
+ -  #815  Add Svelte adapter (not classified: Rate limited — retried 3×)
+
+========================================================================
+Dismissed (1)
+ -  #999  Old debug helper

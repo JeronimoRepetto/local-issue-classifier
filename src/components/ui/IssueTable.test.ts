@@ -69,6 +69,22 @@ describe('IssueTable — sortable column headers', () => {
   })
 })
 
+describe('IssueTable — shift-click adds a sort key (Task 13, SPEC.md §2.5 item 3)', () => {
+  it('emits shift-sort instead of sort when the header is shift-clicked', async () => {
+    const wrapper = mountTable([row(1)])
+    await wrapper.get('[data-test="sort-relevance"]').trigger('click', { shiftKey: true })
+    expect(wrapper.emitted('shift-sort')).toEqual([['relevance']])
+    expect(wrapper.emitted('sort')).toBeUndefined()
+  })
+
+  it('a plain click still emits sort, not shift-sort', async () => {
+    const wrapper = mountTable([row(1)])
+    await wrapper.get('[data-test="sort-relevance"]').trigger('click')
+    expect(wrapper.emitted('sort')).toEqual([['relevance']])
+    expect(wrapper.emitted('shift-sort')).toBeUndefined()
+  })
+})
+
 describe('IssueTable — Priority header slot (Task 14 hook)', () => {
   it('renders a plain label by default', () => {
     const wrapper = mountTable([row(1)])

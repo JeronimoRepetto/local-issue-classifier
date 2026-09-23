@@ -19,7 +19,9 @@ export function useFilters() {
   const analysis = useAnalysis()
 
   const filter = computed<IssueFilter>(() => analysis.current.value?.working.filter ?? defaultFilter())
-  const sort = computed<SortRule | null>(() => analysis.current.value?.working.tableSort[0] ?? null)
+  /** The full multi-key order (Task 13, SPEC.md §2.5 item 3); `[]` when no analysis is current. */
+  const tableSort = computed<SortRule[]>(() => analysis.current.value?.working.tableSort ?? [])
+  const sort = computed<SortRule | null>(() => tableSort.value[0] ?? null)
 
   function setFilter(patch: Partial<IssueFilter>): void {
     analysis.updateWorking({ filter: { ...filter.value, ...patch } })
@@ -41,5 +43,24 @@ export function useFilters() {
     analysis.updateWorking({ tableSort: [{ key, direction: next }] })
   }
 
-  return { filter, sort, setFilter, resetFilters, setSearch, setSort }
+  /**
+   * Replaces the full multi-key order (Task 13): the "Sort" popover's
+   * `SortRuleList` edits the whole list, so it writes it back wholesale.
+   */
+  function setTableSort(order: SortRule[]): void {
+    analysis.updateWorking({ tableSort: order })
+  }
+
+  /**
+   * Shift-click on a column header (SPEC.md §2.5 item 3: "Shift-clicking adds
+   * the column as the next key"). A no-op when `key` is already part of the
+   * order — shift-clicking an existing key does not move or reverse it; the
+   * Sort popover's reorder/direction controls own that.
+   */
+  function addSortKey(key: SortKey): void {
+    if (tableSort.value.some((rule) => rule.key === key)) return
+    setTableSort([...tableSort.value, { key, direction: defaultDirectionFor(key) }])
+  }
+
+  return { filter, sort, tableSort, setFilter, resetFilters, setSearch, setSort, setTableSort, addSortKey }
 }

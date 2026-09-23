@@ -1,7 +1,8 @@
-// Pure single-key row sort (SPEC.md §2.5 item 3, §6.4). Task 13 turns this into
-// the full multi-key sort ("reorder") by chaining `compareBy` once per rule,
-// in order, before falling back to the same final number tie-break.
-import type { IssueRow, SortDirection, SortKey } from './types'
+// Pure row sort (SPEC.md §2.5 item 3, §6.4). `sortRows` is the single-key
+// building block kept for callers that only need one key; `sortRowsBy` is
+// Task 13's full multi-key sort ("reorder"): it chains `compareBy` once per
+// rule, in order, before falling back to the same final number tie-break.
+import type { IssueRow, PriorityWeights, SortDirection, SortKey, SortRule } from './types'
 
 /** Keys whose value comes from the classification; unclassified rows have none. */
 const CLASSIFICATION_KEYS = new Set<SortKey>([
@@ -89,15 +90,41 @@ export function compareBy(key: SortKey): (a: IssueRow, b: IssueRow) => number {
  * Never mutates `rows`.
  */
 export function sortRows(rows: IssueRow[], key: SortKey, direction: SortDirection): IssueRow[] {
-  const cmp = compareBy(key)
-  const sign = direction === 'asc' ? 1 : -1
+  return sortRowsBy(rows, [{ key, direction }])
+}
+
+/**
+ * Stable multi-key sort (Task 13, SPEC.md §2.5 item 3, §6.4): each `SortRule`
+ * is applied in order — the first rule decides, later rules only break ties
+ * left by earlier ones. For every rule, a row without a value for that key
+ * (unclassified, or `minConfidence`/priority missing) sorts after one that
+ * has a value, regardless of direction. The final tie-break is always issue
+ * number ascending. Never mutates `rows`.
+ *
+ * `weights` is accepted for `RowSort`'s shape (SPEC.md §6.4: "priority
+ * compares by `priorityOf(classification, working.priorityWeights)`") but
+ * unused today: Task 14 adds `domain/priority.ts`'s `priorityOf`, and until
+ * it lands every row ties on the `priority` key (see `rawValue` above), so
+ * the number tie-break decides that key's order. Unclassified rows already
+ * sort last on `priority` because it is in `CLASSIFICATION_KEYS`.
+ */
+export function sortRowsBy(rows: IssueRow[], rules: SortRule[], weights?: PriorityWeights): IssueRow[] {
+  void weights
+  const compiled = rules.map((rule) => ({
+    key: rule.key,
+    cmp: compareBy(rule.key),
+    sign: rule.direction === 'asc' ? 1 : -1,
+  }))
+
   return rows
     .map((row, index) => ({ row, index }))
     .sort((a, b) => {
-      const rankDiff = classificationRank(a.row, key) - classificationRank(b.row, key)
-      if (rankDiff !== 0) return rankDiff
-      const primary = cmp(a.row, b.row) * sign
-      if (primary !== 0) return primary
+      for (const { key, cmp, sign } of compiled) {
+        const rankDiff = classificationRank(a.row, key) - classificationRank(b.row, key)
+        if (rankDiff !== 0) return rankDiff
+        const diff = cmp(a.row, b.row) * sign
+        if (diff !== 0) return diff
+      }
       const numberDiff = a.row.issue.number - b.row.issue.number
       if (numberDiff !== 0) return numberDiff
       return a.index - b.index

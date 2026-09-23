@@ -108,6 +108,79 @@ describe('useFilters — setSort toggles direction on the same key, replaces on 
   })
 })
 
+describe('useFilters — tableSort exposes the full multi-key order (Task 13)', () => {
+  it('defaults to an empty array when no analysis is current', () => {
+    const { tableSort } = filtersMod.useFilters()
+    expect(tableSort.value).toEqual([])
+  })
+
+  it('reflects the analysis working state, and sort is its first rule', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { tableSort, sort } = filtersMod.useFilters()
+    // defaultTableSort() (SPEC.md §2.6 default order): Criticality desc → Relevance desc → Effort asc.
+    expect(tableSort.value).toEqual([
+      { key: 'criticality', direction: 'desc' },
+      { key: 'relevance', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+    ])
+    expect(sort.value).toEqual(tableSort.value[0])
+  })
+
+  it('setTableSort replaces the full order', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { tableSort, setTableSort } = filtersMod.useFilters()
+    setTableSort([
+      { key: 'relevance', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+    ])
+    expect(tableSort.value).toEqual([
+      { key: 'relevance', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+    ])
+  })
+
+  it('addSortKey appends a new key as the next sort key (shift-click)', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { tableSort, addSortKey } = filtersMod.useFilters()
+    addSortKey('commentCount')
+    expect(tableSort.value).toEqual([
+      { key: 'criticality', direction: 'desc' },
+      { key: 'relevance', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+      { key: 'commentCount', direction: 'desc' },
+    ])
+  })
+
+  it('addSortKey is a no-op when the key is already part of the order', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { tableSort, addSortKey } = filtersMod.useFilters()
+    addSortKey('criticality')
+    expect(tableSort.value).toEqual([
+      { key: 'criticality', direction: 'desc' },
+      { key: 'relevance', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+    ])
+  })
+
+  it('setTableSort persists per analysis and survives a reload', () => {
+    const store = analysisMod.useAnalysis()
+    store.setCurrent(analysis('a1'))
+    filtersMod.useFilters().setTableSort([
+      { key: 'relevance', direction: 'desc' },
+      { key: 'number', direction: 'asc' },
+    ])
+    vi.advanceTimersByTime(500)
+
+    store.close()
+    expect(store.open('a1')).toMatchObject({ ok: true })
+
+    expect(filtersMod.useFilters().tableSort.value).toEqual([
+      { key: 'relevance', direction: 'desc' },
+      { key: 'number', direction: 'asc' },
+    ])
+  })
+})
+
 describe('useFilters — filter and sort persist per analysis and survive a reload', () => {
   it('is restored after the analysis is closed and reopened', () => {
     const store = analysisMod.useAnalysis()
