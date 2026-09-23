@@ -248,6 +248,27 @@ describe('App', () => {
     })
   })
 
+  describe('refresh feedback (Task FU): no duplicate dialogs', () => {
+    it('only the active view mounts the load feedback: a rate-limited notice appears exactly once', async () => {
+      analysisMod.useAnalysis().setCurrent(seedAnalysis('a1'))
+      viewMod.useView().state.view = 'analysis'
+      const wrapper = mount(App, { attachTo: document.body })
+      await flush()
+
+      // App.vue's v-if/v-else-if means HomeContainer (and its RepoLoaderContainer,
+      // which mounts the same RepoLoadFeedback) is fully unmounted whenever the
+      // analysis view is showing, so a shared load-state notice can only ever
+      // render from the one active view.
+      repoMod.useRepo().state.phase = 'rate-limited'
+      repoMod.useRepo().state.rateLimitResetAt = Date.parse('2026-06-01T01:00:00Z')
+      await flush()
+
+      expect(document.querySelectorAll('[data-test="rate-limited-notice"]')).toHaveLength(1)
+      expect(wrapper.find('[data-test="home-container"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+  })
+
   describe('Shortcuts help', () => {
     it('"?" opens the shortcuts help dialog in the analysis view, ignored while typing', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis())

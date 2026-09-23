@@ -1,12 +1,15 @@
 <script setup lang="ts">
-// The analysis view (SPEC §2.4, §2.5, §6.1 screen 3), replacing
+// The analysis view (SPEC §2.4, §2.5, §2.6, §6.1 screen 3), replacing
 // AnalysisViewPlaceholder.vue. Mounts ClassifyContainer and IssuesContainer
 // over the current analysis, wires refresh/back/open-settings to
 // useRepo()/useView(), computes the filtered-view issue numbers for "Classify
 // filtered view", and owns the "?" shortcuts help dialog left out by Task 12.
 //
-// TODO(T14): mount ExportContainer in the slot below once Task 13 lands it —
-// do not import it from this lane.
+// Task FU: mounts ExportContainer from the Export button in the export slot
+// below, and RepoLoadFeedback (the huge-repo/comment-cost confirmations,
+// progress+Cancel, rate-limit/error recovery and save-failed notices,
+// extracted out of RepoLoaderContainer) so refreshing from here shows the
+// same feedback as refreshing from Home.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAnalysis } from '../../composables/useAnalysis'
 import { useFilters } from '../../composables/useFilters'
@@ -14,8 +17,12 @@ import { useRepo } from '../../composables/useRepo'
 import { useView } from '../../composables/useView'
 import { filterRows } from '../../domain/filter'
 import ClassifyContainer from './ClassifyContainer.vue'
+import ExportContainer from './ExportContainer.vue'
 import IssuesContainer from './IssuesContainer.vue'
+import RepoLoadFeedback from './RepoLoadFeedback.vue'
 import ShortcutsHelpDialog from '../ui/ShortcutsHelpDialog.vue'
+import UiButton from '../../ui/UiButton.vue'
+import UiTooltip from '../../ui/UiTooltip.vue'
 
 const analysis = useAnalysis()
 const filters = useFilters()
@@ -52,6 +59,12 @@ const filteredNumbers = computed<number[]>(() => {
   return filterRows(remaining, filters.filter.value).map((row) => row.issue.number)
 })
 
+/** Reuses the same "visible, non-dismissed" set as Classify to gate the Export entry point. */
+const hasVisibleRows = computed(() => filteredNumbers.value.length > 0)
+
+// ── Export (§2.6) ─────────────────────────────────────────────────────────
+const exportOpen = ref(false)
+
 // "?" opens the shortcuts help dialog; ignored while typing, like IssuesContainer's "/".
 const helpOpen = ref(false)
 
@@ -76,9 +89,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
 
     <IssuesContainer :refreshing="refreshing" @refresh="onRefresh" @back="onBack" />
 
+    <RepoLoadFeedback show-save-failed @retry="onRefresh" />
+
     <div class="analysis-view__export-slot" data-test="export-slot">
-      <p class="analysis-view__export-placeholder">Export lands with Task 13/14.</p>
+      <UiTooltip v-if="!hasVisibleRows" text="No visible issues to export.">
+        <template #default="{ describedBy }">
+          <UiButton
+            data-test="export-open"
+            variant="secondary"
+            disabled
+            :aria-describedby="describedBy"
+            @click="exportOpen = true"
+          >
+            Export
+          </UiButton>
+        </template>
+      </UiTooltip>
+      <UiButton v-else data-test="export-open" variant="secondary" @click="exportOpen = true">Export</UiButton>
     </div>
+
+    <ExportContainer :open="exportOpen" @close="exportOpen = false" />
 
     <ShortcutsHelpDialog :open="helpOpen" @close="helpOpen = false" />
   </div>
@@ -93,11 +123,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
 .analysis-view__export-slot {
   display: flex;
   justify-content: flex-end;
-}
-
-.analysis-view__export-placeholder {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-caption-size);
 }
 </style>
