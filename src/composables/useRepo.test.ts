@@ -389,3 +389,35 @@ describe('private-repo notice (SPEC §8, shown once per session)', () => {
     expect(repo.state.privateRepoNotice).toBe(false)
   })
 })
+
+describe('onboarding checklist progression (SPEC §10.1, "2 Repository" step)', () => {
+  it('marks the repo step done in preferences once a new analysis is created', async () => {
+    const server = fakeGitHub({ totalPages: 1, perPage: 1 })
+    setup(server, { fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+    expect(repoMod.readStoredPreferences().onboarding.repo).toBe(false)
+
+    await repo.startNew(ref, 'open')
+
+    expect(repoMod.readStoredPreferences().onboarding).toMatchObject({ repo: true })
+  })
+
+  it('does not mark the step for a refresh, only for a new analysis', async () => {
+    const first = fakeGitHub({ totalPages: 1, perPage: 1 })
+    setup(first, { fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+    await repo.startNew(ref, 'open')
+    const id = repo.state.analysisId!
+
+    // Simulate a later session where the checklist preference was reset.
+    storage.setItem(
+      STORAGE_KEYS.preferences,
+      JSON.stringify({ ...defaultPreferences(), onboarding: { keys: false, repo: false, classify: false } }),
+    )
+    const second = fakeGitHub({ totalPages: 1, perPage: 1 })
+    setup(second, { fetchComments: 'never' })
+    await repo.refresh(id)
+
+    expect(repoMod.readStoredPreferences().onboarding.repo).toBe(false)
+  })
+})

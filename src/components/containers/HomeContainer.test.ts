@@ -15,6 +15,7 @@ let analysisStoreMod: typeof import('../../adapters/storage/analysisStore')
 let analysisMod: typeof import('../../composables/useAnalysis')
 let analysesMod: typeof import('../../composables/useAnalyses')
 let viewMod: typeof import('../../composables/useView')
+let repoMod: typeof import('../../composables/useRepo')
 
 function analysis(id: string, updatedAt: string): Analysis {
   return {
@@ -41,7 +42,7 @@ beforeEach(async () => {
   analysesMod = await import('../../composables/useAnalyses')
   viewMod = await import('../../composables/useView')
   analysisMod.configureAnalysis({ clock: () => '2026-06-05T00:00:00Z' })
-  const repoMod = await import('../../composables/useRepo')
+  repoMod = await import('../../composables/useRepo')
   repoMod.configureRepo({ fetchImpl: (async () => new Response('{}', { status: 404 })) as unknown as typeof fetch })
   HomeContainer = (await import('./HomeContainer.vue')).default
 })
@@ -122,5 +123,54 @@ describe('HomeContainer', () => {
     storage.quotaBytes = Infinity
     await wrapper.get('[data-test="retry-save"]').trigger('click')
     expect(analysisMod.useAnalysis().status.save).toBe('saved')
+  })
+
+  it('the first-run checklist marks "Repository" done once a new analysis loads', async () => {
+    const rateHeaders = {
+      'x-ratelimit-limit': '5000',
+      'x-ratelimit-remaining': '4999',
+      'x-ratelimit-used': '1',
+      'x-ratelimit-reset': '9999999999',
+    }
+    repoMod.configureRepo({
+      fetchImpl: (async (input: RequestInfo | URL) => {
+        const path = String(input).slice('https://api.github.com'.length)
+        if (path === '/repos/acme/widgets') {
+          return new Response(
+            JSON.stringify({
+              name: 'widgets',
+              full_name: 'acme/widgets',
+              owner: { login: 'acme' },
+              description: null,
+              topics: [],
+              default_branch: 'main',
+              private: false,
+              has_issues: true,
+              open_issues_count: 1,
+              html_url: 'https://github.com/acme/widgets',
+            }),
+            { status: 200, headers: rateHeaders },
+          )
+        }
+        if (/\/issues\?state=open/.test(path)) {
+          return new Response('[]', { status: 200, headers: rateHeaders })
+        }
+        return new Response('{"message":"Not Found"}', { status: 404, headers: rateHeaders })
+      }) as unknown as typeof fetch,
+      getPreferences: () => ({ ...defaultPreferences(), fetchComments: 'never' }),
+    })
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+    const repoStep = () => wrapper.findAll('.onboarding-checklist__item')[1]
+    expect(repoStep().text()).toContain('Repository')
+    expect(repoStep().classes()).not.toContain('onboarding-checklist__item--done')
+
+    await wrapper.find('input[type="text"]').setValue('acme/widgets')
+    await wrapper.find('[data-test="repo-input"]').trigger('submit')
+    await vi.waitFor(() => expect(viewMod.useView().state.view).toBe('analysis'))
+    await wrapper.vm.$nextTick()
+
+    expect(repoMod.readStoredPreferences().onboarding.repo).toBe(true)
+    expect(repoStep().classes()).toContain('onboarding-checklist__item--done')
   })
 })
