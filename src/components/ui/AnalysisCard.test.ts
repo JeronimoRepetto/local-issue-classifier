@@ -28,12 +28,21 @@ describe('AnalysisCard', () => {
     const wrapper = mount(AnalysisCard, { props: { entry: okEntry() } })
     expect(wrapper.text()).toContain('acme/widgets (open)')
     expect(wrapper.text()).toContain('acme/widgets')
-    expect(wrapper.text()).toContain('10 total')
-    expect(wrapper.text()).toContain('4 classified')
     expect(wrapper.text()).toContain('20.0 KB')
+    // v2: the metadata is a key/value grid, not a dot-joined caption line.
+    const pairs = Object.fromEntries(
+      wrapper.findAll('.analysis-card__meta-item').map((item) => [item.get('dt').text(), item.get('dd').text()]),
+    )
+    expect(pairs).toMatchObject({ Issues: '10', Classified: '4', Stale: '1', Dismissed: '2', State: 'open' })
 
     await wrapper.find('[data-test="analysis-card"]').trigger('click')
     expect(wrapper.emitted('open')).toEqual([['a1']])
+  })
+
+  it('labels its icon-only actions', () => {
+    const wrapper = mount(AnalysisCard, { props: { entry: okEntry() } })
+    expect(wrapper.get('[data-test="refresh"]').attributes('aria-label')).toBe('Refresh acme/widgets (open)')
+    expect(wrapper.get('[data-test="delete"]').attributes('aria-label')).toBe('Delete acme/widgets (open)')
   })
 
   it('clicking an action does not also open the card', async () => {

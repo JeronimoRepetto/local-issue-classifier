@@ -36,20 +36,24 @@ const label = computed(() => `Local storage used: ${formatMb(props.usedBytes)} o
 }
 
 .storage-meter__label {
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
-  color: var(--color-text-muted);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
+  color: var(--color-text-subtle);
+  text-align: right;
 }
 
 .storage-meter__track {
-  height: var(--space-1);
+  height: calc(var(--line-thick) + var(--line-thin));
   background: var(--color-surface-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-round);
   overflow: hidden;
 }
 
 .storage-meter__fill {
   height: 100%;
+  border-radius: inherit;
   background: var(--color-accent);
   transition: width var(--dur-base) var(--ease-standard);
 }

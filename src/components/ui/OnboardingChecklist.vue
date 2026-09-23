@@ -42,7 +42,8 @@ const allDone = computed(() => items.value.every((i) => i.done))
 .onboarding-checklist {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -51,10 +52,20 @@ const allDone = computed(() => items.value.every((i) => i.done))
 .onboarding-checklist__item {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--text-table-size);
-  line-height: var(--text-table-line);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  text-transform: lowercase;
+}
+
+.onboarding-checklist__item + .onboarding-checklist__item::before {
+  content: '';
+  width: var(--space-3);
+  height: var(--line-thin);
+  margin-right: var(--space-1);
+  background: var(--color-border);
 }
 
 .onboarding-checklist__item--done {
@@ -65,10 +76,19 @@ const allDone = computed(() => items.value.every((i) => i.done))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--icon-md);
-  height: var(--icon-md);
+  width: calc(var(--icon-sm) + var(--space-1));
+  height: calc(var(--icon-sm) + var(--space-1));
+  border: var(--line-thin) solid var(--color-border-strong);
   border-radius: var(--radius-round);
-  background: var(--color-surface-2);
-  font-size: var(--text-caption-size);
+  font-size: var(--text-micro-size);
+}
+
+.onboarding-checklist__item--done .onboarding-checklist__badge {
+  border-color: currentColor;
+}
+
+.onboarding-checklist__badge :deep(svg) {
+  width: calc(var(--icon-sm) - var(--space-1));
+  height: calc(var(--icon-sm) - var(--space-1));
 }
 </style>

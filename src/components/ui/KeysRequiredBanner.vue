@@ -34,9 +34,9 @@ defineEmits<{ dismiss: [] }>()
 .keys-banner {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface-2);
+  gap: var(--space-2h);
+  padding: var(--space-2h) var(--space-2) var(--space-2h) var(--space-3);
+  background: var(--color-surface);
   border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text);
@@ -44,7 +44,7 @@ defineEmits<{ dismiss: [] }>()
 
 .keys-banner__icon {
   flex: none;
-  margin-top: var(--space-1);
+  margin-top: var(--line-thick);
   color: var(--color-info);
 }
 

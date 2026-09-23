@@ -29,20 +29,24 @@ const message = computed(() =>
 <style scoped>
 .save-failed-notice {
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface-2);
-  border: var(--line-thin) solid var(--color-danger);
+  gap: var(--space-2h);
+  padding: var(--space-2h) var(--space-3);
+  background: var(--color-level-high-bg);
+  border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-md);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
 }
 
 .save-failed-notice__icon {
   flex: none;
+  margin-top: var(--line-thick);
   color: var(--color-danger);
 }
 
 .save-failed-notice__body {
   display: grid;
+  justify-items: start;
   gap: var(--space-2);
 }
 

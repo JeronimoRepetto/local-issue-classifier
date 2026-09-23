@@ -81,6 +81,10 @@ function onSubmit(): void {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--space-3);
+  gap: var(--space-2);
+}
+
+.repo-input > :first-child {
+  flex: 1 1 calc(var(--space-7) * 5);
 }
 </style>

@@ -39,6 +39,6 @@ const emit = defineEmits<{
   /* --measure-tooltip is reused only for its numeric value (280): the
      smallest comfortable card width before wrapping to the next row. */
   grid-template-columns: repeat(auto-fill, minmax(var(--measure-tooltip), 1fr));
-  gap: var(--space-3);
+  gap: var(--space-2h);
 }
 </style>

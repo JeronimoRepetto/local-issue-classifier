@@ -12,6 +12,8 @@ import { defaultPreferences, defaultProjectContext } from './domain/types'
 import { fakeIssue, fakeRepo } from '../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../tests/fakes/memoryStorage'
 import { saveAnalysis } from './adapters/storage/analysisStore'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 type AppModule = typeof import('./App.vue')
 type ViewModule = typeof import('./composables/useView')
@@ -73,7 +75,36 @@ afterEach(() => {
 describe('App', () => {
   it('mounts and shows the wordmark, with Home as the default view', () => {
     const wrapper = mount(App)
-    expect(wrapper.text()).toContain('issue-criticity')
+    expect(wrapper.text()).toContain('local-issue-classifier')
+    expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true)
+  })
+
+  it('names the product local-issue-classifier in the wordmark and the document title', () => {
+    const wrapper = mount(App)
+    expect(wrapper.get('[data-test="brand"]').text()).toBe('local-issue-classifier')
+    const html = readFileSync(join(__dirname, '..', 'index.html'), 'utf8')
+    expect(html).toContain('<title>local-issue-classifier</title>')
+  })
+
+  it('the top-bar theme toggle cycles system, light and dark and says which is active', async () => {
+    const wrapper = mount(App)
+    const toggle = () => wrapper.get('[data-test="theme-toggle"]')
+    expect(toggle().attributes('aria-label')).toBe('Theme: system. Switch to light')
+    await toggle().trigger('click')
+    expect(prefsMod.usePreferences().state.theme).toBe('light')
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(toggle().attributes('aria-label')).toBe('Theme: light. Switch to dark')
+    await toggle().trigger('click')
+    expect(prefsMod.usePreferences().state.theme).toBe('dark')
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
+  it('the top-bar nav marks the current view and switches between Analyses and Settings', async () => {
+    const wrapper = mount(App)
+    expect(wrapper.get('[data-test="nav-analyses"]').attributes('aria-current')).toBe('page')
+    await wrapper.get('[data-test="open-settings"]').trigger('click')
+    expect(wrapper.get('[data-test="open-settings"]').attributes('aria-current')).toBe('page')
+    await wrapper.get('[data-test="nav-analyses"]').trigger('click')
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true)
   })
 
