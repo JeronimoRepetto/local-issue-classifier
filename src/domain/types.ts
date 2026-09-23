@@ -2,6 +2,9 @@
 // SPEC.md §3. Plain serializable interfaces, no Vue, no fetch, no storage,
 // no browser APIs: the clock and randomness are always injected by the caller.
 
+/** The one place the default Jev model name lives (Preferences.jevModel, Jev client). */
+export const DEFAULT_JEV_MODEL = 'jev-latest'
+
 // ── Repository & issues ──────────────────────────────────────────────
 export interface RepoRef {
   owner: string
@@ -72,14 +75,14 @@ export type Dimension = 'complexity' | 'criticality' | 'effort'
 export interface ScoreDimension {
   level: Level // from Math.round(score), §4.4
   score: number // raw Jev score, 0..2 (continuous)
-  confidence: number // 0..1, from Jev
+  confidence?: number // 0..1, from Jev; optional so providers without it still map
   probabilities: [number, number, number] // [low, medium, high]
 }
 
 export interface RelevanceResult {
   value: number // 0..100 integer, §4.4
   score: number // raw Jev score, 0..4
-  confidence: number
+  confidence?: number
   probabilities: [number, number, number, number, number]
 }
 
@@ -90,8 +93,8 @@ export interface Classification {
   criticality: ScoreDimension
   effort: ScoreDimension
   relevance: RelevanceResult
-  kind: { choice: IssueKind; confidence: number } // speculative extra, §4.2
-  minConfidence: number // min of the four main confidences
+  kind: { choice: IssueKind; confidence?: number } // speculative extra, §4.2
+  minConfidence?: number // min of the available main confidences; absent when none
   model: string // versioned id from the response, e.g. "jev-1.13.0"
   questionsVersion: number // QUESTIONS_VERSION at classification time
   issueUpdatedAt: string // Issue.updatedAt at classification time
@@ -310,7 +313,7 @@ export function defaultPreferences(): Preferences {
     maxCommentsPerIssue: 8,
     maxIssuesToLoad: 1000,
     concurrency: 4,
-    jevModel: 'jev-latest',
+    jevModel: DEFAULT_JEV_MODEL,
     lowConfidenceThreshold: 0.5,
     defaultExportOptions: defaultExportOptions(),
     theme: 'system',

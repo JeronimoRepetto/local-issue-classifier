@@ -1,21 +1,40 @@
 import { fileURLToPath, URL } from 'node:url'
+import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
+import { createJevProxy, jevProxyGuard, jevProxyPrefix, JEV_UPSTREAM_DEFAULT } from './server/jevProxy'
 
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+// Fixed port so the preview tooling can find it (qr-tool=5173, design-studio=5180, steam-picker=5190).
+const PORT = 5200
+
+export default defineConfig(({ mode }) => {
+  // '' prefix: also read the server-only JEV_UPSTREAM_URL (never bundled into the client).
+  const env = loadEnv(mode, process.cwd(), '')
+  const prefix = jevProxyPrefix(env.VITE_JEV_BASE_URL)
+  // Jev proxy (SPEC §4.1, §9 mode a): the same allowlisted, header-stripping,
+  // silent proxy serves `pnpm dev` and `pnpm preview`. Bound to localhost only.
+  const jevProxy = createJevProxy({ target: env.JEV_UPSTREAM_URL || JEV_UPSTREAM_DEFAULT, prefix })
+
+  return {
+    plugins: [vue(), jevProxyGuard({ prefix })],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
-  },
-  server: {
-    // Fixed port so the preview tooling can find it (qr-tool=5173, design-studio=5180, steam-picker=5190).
-    port: 5200,
-    strictPort: true,
-  },
-  test: {
-    environment: 'happy-dom',
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
-  },
+    server: {
+      port: PORT,
+      strictPort: true,
+      proxy: jevProxy,
+    },
+    preview: {
+      port: PORT,
+      strictPort: true,
+      proxy: jevProxy,
+    },
+    test: {
+      environment: 'happy-dom',
+      include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    },
+  }
 })

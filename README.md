@@ -31,7 +31,17 @@ declares both instead in `pnpm-workspace.yaml` (`allowBuilds` as a YAML map, e.g
 
 ## Getting a Jev API key
 
-_Section pending (Task 10)._
+1. Sign in to the TypeSafe console and open the API keys dashboard at
+   <https://console.typesafe.ai/keys>.
+2. Create a key.
+3. Paste it into issue-criticity's Settings. It is kept in memory only: a reload or **Clear keys**
+   forgets it, and it is never written to disk, `localStorage` or the export.
+
+What the Jev docs do not cover: account sign-up, key scopes, key rotation, spending limits and
+plans. For those, see <https://docs.typesafe.ai>. From the docs' Models page: Jev charges only input
+tokens, at $0.042 per million (output is free), and the rate limits are 1 200 requests per minute
+and 250 000 tokens per second, which TypeSafe says may change without notice. A typical run of 200
+issues costs roughly $0.03–0.06.
 
 ## Getting a GitHub token
 
@@ -93,7 +103,15 @@ _Section pending (Task 13)._
 
 ## Deployment modes
 
-_Section pending (Task 10)._
+v1 runs locally only (`pnpm dev` or `pnpm preview` on `localhost:5200`). The Jev API rejects
+browser origins, so the browser calls `/jev/v1/...` and the Vite server forwards it to
+`https://api.typesafe.ai`. The proxy forwards only `/v1/systemone` and `/v1/models`, strips
+`origin`, `referer` and `cookie`, logs nothing and stores nothing; your key passes through in
+transit only. GitHub is called directly from the browser.
+
+A hosted mode (for example Firebase Hosting with a serverless proxy function) is a future option,
+not implemented. Switching is configuration only (`VITE_JEV_BASE_URL`). See
+[`docs/deployment.md`](docs/deployment.md) for the proxy contract and configuration.
 
 ## Design
 
