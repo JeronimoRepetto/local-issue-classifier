@@ -192,3 +192,61 @@ input[type='checkbox'] {
   font-size: var(--text-micro-size);
   line-height: var(--text-micro-line);
 }
+
+/* Data table recipe (design v2): micro mono headers, 44 px rows, hairline
+   dividers, surface-2 hover. Shared by IssueTable and the kit density specimen. */
+.ui-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+}
+
+.ui-table__th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: var(--size-default);
+  padding: 0 var(--space-2h);
+  background: var(--color-bg);
+  border-bottom: var(--line-thin) solid var(--color-border);
+  text-align: left;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  font-weight: var(--weight-regular);
+  color: var(--color-text-subtle);
+}
+
+.ui-table__row {
+  height: var(--size-row);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.ui-table__row:hover {
+  background: var(--color-surface);
+}
+
+.ui-table__td {
+  padding: 0 var(--space-2h);
+  border-bottom: var(--line-thin) solid var(--color-border);
+  vertical-align: middle;
+}
+
+.ui-table__td--mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* The title column takes the remaining width but never collapses to a sliver. */
+.ui-table__td--title {
+  width: 100%;
+  min-width: calc(var(--space-7) * 4);
+  padding-block: var(--space-2);
+}
