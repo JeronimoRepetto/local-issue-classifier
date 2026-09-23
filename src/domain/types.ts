@@ -6,6 +6,9 @@ import type { HardwareOverride } from './hardware'
 import { defaultProviderConfig } from './provider'
 import type { ProviderConfig } from './provider'
 
+import { DEFAULT_VISIBLE_COLUMNS } from './columns'
+import type { TableColumnId } from './columns'
+
 /** The one place the default Jev model name lives (Preferences.jevModel, Jev client). */
 export const DEFAULT_JEV_MODEL = 'jev-latest'
 
@@ -125,6 +128,7 @@ export interface AnalysisWorkingState {
   dismissed: number[] // issue numbers hidden from the working list
   showDismissed: boolean
   expandedIssue: number | null // UI convenience; safe to lose
+  visibleColumns?: TableColumnId[] // design v2 (see useColumns); tolerant loading normalizes this
   // pinned?: number[]          // optional, not in v1 (§2.5 item 6)
 }
 
@@ -371,6 +375,7 @@ export function defaultWorkingState(prefs: Preferences): AnalysisWorkingState {
     dismissed: [],
     showDismissed: false,
     expandedIssue: null,
+    visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
   }
 }
 

@@ -14,6 +14,7 @@ import {
   defaultWorkingState,
 } from './types'
 import type { Repo } from './types'
+import { DEFAULT_VISIBLE_COLUMNS } from './columns'
 
 function fakeRepo(): Repo {
   return {
@@ -183,6 +184,7 @@ describe('defaultWorkingState', () => {
     expect(working.dismissed).toEqual([])
     expect(working.showDismissed).toBe(false)
     expect(working.expandedIssue).toBeNull()
+    expect(working.visibleColumns).toEqual(DEFAULT_VISIBLE_COLUMNS)
   })
 
   it('returns fresh, unshared objects each call', () => {
