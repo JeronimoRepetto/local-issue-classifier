@@ -1,8 +1,9 @@
 // Task 12 — SPEC.md §2.5 item 3, §6.4: single-key sortRows, pure and stable.
 // Task 13 extends this into a multi-key sort by chaining `compareBy` per rule.
 import { describe, expect, it } from 'vitest'
-import { compareBy, sortRows } from './sort'
-import type { IssueRow } from './types'
+import { compareBy, sortRows, sortRowsBy } from './sort'
+import type { IssueRow, SortRule } from './types'
+import { defaultPriorityWeights } from './types'
 import { fakeClassification, fakeIssue } from '../../tests/fakes/domainFixtures'
 
 function row(number: number, overrides: Partial<IssueRow> = {}): IssueRow {
@@ -150,5 +151,66 @@ describe('compareBy', () => {
     const unclassified = row(2)
     expect(compareBy('criticality')(unclassified, classified)).toBeGreaterThan(0)
     expect(compareBy('criticality')(classified, unclassified)).toBeLessThan(0)
+  })
+})
+
+describe('sortRowsBy — multi-key sort (Task 13, SPEC.md §2.5 item 3, §6.4)', () => {
+  it('chains rules in order: the first rule decides, later rules break ties', () => {
+    const a = classifiedRow(1, { criticality: 1, effort: 2 })
+    const b = classifiedRow(2, { criticality: 1, effort: 0 })
+    const c = classifiedRow(3, { criticality: 0, effort: 0 })
+    const rules: SortRule[] = [
+      { key: 'criticality', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+    ]
+    // criticality desc groups [a, b] before c; within the tie, effort asc orders b before a.
+    expect(sortRowsBy([a, b, c], rules, defaultPriorityWeights())).toEqual([b, a, c])
+  })
+
+  it('is a pure, stable sort that never mutates its input', () => {
+    const a = classifiedRow(2, { criticality: 1 })
+    const b = classifiedRow(1, { criticality: 1 })
+    const rows = [a, b]
+    const copy = [...rows]
+    const result = sortRowsBy(rows, [{ key: 'criticality', direction: 'asc' }], defaultPriorityWeights())
+    expect(rows).toEqual(copy)
+    expect(result).toEqual([b, a]) // tie on criticality, final tie-break is number ascending
+  })
+
+  it('sorts unclassified rows after classified ones on every rule key, regardless of direction', () => {
+    const classified = classifiedRow(1, { criticality: 0, relevance: 10 })
+    const unclassified = row(2)
+    const rules: SortRule[] = [
+      { key: 'criticality', direction: 'asc' },
+      { key: 'relevance', direction: 'desc' },
+    ]
+    expect(sortRowsBy([unclassified, classified], rules, defaultPriorityWeights())).toEqual([classified, unclassified])
+  })
+
+  it('the priority key sorts unclassified/null rows last (Task 14 wires the real value)', () => {
+    const classified = classifiedRow(1, {})
+    const unclassified = row(2)
+    const rules: SortRule[] = [{ key: 'priority', direction: 'desc' }]
+    expect(sortRowsBy([unclassified, classified], rules, defaultPriorityWeights())).toEqual([classified, unclassified])
+  })
+
+  it('falls back to the number tie-break when every rule ties', () => {
+    const a = classifiedRow(5, { criticality: 1 })
+    const b = classifiedRow(2, { criticality: 1 })
+    const rules: SortRule[] = [{ key: 'criticality', direction: 'asc' }]
+    expect(sortRowsBy([a, b], rules, defaultPriorityWeights())).toEqual([b, a])
+  })
+
+  it('an empty rule list still applies the number tie-break', () => {
+    const a = row(5)
+    const b = row(2)
+    expect(sortRowsBy([a, b], [], defaultPriorityWeights())).toEqual([b, a])
+  })
+
+  it('a single rule behaves the same as sortRows with that key/direction', () => {
+    const a = classifiedRow(1, { relevance: 20 })
+    const b = classifiedRow(2, { relevance: 90 })
+    const single = sortRowsBy([a, b], [{ key: 'relevance', direction: 'asc' }], defaultPriorityWeights())
+    expect(single).toEqual(sortRows([a, b], 'relevance', 'asc'))
   })
 })

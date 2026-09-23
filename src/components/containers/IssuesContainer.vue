@@ -9,8 +9,8 @@ import { useAnalysis } from '../../composables/useAnalysis'
 import { useFilters } from '../../composables/useFilters'
 import { summarize, visibleRows } from '../../domain/analysis'
 import { filterRows } from '../../domain/filter'
-import { sortRows } from '../../domain/sort'
-import type { ExportOrder, IssueRow as DomainIssueRow } from '../../domain/types'
+import { sortRowsBy } from '../../domain/sort'
+import type { ExportOrder, IssueRow as DomainIssueRow, PriorityWeights } from '../../domain/types'
 import AnalysisHeader from '../ui/AnalysisHeader.vue'
 import DismissToggle from '../ui/DismissToggle.vue'
 import FilterBar from '../ui/FilterBar.vue'
@@ -30,12 +30,9 @@ const filters = useFilters()
 
 const filterBarRef = ref<{ focusSearch: () => void } | null>(null)
 
-/**
- * Adapts the single-key `sortRows` (Task 12) to `visibleRows`'s multi-key
- * `RowSort` shape. Task 13 replaces this with the real multi-key sort.
- */
-function applyTableSort(rows: DomainIssueRow[], order: ExportOrder): DomainIssueRow[] {
-  return order.length > 0 ? sortRows(rows, order[0].key, order[0].direction) : rows
+/** The table's `RowSort`: the real multi-key sort (Task 13, SPEC.md §2.5 item 3). */
+function applyTableSort(rows: DomainIssueRow[], order: ExportOrder, weights: PriorityWeights): DomainIssueRow[] {
+  return sortRowsBy(rows, order, weights)
 }
 
 const visible = computed(() =>
@@ -223,6 +220,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       @restore="restoreOne"
       @expand="openDrawer"
       @sort="filters.setSort"
+      @shift-sort="filters.addSortKey"
     />
 
     <IssueDetailDrawer :open="expandedIssueNumber !== null" :issue="expandedIssue" @close="closeDrawer" />

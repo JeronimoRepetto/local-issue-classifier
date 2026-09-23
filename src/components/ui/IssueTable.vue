@@ -56,6 +56,8 @@ const emit = defineEmits<{
   restore: [issueNumber: number]
   expand: [issueNumber: number]
   sort: [key: SortKey]
+  /** Shift-click (Task 13, SPEC.md §2.5 item 3): adds the column as the next sort key. */
+  'shift-sort': [key: SortKey]
 }>()
 
 const scrollRef = ref<HTMLElement | null>(null)
@@ -96,8 +98,10 @@ function ariaSort(key: SortKey): 'ascending' | 'descending' | 'none' {
   return props.sort.direction === 'asc' ? 'ascending' : 'descending'
 }
 
-function onHeaderClick(column: ColumnDef) {
-  if (column.key) emit('sort', column.key)
+function onHeaderClick(column: ColumnDef, event: MouseEvent) {
+  if (!column.key) return
+  if (event.shiftKey) emit('shift-sort', column.key)
+  else emit('sort', column.key)
 }
 
 function isDismissed(row: DomainIssueRow): boolean {
@@ -154,7 +158,7 @@ function onKeydown(event: KeyboardEvent) {
             :class="{ 'issue-table__th--sortable': column.key }"
             :aria-sort="column.key ? ariaSort(column.key) : undefined"
             :data-test="column.key ? `sort-${column.key}` : undefined"
-            @click="onHeaderClick(column)"
+            @click="onHeaderClick(column, $event)"
           >
             <!--
               Task 14's Weights popover button lands next to this label

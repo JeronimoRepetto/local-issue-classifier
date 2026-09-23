@@ -189,6 +189,22 @@ describe('IssuesContainer', () => {
     ])
   })
 
+  it('shift-clicking a sortable header adds it as the next table sort key (Task 13)', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('[data-test="sort-updatedAt"]').trigger('click', { shiftKey: true })
+    await flush()
+
+    expect(analysisMod.useAnalysis().current.value?.working.tableSort).toEqual([
+      { key: 'criticality', direction: 'desc' },
+      { key: 'relevance', direction: 'desc' },
+      { key: 'effort', direction: 'asc' },
+      { key: 'updatedAt', direction: 'desc' },
+    ])
+  })
+
   it('"/" focuses the search input', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     mount(IssuesContainer, { attachTo: document.body })
