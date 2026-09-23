@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildBatchState (composite state) > matches the snapshot 1`] = `
+{
+  "issues": [
+    {
+      "age": "3 to 12 months",
+      "author_role": "none",
+      "body": "Body of issue 7",
+      "comment_count": 0,
+      "comments": [],
+      "comments_note": null,
+      "id": "#7",
+      "labels": [
+        "bug",
+      ],
+      "last_activity": "3 to 12 months",
+      "reactions": 0,
+      "state": "open",
+      "title": "Issue 7",
+    },
+    {
+      "age": "3 to 12 months",
+      "author_role": "none",
+      "body": "Please add dark mode",
+      "comment_count": 0,
+      "comments": [],
+      "comments_note": null,
+      "id": "#123",
+      "labels": [
+        "enhancement",
+      ],
+      "last_activity": "3 to 12 months",
+      "reactions": 0,
+      "state": "open",
+      "title": "Issue 123",
+    },
+  ],
+  "project": {
+    "contributing_excerpt": null,
+    "description": "Widgets",
+    "docs_index": [
+      "api.md",
+    ],
+    "name": "acme/widgets",
+    "package": null,
+    "readme_excerpt": "Acme widgets renders widgets.",
+    "topics": [],
+  },
+}
+`;

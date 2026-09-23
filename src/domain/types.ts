@@ -157,6 +157,13 @@ export interface Secrets {
   githubToken: string // fine-grained or classic PAT; '' = anonymous
 }
 
+// ── Batched classification (docs/batching.md) ────────────────────────
+/** One request per issue, or every selected issue in as few requests as fit. */
+export type ClassifyMode = 'batched' | 'per-issue'
+
+/** Per-issue trimming profiles of a batched request, loosest → tightest. */
+export type TrimmingProfileId = 'standard' | 'compact' | 'condensed' | 'tight' | 'minimal'
+
 // ── Preferences (non-secret, persisted in localStorage) ──────────────
 export interface Preferences {
   lastRepo: string // raw text of the last repo input
