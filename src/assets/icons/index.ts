@@ -23,12 +23,9 @@ export { default as IconRefresh } from './IconRefresh.vue'
 export { default as IconRepo } from './IconRepo.vue'
 export { default as IconSearch } from './IconSearch.vue'
 export { default as IconSettings } from './IconSettings.vue'
-export { default as IconSignal1 } from './IconSignal1.vue'
-export { default as IconSignal2 } from './IconSignal2.vue'
-export { default as IconSignal3 } from './IconSignal3.vue'
 export { default as IconSort } from './IconSort.vue'
 export { default as IconSun } from './IconSun.vue'
 export { default as IconTrash } from './IconTrash.vue'
 export { default as IconWarning } from './IconWarning.vue'
 
-export const ICON_NAMES = ['IconArrowLeft', 'IconCheck', 'IconChevronDown', 'IconClose', 'IconColumns', 'IconDownload', 'IconEmptyBox', 'IconExternalLink', 'IconEye', 'IconEyeOff', 'IconFilter', 'IconInfo', 'IconKey', 'IconLock', 'IconLogo', 'IconMenu', 'IconMoon', 'IconPlus', 'IconQuestion', 'IconRefresh', 'IconRepo', 'IconSearch', 'IconSettings', 'IconSignal1', 'IconSignal2', 'IconSignal3', 'IconSort', 'IconSun', 'IconTrash', 'IconWarning'] as const
+export const ICON_NAMES = ['IconArrowLeft', 'IconCheck', 'IconChevronDown', 'IconClose', 'IconColumns', 'IconDownload', 'IconEmptyBox', 'IconExternalLink', 'IconEye', 'IconEyeOff', 'IconFilter', 'IconInfo', 'IconKey', 'IconLock', 'IconLogo', 'IconMenu', 'IconMoon', 'IconPlus', 'IconQuestion', 'IconRefresh', 'IconRepo', 'IconSearch', 'IconSettings', 'IconSort', 'IconSun', 'IconTrash', 'IconWarning'] as const

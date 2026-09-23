@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Confidence badge (SPEC §10.4): high ≥ 0.8 (subtle, optionally hidden),
-// medium 0.5–0.8, low < 0.5 with the warning color and a pixel "?" glyph.
+// medium 0.5–0.8, low < 0.5 with the warning color and a "?" glyph.
 import { computed } from 'vue'
 import IconQuestion from '../assets/icons/IconQuestion.vue'
 import UiTooltip from './UiTooltip.vue'
@@ -49,27 +49,24 @@ const tooltip = computed(() =>
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: var(--space-4);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
-  font-weight: var(--weight-medium);
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
+  cursor: help;
 }
 
-.confidence-badge--high {
-  background: transparent;
+.confidence-badge :deep(svg) {
+  width: calc(var(--icon-sm) - var(--space-1));
+  height: calc(var(--icon-sm) - var(--space-1));
 }
 
 .confidence-badge--medium {
-  background: var(--color-surface-2);
-  color: var(--color-text);
+  color: var(--color-text-muted);
 }
 
 .confidence-badge--low {
-  background: var(--color-surface-2);
   color: var(--color-warning);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 </style>

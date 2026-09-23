@@ -153,8 +153,9 @@ function confirm() {
   max-height: calc(100vh - var(--space-6));
   overflow: auto;
   padding: var(--space-4);
-  background: var(--color-surface);
+  background: var(--color-bg);
   color: var(--color-text);
+  border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--elev-3);
 }
@@ -174,12 +175,14 @@ function confirm() {
   margin: 0;
   font-size: var(--text-h3-size);
   line-height: var(--text-h3-line);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .ui-dialog__description {
   margin: 0;
   color: var(--color-text-muted);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
 }
 
 .ui-dialog__phrase {
@@ -196,6 +199,11 @@ function confirm() {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+  margin: 0 calc(var(--space-4) * -1) calc(var(--space-4) * -1);
+  padding: var(--space-2h) var(--space-4);
+  border-top: var(--line-thin) solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .ui-dialog__actions:empty {

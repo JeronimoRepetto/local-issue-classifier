@@ -253,9 +253,9 @@ onBeforeUnmount(() => {
   padding: var(--space-1);
   overflow: auto;
   list-style: none;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--elev-2);
   animation: ui-multiselect-in var(--dur-fade-base) var(--ease-out);
 }

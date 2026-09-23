@@ -86,6 +86,7 @@ function commit(event: Event) {
   height: var(--size-compact);
   padding: 0 var(--space-2);
   font: inherit;
+  font-family: var(--font-mono);
   font-size: var(--text-table-size);
 }
 </style>

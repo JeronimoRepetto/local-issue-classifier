@@ -132,12 +132,9 @@ describe('buildIcons', () => {
 describe('generated icons (sanity)', () => {
   const files = readdirSync(ICONS_DIR).filter((f) => f.endsWith('.vue'))
 
-  it('exist, including the logo, the level glyphs and the first UI batch', () => {
+  it('exist, including the logo, the empty-state art and the UI set', () => {
     for (const name of [
       'IconLogo',
-      'IconSignal1',
-      'IconSignal2',
-      'IconSignal3',
       'IconEye',
       'IconEyeOff',
       'IconClose',
@@ -150,7 +147,7 @@ describe('generated icons (sanity)', () => {
 
   it('draws every UI icon as a 24-grid stroke icon; pixel art is only the logo and empty-state art', () => {
     const pixel = files.filter((f) => readFileSync(join(ICONS_DIR, f), 'utf8').includes('crispEdges'))
-    expect(pixel.sort()).toEqual(['IconEmptyBox.vue', 'IconLogo.vue', 'IconSignal1.vue', 'IconSignal2.vue', 'IconSignal3.vue'])
+    expect(pixel.sort()).toEqual(['IconEmptyBox.vue', 'IconLogo.vue'])
     for (const name of ['IconColumns', 'IconArrowLeft', 'IconLock', 'IconSearch', 'IconSettings']) {
       const source = readFileSync(join(ICONS_DIR, `${name}.vue`), 'utf8')
       expect(source, name).toContain('viewBox="0 0 24 24"')

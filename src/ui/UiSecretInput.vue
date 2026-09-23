@@ -155,6 +155,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
   color: var(--color-text-muted);
@@ -178,7 +179,7 @@ p {
 .ui-secret__help-body {
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border-left: var(--line-thick) solid var(--color-border);
+  border-left: var(--line-thin) solid var(--color-border);
   font-size: var(--text-table-size);
   line-height: var(--text-table-line);
   color: var(--color-text-muted);

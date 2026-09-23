@@ -9,16 +9,20 @@ describe('LevelBadge', () => {
     ['high', 'High', 3],
     ['medium', 'Medium', 2],
     ['low', 'Low', 1],
-  ] as const)('shows %s as text, a %s-bar glyph and a full aria-label', (level, text, bars) => {
+  ] as const)('shows %s as text, a %s-bar meter and a full aria-label', (level, text, bars) => {
     const wrapper = mount(LevelBadge, { props: { level, dimension: 'Criticality' } })
     const badge = wrapper.get('.level-badge')
     expect(badge.text()).toBe(text)
     expect(badge.attributes('aria-label')).toBe(`Criticality: ${level}`)
     expect(badge.attributes('role')).toBe('img')
     expect(badge.classes()).toContain(`level-badge--${level}`)
+    // v2: a three-bar CSS meter instead of a pixel glyph; decorative, never the only signal.
     const glyph = wrapper.get('[data-test="glyph"]')
     expect(glyph.attributes('data-bars')).toBe(String(bars))
-    expect(glyph.find('svg').attributes('aria-hidden')).toBe('true')
+    expect(glyph.attributes('aria-hidden')).toBe('true')
+    expect(glyph.findAll('.level-badge__bar')).toHaveLength(3)
+    expect(glyph.findAll('.level-badge__bar--on')).toHaveLength(bars)
+    expect(glyph.find('svg').exists()).toBe(false)
   })
 
   it('has a stale variant that says so in its label', () => {
@@ -63,6 +67,18 @@ describe('ScoreBar', () => {
     const fill = wrapper.get('[data-test="fill"]')
     expect(fill.attributes('style')).toContain('width: 82%')
     expect(fill.classes()).toContain('score-bar__fill--scale-5')
+  })
+
+  it('colors the number with the heat scale and shows the /100 denominator', () => {
+    const wrapper = mount(ScoreBar, { props: { value: 34, label: 'Relevance' } })
+    expect(wrapper.get('[data-test="value"]').classes()).toContain('score-bar__value--scale-2')
+    expect(wrapper.get('[data-test="max"]').text()).toBe('/100')
+    expect(wrapper.get('[data-test="max"]').attributes('aria-hidden')).toBe('true')
+  })
+
+  it('can hide the bar for dense cells', () => {
+    const wrapper = mount(ScoreBar, { props: { value: 34, label: 'Relevance', bar: false } })
+    expect(wrapper.find('.score-bar__track').exists()).toBe(false)
   })
 
   it('handles a missing value', () => {

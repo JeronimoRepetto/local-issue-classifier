@@ -1,5 +1,5 @@
-/* Global base styles for the kit. Values come only from the token variables
-   emitted by tokens.ts (installed at startup by theme.ts). */
+/* Global base styles for the kit (design v2). Values come only from the token
+   variables emitted by tokens.ts (installed at startup by theme.ts). */
 
 body {
   margin: 0;
@@ -9,7 +9,15 @@ body {
   font-size: var(--text-body-size);
   line-height: var(--text-body-line);
   font-weight: var(--weight-regular);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
 }
 
 /* SPEC §10.7: a 2 px accent ring with a 2 px offset, shown instantly. */
@@ -20,16 +28,48 @@ body {
 
 a {
   color: var(--color-accent);
+  text-decoration-color: var(--color-accent-soft);
+  text-underline-offset: var(--line-thick);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+input[type='checkbox'] {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
 }
 
 .u-tabular {
   font-variant-numeric: tabular-nums;
 }
 
+/* Data voice: IDs, counts, dates, sizes, scores and control values. */
+.u-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kicker / column header: small uppercase mono in the subtle tier. */
+.u-micro {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  font-weight: var(--weight-regular);
+}
+
+/* Identity accent only (see tests/pixel-usage.test.ts): wordmark and one page heading. */
 .u-pixel-font {
   font-family: var(--font-pixel);
   font-weight: var(--weight-regular);
-  -webkit-font-smoothing: none;
+  letter-spacing: var(--tracking-tight);
 }
 
 .u-visually-hidden {
@@ -44,15 +84,6 @@ a {
   border: 0;
 }
 
-/* Stepped 2 px pixel outline; reserved for the Home cards' hover accent. */
-.u-pixel-border {
-  box-shadow:
-    0 calc(var(--line-thick) * -1) 0 0 var(--color-accent),
-    0 var(--line-thick) 0 0 var(--color-accent),
-    calc(var(--line-thick) * -1) 0 0 0 var(--color-accent),
-    var(--line-thick) 0 0 0 var(--color-accent);
-}
-
 /* Shared form-field anatomy for UiInput, UiSecretInput, UiSelect and UiSlider. */
 .ui-field {
   display: grid;
@@ -61,16 +92,16 @@ a {
 }
 
 .ui-field__label {
-  font-size: var(--text-table-size);
-  line-height: var(--text-table-line);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
   font-weight: var(--weight-medium);
-  color: var(--color-text);
+  color: var(--color-text-muted);
 }
 
 .ui-field__hint {
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
 }
 
 .ui-field__error {
@@ -79,28 +110,33 @@ a {
   color: var(--color-danger);
 }
 
+/* Text fields keep a 3:1 boundary (WCAG 1.4.11): an empty input is identified
+   by its outline. Buttons and chips carry text, so they use the quiet hairline. */
 .ui-control {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   height: var(--size-default);
-  padding: 0 var(--space-2) 0 var(--space-3);
+  padding: 0 var(--space-1) 0 var(--space-2h);
   background: var(--color-surface);
   border: var(--line-thin) solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--color-text);
-  transition: border-color var(--dur-fast) var(--ease-standard);
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
 }
 
 .ui-control:hover {
-  border-color: var(--color-text-muted);
+  border-color: var(--color-text-subtle);
 }
 
 .ui-control:focus-within {
   border-color: var(--color-accent);
 }
 
-.ui-control--invalid {
+.ui-control--invalid,
+.ui-control--invalid:hover {
   border-color: var(--color-danger);
 }
 
@@ -116,20 +152,43 @@ a {
   font-size: var(--text-table-size);
 }
 
+.ui-control__input:disabled {
+  cursor: not-allowed;
+}
+
+.ui-control:has(.ui-control__input:disabled) {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+}
+
 .ui-control__input:focus-visible {
   outline: none; /* the ring is drawn on .ui-control via :focus-within */
 }
 
 .ui-control:has(.ui-control__input:focus-visible) {
   outline: var(--line-thick) solid var(--color-accent);
-  outline-offset: var(--line-thick);
+  outline-offset: var(--line-thin);
 }
 
 .ui-control__input::placeholder {
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
 }
 
 .ui-control__prefix {
   display: inline-flex;
-  color: var(--color-text-muted);
+  color: var(--color-text-subtle);
+}
+
+/* Inline keyboard hint, e.g. the "/" that focuses search. */
+.ui-kbd {
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--space-4) - var(--space-1));
+  padding: 0 var(--space-1);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-micro-line);
 }

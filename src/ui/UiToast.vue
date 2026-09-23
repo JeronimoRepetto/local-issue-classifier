@@ -90,12 +90,11 @@ onBeforeUnmount(() => clearTimeout(timer))
   width: 100%;
   max-width: var(--measure-toast);
   min-height: var(--size-large);
-  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
-  background: var(--color-surface);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2h);
+  background: var(--color-bg);
   color: var(--color-text);
   border: var(--line-thin) solid var(--color-border);
-  border-left: var(--space-1) solid currentColor;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--elev-2);
 }
 
