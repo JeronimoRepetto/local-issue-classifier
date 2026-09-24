@@ -1,6 +1,15 @@
 // Task 3 — SPEC.md §3/§4.3 text helpers: trimMiddle, stripMarkdownNoise, estimateTokens.
 import { describe, expect, it } from 'vitest'
-import { estimateTokens, stripMarkdownNoise, trimMiddle } from './text'
+import {
+  estimateTokens,
+  headText,
+  sanitizeJsonStrings,
+  sanitizeText,
+  stripMarkdownNoise,
+  tailText,
+  toWellFormedFallback,
+  trimMiddle,
+} from './text'
 
 describe('trimMiddle', () => {
   it('returns text unchanged when it already fits the budget', () => {
@@ -87,5 +96,73 @@ describe('estimateTokens', () => {
     expect(estimateTokens('a'.repeat(7))).toBe(2)
     expect(estimateTokens('a'.repeat(10))).toBe(3)
     expect(estimateTokens('a'.repeat(100))).toBe(29)
+  })
+})
+
+// Code points built numerically so no editor or tool ever rewrites the escapes.
+const EMOJI = String.fromCodePoint(0x1f600) // two UTF-16 code units
+const HIGH = String.fromCharCode(0xd83d) // lone high surrogate
+const LOW = String.fromCharCode(0xde00) // lone low surrogate
+const REPLACEMENT = String.fromCharCode(0xfffd)
+
+describe('code-point-safe cuts (never split a surrogate pair)', () => {
+  it('headText drops a pair the cut would split instead of keeping half of it', () => {
+    const text = `ab${EMOJI}cd`
+    expect(headText(text, 3)).toBe('ab')
+    expect(headText(text, 4)).toBe(`ab${EMOJI}`)
+    expect(headText(text, 3).isWellFormed()).toBe(true)
+  })
+
+  it('tailText starts after a pair the cut would split', () => {
+    const text = `ab${EMOJI}cd`
+    expect(tailText(text, 3)).toBe('cd')
+    expect(tailText(text, 4)).toBe(`${EMOJI}cd`)
+    expect(tailText(text, 0)).toBe('')
+  })
+
+  it('trimMiddle stays well-formed with an emoji at either cut, whatever the parity', () => {
+    for (const prefix of ['', 'x']) {
+      const text = prefix + EMOJI.repeat(40)
+      for (const [head, tail] of [
+        [7, 5],
+        [8, 6],
+        [9, 0],
+      ]) {
+        const result = trimMiddle(text, head, tail)
+        expect(result.isWellFormed()).toBe(true)
+        expect(result).toContain('characters omitted')
+      }
+    }
+  })
+})
+
+describe('sanitizeText', () => {
+  it('replaces lone surrogates with U+FFFD and keeps valid pairs', () => {
+    expect(sanitizeText(`a${HIGH}b${LOW}c${EMOJI}`)).toBe(`a${REPLACEMENT}b${REPLACEMENT}c${EMOJI}`)
+  })
+
+  it('strips C0 control characters except newline and tab', () => {
+    const controls = [0x00, 0x01, 0x07, 0x08, 0x0b, 0x0c, 0x0d, 0x1b, 0x1f].map((c) => String.fromCharCode(c)).join('')
+    const kept = `${String.fromCharCode(0x09)}b${String.fromCharCode(0x0a)}c`
+    expect(sanitizeText(`a${controls}${kept}`)).toBe(`a${kept}`)
+  })
+
+  it('in strict mode also strips C1 controls, DEL, the BOM and noncharacters', () => {
+    const noise = [0x7f, 0x85, 0x9f, 0xfeff, 0xfdd0, 0xfffe, 0xffff].map((c) => String.fromCharCode(c)).join('')
+    const astralNonchar = String.fromCodePoint(0x1fffe)
+    expect(sanitizeText(`a${noise}${astralNonchar}b${EMOJI}`, { strict: true })).toBe(`ab${EMOJI}`)
+    expect(sanitizeText(`a${String.fromCharCode(0x85)}b`)).toBe(`a${String.fromCharCode(0x85)}b`)
+  })
+
+  it('the fallback used without String.prototype.toWellFormed matches the native one', () => {
+    const text = `${LOW}a${EMOJI}${HIGH}${HIGH}${LOW}b${HIGH}`
+    expect(toWellFormedFallback(text)).toBe(text.toWellFormed())
+  })
+})
+
+describe('sanitizeJsonStrings', () => {
+  it('sanitizes every string of a JSON-like value, keys and other values untouched', () => {
+    const value = { a: `x${HIGH}`, list: [`y${String.fromCharCode(0x01)}`, 3, null, true], nested: { b: EMOJI } }
+    expect(sanitizeJsonStrings(value)).toEqual({ a: `x${REPLACEMENT}`, list: ['y', 3, null, true], nested: { b: EMOJI } })
   })
 })

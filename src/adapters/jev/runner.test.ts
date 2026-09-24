@@ -13,6 +13,7 @@ import { batchBody, http, jevBody, ok, scriptedClient } from '../../../tests/fak
 import type { BatchHandler, Handler } from '../../../tests/fakes/fakeJev'
 import { BATCH_QUESTION_BUDGET } from './batchQuestions'
 import { planBatches } from '../../domain/jevBatchState'
+import type { JevBatchState } from '../../domain/jevBatchState'
 import { seededRandom } from '../../../tests/fakes/seededRandom'
 
 const NOW = new Date('2026-09-23T12:00:00Z')
@@ -473,5 +474,68 @@ describe('runClassification: rate limits (models.md)', () => {
     const { run } = batched(() => ok(), { sleep: async (ms) => void waits.push(ms) }, 5)
     await run()
     expect(waits).toEqual([])
+  })
+})
+
+describe('runClassification: 400 "invalid Unicode text" (api_usage_error)', () => {
+  const unicode400 = () =>
+    http(400, { error_type: 'api_usage_error', message: 'Request contains invalid Unicode text.' })
+  // Built numerically so no editor or tool rewrites the escape.
+  const NEL = String.fromCharCode(0x85)
+
+  function recordStates(client: ReturnType<typeof scriptedClient>) {
+    const states: JevBatchState[] = []
+    const inner = client.classifyBatch.bind(client)
+    client.classifyBatch = (state, questions, signal) => {
+      states.push(state)
+      return inner(state, questions, signal)
+    }
+    return states
+  }
+
+  it('retries a batch once with strictly sanitized text, then succeeds', async () => {
+    const issues = [1, 2, 3].map((n) => fakeIssue(n, { body: `Body ${n} with a C1 control ${NEL}` }))
+    const { client, results, run } = batched(() => ok(), { issues }, 3, (numbers, attempt) =>
+      attempt === 1 ? unicode400() : ok(batchBody(numbers)),
+    )
+    const states = recordStates(client)
+    const summary = await run()
+    expect(client.batches).toEqual([[1, 2, 3], [1, 2, 3]])
+    expect(states[0].issues[0].body).toContain(NEL)
+    expect(states[1].issues.every((i) => !i.body.includes(NEL))).toBe(true)
+    expect(results.every(([, o]) => o.ok)).toBe(true)
+    expect(summary).toMatchObject({ classified: 3, failed: 0, requests: 2 })
+  })
+
+  it('when it persists, bisects the batch and fails only the offending issue', async () => {
+    const { client, results, run } = batched(() => ok(), {}, 4, (numbers) =>
+      numbers.includes(3) ? unicode400() : ok(batchBody(numbers)),
+    )
+    const summary = await run()
+    // 4, the sanitized retry of 4, then 2 + 2, then 1 + 1 inside the failing half.
+    expect(client.batches).toEqual([[1, 2, 3, 4], [1, 2, 3, 4], [1, 2], [3, 4], [3], [4]])
+    const byIssue = new Map(results)
+    expect(byIssue.get(3)).toEqual({ ok: false, error: 'Invalid request (400): Request contains invalid Unicode text.' })
+    expect([1, 2, 4].every((n) => byIssue.get(n)?.ok)).toBe(true)
+    expect(summary).toMatchObject({ classified: 3, failed: 1 })
+  })
+
+  it('per-issue mode retries once sanitized, then fails that issue alone', async () => {
+    const { client, results, run } = setup((issue, attempt) => (issue === 1 || attempt > 1 ? unicode400() : ok()), {}, 2)
+    await run()
+    expect(client.calls.filter((c) => c.issue === 1)).toHaveLength(2)
+    expect(client.calls.filter((c) => c.issue === 2)).toHaveLength(1)
+    const byIssue = new Map(results)
+    expect(byIssue.get(1)).toEqual({ ok: false, error: 'Invalid request (400): Request contains invalid Unicode text.' })
+    expect(byIssue.get(2)?.ok).toBe(true)
+  })
+
+  it('any other 400 still fails the batch at once, without a retry or a split', async () => {
+    const { client, results, run } = batched(() => ok(), {}, 3, () =>
+      http(400, { error_type: 'api_usage_error', message: 'Unknown question type.' }),
+    )
+    await run()
+    expect(client.batches).toEqual([[1, 2, 3]])
+    expect(results.every(([, o]) => !o.ok)).toBe(true)
   })
 })

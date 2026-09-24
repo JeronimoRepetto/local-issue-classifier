@@ -3,7 +3,7 @@
 // module turns them into the budgeted `ProjectContext` sent to Jev once per load.
 // Lives here instead of `jevState.ts` so the loader lane does not share a file
 // with the Jev state builder.
-import { stripMarkdownNoise } from './text'
+import { headText, stripMarkdownNoise } from './text'
 import type { ProjectContext, Repo } from './types'
 
 export type ManifestSource = NonNullable<ProjectContext['manifest']['source']>
@@ -27,7 +27,7 @@ export interface ProjectSources {
 function head(text: string | null, budget: number, clean: (s: string) => string): string | null {
   if (text === null) return null
   const cleaned = clean(text)
-  return cleaned === '' ? null : cleaned.slice(0, budget)
+  return cleaned === '' ? null : headText(cleaned, budget)
 }
 
 const collapseBlankLines = (text: string) => text.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim()

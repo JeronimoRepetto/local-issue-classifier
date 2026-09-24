@@ -3,7 +3,7 @@
 // (projectContext.ts); the issue part is rebuilt per issue. The clock is injected.
 import { dateBucket, type Clock, type DateBucket } from './dates'
 import { estimateStateTokens } from './estimate'
-import { trimMiddle } from './text'
+import { headText, sanitizeJsonStrings, trimMiddle } from './text'
 import type { Issue, IssueComment, IssueState, ProjectContext } from './types'
 
 // ── Shape sent to Jev (§4.3) ─────────────────────────────────────────
@@ -81,7 +81,7 @@ export type BuildIssueStateResult =
 
 // ── Project ──────────────────────────────────────────────────────────
 function head(text: string | null, chars: number): string | null {
-  return text === null ? null : text.slice(0, chars)
+  return text === null ? null : headText(text, chars)
 }
 
 /** Maps a ProjectContext to the state's `project`, re-applying its budgets defensively. */
@@ -134,7 +134,7 @@ function renderComments(
   ]
   const comments = picked.map((c) => ({
     author_role: c.authorAssociation.toLowerCase(),
-    body: c.body.slice(0, commentChars),
+    body: headText(c.body, commentChars),
   }))
   const shown = comments.length
   const outOf = Math.max(total, eligible.length)
@@ -222,10 +222,10 @@ export function buildIssueState(
 
   const compose = (): JevState => {
     const selection = notLoaded ?? renderComments(eligible, split, issue.commentCount)
-    return {
+    return sanitizeJsonStrings({
       project: { ...baseProject, readme_excerpt: readme },
       issue: toJevIssue(issue, opts.now, body, selection),
-    }
+    })
   }
 
   let state = compose()
