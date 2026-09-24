@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => {
   // Jev proxy: the same allowlisted, header-stripping,
   // silent proxy serves `pnpm dev` and `pnpm preview`. Bound to localhost only.
   const jevProxy = createJevProxy({ target: env.JEV_UPSTREAM_URL || JEV_UPSTREAM_DEFAULT, prefix })
+  // The shared policy (server/jevProxyPolicy.ts): only this server's own pages may call /jev,
+  // rate limited per client IP by an in-memory bucket. Browsers also send Sec-Fetch-Site.
+  const allowedOrigins = ['localhost', '127.0.0.1', '[::1]'].map((host) => `http://${host}:${PORT}`)
 
   return {
     // /jev-local (T16): forwards to a local Kev/JevK5 server named in x-local-target,
@@ -23,7 +26,7 @@ export default defineConfig(({ mode }) => {
     // ortAssets: ONNX Runtime Web's wasm + loader for the in-browser provider,
     // served from /ort/ instead of a CDN (docs/browser-inference.md).
     // launcherAssets: the one-click Kev launchers under /launchers/ (docs/local-providers.md).
-    plugins: [vue(), jevProxyGuard({ prefix }), jevLocalProxy(), ortAssets(), launcherAssets()],
+    plugins: [vue(), jevProxyGuard({ prefix, allowedOrigins }), jevLocalProxy(), ortAssets(), launcherAssets()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

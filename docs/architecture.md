@@ -28,6 +28,11 @@ src/
   assets/icons/   Generated icon components (see "Icon pipeline" below).
 server/
   jevProxy.ts     Node-only Vite middleware; imported by vite.config.ts alone.
+  jevProxyPolicy.ts  Pure /jev proxy policy (allowlists, same-origin, rate limit, body cap),
+                  shared by jevProxy.ts and the hosted function.
+functions/
+  jev/[[path]].ts Reference Cloudflare Pages Function for the hosted /jev proxy. Not deployed,
+                  not part of the Vite build (docs/deployment.md, docs/security.md).
   ortAssets.ts    Serves/emits ONNX Runtime Web's wasm + loader under /ort/ (no CDN).
 tests/            Cross-cutting tests: architecture rules, tokens-only rule, icons, the
                   secrets-never-persisted behaviour test, the proxy tests, and fixtures.
@@ -187,9 +192,13 @@ wipe, no secret in preferences or analyses in any mode).
 
 The Jev API rejects browser origins, so the browser never calls `api.typesafe.ai` directly.
 `server/jevProxy.ts` builds the proxy options consumed by `vite.config.ts` (`server.proxy` and
-`preview.proxy`): an allowlist of exactly `/v1/systemone` and `/v1/models`, a rewrite that strips
-the `/jev` prefix, and header stripping of `cookie`, `origin` and `referer` before the request
-reaches upstream. It forwards the `Authorization` header and the JSON body unchanged, logs
-nothing, and stores nothing — the key passes through in transit only. GitHub is always called
+`preview.proxy`) and a guard middleware. The guard runs every request through the pure policy in
+`server/jevProxyPolicy.ts`: an allowlist of exactly `POST /v1/systemone` and `GET /v1/models`,
+same-origin callers only, a 2 MB body cap and a per-IP token-bucket rate limit. Only
+`authorization`, `content-type` and `accept` reach upstream, and answers carry
+`Cache-Control: no-store`. It forwards the JSON body unchanged, logs nothing, and stores
+nothing — the key passes through in transit only. The hosted reference function
+(`functions/jev/[[path]].ts`) imports the same policy. The threat model is in
+[security.md](security.md). GitHub is always called
 directly from the browser, since `api.github.com` allows CORS. See `docs/deployment.md` for the
 full contract and how a future hosted mode would honour it.
