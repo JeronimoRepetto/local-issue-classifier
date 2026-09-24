@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "icons": "node scripts/build-icons.mjs",
+    "favicons": "node scripts/build-favicon-png.mjs",
     "hygiene": "node scripts/check-hygiene.mjs",
     "local:kev": "node scripts/local-kev.mjs"
   },
