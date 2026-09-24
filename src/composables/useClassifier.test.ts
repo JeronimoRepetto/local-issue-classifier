@@ -344,6 +344,40 @@ describe('useClassifier: local provider (T16)', () => {
     expect(factory).toHaveBeenCalledWith('kev-latest', '')
   })
 
+  /** Six issues whose bodies alone overflow a small local state budget in one request. */
+  function bigAnalysis(): Analysis {
+    return createAnalysis({
+      id: 'big',
+      repo: fakeRepo(),
+      stateFilter: 'open',
+      now: NOW,
+      prefs: defaultPreferences(),
+      projectContext: defaultProjectContext('acme/widgets'),
+      issues: [1, 2, 3, 4, 5, 6].map((n) => fakeIssue(n, { body: `${'word '.repeat(700)}`.trim() })),
+      commentsFetched: false,
+    })
+  }
+
+  it('caps a local batch at localMaxStateTokens (docs/batching.md), in the estimate and the run', async () => {
+    await load(() => ok(), { classifyMode: 'batched', provider: LOCAL, localMaxStateTokens: 2_000 })
+    mods.analysis.useAnalysis().setCurrent(bigAnalysis())
+    const classifier = mods.classifier.useClassifier()
+    const estimate = classifier.estimate({ scope: 'unclassified' })
+    expect(estimate?.requests).toBeGreaterThan(1)
+    const summary = await classifier.start()
+    expect(client.batches.length).toBe(estimate?.requests)
+    expect(client.batches.every((b) => b.length < 6)).toBe(true)
+    expect(summary).toMatchObject({ status: 'completed', classified: 6 })
+  })
+
+  it('keeps the cloud plan unchanged: the same issues go in one request', async () => {
+    await load(() => ok(), { classifyMode: 'batched', localMaxStateTokens: 2_000 })
+    mods.analysis.useAnalysis().setCurrent(bigAnalysis())
+    mods.secrets.useSecrets().setJevKey('jev-test')
+    await mods.classifier.useClassifier().start()
+    expect(client.batches).toEqual([[1, 2, 3, 4, 5, 6]])
+  })
+
   it('a rejected local key drops the local key, never the Jev key', async () => {
     await load(() => http(401), { classifyMode: 'per-issue', provider: LOCAL })
     mods.analysis.useAnalysis().setCurrent(analysis())

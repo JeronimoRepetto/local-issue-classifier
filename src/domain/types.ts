@@ -7,6 +7,7 @@ import { defaultProviderConfig } from './provider'
 import type { ProviderConfig } from './provider'
 
 import { DEFAULT_VISIBLE_COLUMNS } from './columns'
+import { DEFAULT_LOCAL_MAX_STATE_TOKENS } from './providerBatching'
 import type { TableColumnId } from './columns'
 
 /** The one place the default Jev model name lives (Preferences.jevModel, Jev client). */
@@ -193,6 +194,8 @@ export interface Preferences {
   lowConfidenceThreshold: number // default 0.5
   classifyMode: ClassifyMode // default 'batched'; 'per-issue' is the fallback (docs/batching.md)
   trimmingFloor: TrimmingProfileId // tightest profile the batch fitter may use; default 'minimal'
+  /** A local provider's per-batch state budget in estimated tokens (docs/batching.md "Local providers"); default 8000. The cloud ignores it. */
+  localMaxStateTokens: number
   defaultExportOptions: ExportOptions // seed for new analyses' working state
   theme: 'system' | 'light' | 'dark' // §10.2, default 'system'
   onboarding: { keys: boolean; repo: boolean; classify: boolean } // first-run checklist, §10.1
@@ -376,6 +379,7 @@ export function defaultPreferences(): Preferences {
     lowConfidenceThreshold: 0.5,
     classifyMode: 'batched',
     trimmingFloor: 'minimal',
+    localMaxStateTokens: DEFAULT_LOCAL_MAX_STATE_TOKENS,
     defaultExportOptions: defaultExportOptions(),
     theme: 'system',
     onboarding: { keys: false, repo: false, classify: false },

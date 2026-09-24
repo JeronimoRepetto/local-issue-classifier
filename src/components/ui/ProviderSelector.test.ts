@@ -125,6 +125,24 @@ describe('ProviderSelector', () => {
     expect(wrapper.emitted('update:trimmingFloor')?.[0]).toEqual(['compact'])
   })
 
+  it('offers the local state budget in Advanced for a local provider only, and emits it as a number', async () => {
+    expect(mountSelector().find('[data-test="local-max-state-tokens"]').exists()).toBe(false)
+    const wrapper = mount(ProviderSelector, {
+      props: {
+        modelValue: LOCAL,
+        apiKey: '',
+        classifyMode: 'batched',
+        trimmingFloor: 'minimal',
+        localMaxStateTokens: 8_000,
+        probe: async () => ({ status: 'direct', models: null }),
+      },
+    })
+    const input = wrapper.get('[data-test="local-max-state-tokens"] input')
+    expect((input.element as HTMLInputElement).value).toBe('8000')
+    await input.setValue('6000')
+    expect(wrapper.emitted('update:localMaxStateTokens')?.[0]).toEqual([6_000])
+  })
+
   // FB-4 — the local setup guide, and a hint pointing to it when unreachable.
   it('mounts the local setup guide only for a local provider', () => {
     expect(mountSelector().find('[data-test="local-setup-guide"]').exists()).toBe(false)

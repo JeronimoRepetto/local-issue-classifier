@@ -22,6 +22,7 @@ import { useAnalyses } from '../../composables/useAnalyses'
 import { useProvider } from '../../composables/useProvider'
 import { detectHardware } from '../../adapters/hardware/detect'
 import { defaultLocalProviderConfig, providerLabel } from '../../domain/provider'
+import { sanitizeLocalMaxStateTokens } from '../../domain/providerBatching'
 import type { ProviderConfig, ProviderRouteStatus } from '../../domain/provider'
 
 const ABOUT_TEXT =
@@ -190,6 +191,7 @@ onBeforeUnmount(() => stopTheme?.())
           :api-key="secrets.state.localApiKey"
           :classify-mode="prefs.state.classifyMode"
           :trimming-floor="prefs.state.trimmingFloor"
+          :local-max-state-tokens="prefs.state.localMaxStateTokens"
           :probe="provider.probe"
           :browser="provider.browserStatus"
           @update:model-value="onProviderChange"
@@ -198,6 +200,7 @@ onBeforeUnmount(() => stopTheme?.())
           @update:api-key="secrets.setLocalApiKey($event)"
           @update:classify-mode="prefs.update({ classifyMode: $event })"
           @update:trimming-floor="prefs.update({ trimmingFloor: $event })"
+          @update:local-max-state-tokens="prefs.update({ localMaxStateTokens: sanitizeLocalMaxStateTokens($event) })"
         />
       </div>
     </section>
