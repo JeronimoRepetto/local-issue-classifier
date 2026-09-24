@@ -22,16 +22,21 @@
 // - The card is no longer dismissible ("Not now" removed): it is the one
 //   place to choose/see the provider, so it always stays on Home, and once a
 //   provider is configured it reflects that as the active choice below.
+//
+// In-browser inference (docs/browser-inference.md): a third choice, "In this
+// browser", appears only where WebGPU is available; the slow WASM fallback is
+// offered in Settings only.
 import { computed, onMounted, ref } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSecretInput from '../../ui/UiSecretInput.vue'
+import BrowserModelPanel from '../ui/BrowserModelPanel.vue'
 import { useProvider } from '../../composables/useProvider'
 import { usePreferences } from '../../composables/usePreferences'
 import { useSecrets } from '../../composables/useSecrets'
 import { useView } from '../../composables/useView'
 import { useHardwareDetection } from '../../composables/useHardwareDetection'
 import { detectHardware } from '../../adapters/hardware/detect'
-import { defaultLocalProviderConfig } from '../../domain/provider'
+import { BROWSER_MODELS, defaultBrowserProviderConfig, defaultLocalProviderConfig, findBrowserModel } from '../../domain/provider'
 import type { ProviderProbeResult } from '../../domain/provider'
 import { fitTiers } from '../../domain/hardware'
 
@@ -46,6 +51,13 @@ onMounted(() => {
   // Settings, HomeContainer's own trigger, or this card if it mounts first);
   // never a second independent scan.
   if (!hw.hasStarted()) void hw.run(() => detectHardware())
+  void provider.checkBrowserSupport()
+})
+
+const webgpu = computed(() => provider.browserStatus.support === 'webgpu')
+const browserModel = computed(() => {
+  const c = provider.config.value
+  return (c.kind === 'browser' ? findBrowserModel(c.modelId) : null) ?? BROWSER_MODELS[0]
 })
 
 const fit = computed(() => (hw.report.value ? fitTiers(hw.report.value) : null))
@@ -71,7 +83,7 @@ const fitLine = computed(() => {
   return `Your ${gpuLabel.value}${mem} fits ${tier?.label ?? 'a local model'}.`
 })
 
-type Choice = 'cloud' | 'local' | null
+type Choice = 'cloud' | 'local' | 'browser' | null
 
 /** An explicit click in this session always wins over the configured choice below. */
 const manualChoice = ref<Choice>(null)
@@ -83,6 +95,7 @@ const manualChoice = ref<Choice>(null)
 const configuredChoice = computed<Choice>(() => {
   const c = provider.config.value
   if (c.kind === 'local') return 'local'
+  if (c.kind === 'browser') return 'browser'
   if (c.kind === 'typesafe' && secrets.hasJevKey.value) return 'cloud'
   return null
 })
@@ -99,6 +112,12 @@ function chooseCloud(): void {
 function chooseLocal(): void {
   manualChoice.value = 'local'
   prefs.update({ provider: defaultLocalProviderConfig() })
+}
+
+/** The in-browser model; the download itself starts from the panel below. */
+function chooseBrowser(): void {
+  manualChoice.value = 'browser'
+  if (provider.config.value.kind !== 'browser') prefs.update({ provider: defaultBrowserProviderConfig() })
 }
 
 function openSettings(): void {
@@ -146,7 +165,7 @@ const SETUP_SUMMARY = [
       <h2 id="provider-onboarding-title" class="provider-onboarding__title">Where should the AI run?</h2>
     </header>
 
-    <div class="provider-onboarding__choices">
+    <div class="provider-onboarding__choices" :class="{ 'provider-onboarding__choices--three': webgpu }">
       <button
         type="button"
         class="provider-onboarding__choice"
@@ -168,6 +187,17 @@ const SETUP_SUMMARY = [
         <span class="provider-onboarding__choice-desc">Free, private. Needs a GPU.</span>
         <span class="provider-onboarding__fit" data-test="hardware-fit-line">{{ fitLine }}</span>
       </button>
+      <button
+        v-if="webgpu"
+        type="button"
+        class="provider-onboarding__choice"
+        :class="{ 'provider-onboarding__choice--active': choice === 'browser' }"
+        data-test="choice-browser"
+        @click="chooseBrowser"
+      >
+        <span class="provider-onboarding__choice-title">In this browser (experimental)</span>
+        <span class="provider-onboarding__choice-desc">No install, no key. One-time model download; placeholder answers for now.</span>
+      </button>
     </div>
 
     <div v-if="choice === 'cloud'" class="provider-onboarding__panel" data-test="cloud-panel">
@@ -180,6 +210,18 @@ const SETUP_SUMMARY = [
         />
       </div>
       <UiButton data-test="open-settings-cloud" variant="ghost" size="compact" @click="openSettings">
+        More in Settings
+      </UiButton>
+    </div>
+
+    <div v-if="choice === 'browser'" class="provider-onboarding__panel" data-test="browser-panel">
+      <BrowserModelPanel
+        :model="browserModel"
+        :state="provider.browserStatus"
+        @download="provider.downloadBrowserModel()"
+        @remove="provider.removeBrowserModel()"
+      />
+      <UiButton data-test="open-settings-browser" variant="ghost" size="compact" @click="openSettings">
         More in Settings
       </UiButton>
     </div>
@@ -242,8 +284,13 @@ pre {
   gap: var(--space-2);
 }
 
+.provider-onboarding__choices--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 @media (max-width: 40em) {
-  .provider-onboarding__choices {
+  .provider-onboarding__choices,
+  .provider-onboarding__choices--three {
     grid-template-columns: 1fr;
   }
 }

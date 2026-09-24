@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BROWSER_TIER,
   GPU_TABLE,
   LOCAL_TIERS,
   UNIFIED_MIN_RESERVE_GB,
@@ -281,5 +282,32 @@ describe('sanitizeHardwareOverride', () => {
     expect(sanitizeHardwareOverride('x')).toBeNull()
     expect(sanitizeHardwareOverride(null)).toBeNull()
     expect(sanitizeHardwareOverride(undefined)).toBeNull()
+  })
+})
+
+// In-browser inference (docs/browser-inference.md): a separate tier that never
+// changes the local-server recommendation.
+describe('fitTiers: browser-small tier', () => {
+  it('needs about 1.5× the WebGPU download', () => {
+    expect(BROWSER_TIER.id).toBe('browser-small')
+    expect(BROWSER_TIER.requiredGb).toBe(0.9)
+  })
+
+  it('judges against VRAM when it is known', () => {
+    const fit = fitTiers(report({ gpu: { vendor: 'nvidia', model: 'X', vramGb: 8, source: 'manual' } }))
+    expect(fit.browser).toMatchObject({ id: 'browser-small', verdict: 'ok' })
+    expect(fit.tiers.map((t) => t.id)).not.toContain('browser-small')
+  })
+
+  it('falls back to RAM when the GPU memory is unknown (WASM runs on the CPU)', () => {
+    const fit = fitTiers(report({ ramGb: 8, gpu: { vendor: 'intel', model: 'Intel UHD Graphics 620', source: 'webgl' } }))
+    expect(fit.browser.verdict).toBe('ok')
+    expect(fit.browser.reasons.join(' ')).toMatch(/RAM/)
+    expect(fit.recommendation.tier).toBe('cloud')
+  })
+
+  it('is no on a tiny GPU and unknown without any memory figure', () => {
+    expect(fitTiers(report({ gpu: { vendor: 'nvidia', model: 'X', vramGb: 0.5, source: 'manual' } })).browser.verdict).toBe('no')
+    expect(fitTiers(unknownHardwareReport()).browser.verdict).toBe('unknown')
   })
 })

@@ -7,6 +7,7 @@
 // container, so each test starts from a fresh module graph and fake storage.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { fakeBrowserRuntime } from '../../../tests/fakes/fakeBrowserRuntime'
 import { defaultLocalProviderConfig } from '../../domain/provider'
 import { unknownHardwareReport } from '../../domain/hardware'
 import type { HardwareReport } from '../../domain/hardware'
@@ -172,5 +173,30 @@ describe('ProviderOnboardingCard', () => {
     const wrapper = await mountCard()
     expect(wrapper.find('[data-test="hardware-box"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="hardware-summary-panel"]').exists()).toBe(false)
+  })
+
+  // In-browser inference (docs/browser-inference.md): a third choice, only
+  // where WebGPU is available (the WASM fallback stays a Settings-only option).
+  it('offers "In this browser" only when WebGPU is available', async () => {
+    const { configureProvider } = await import('../../composables/useProvider')
+    configureProvider({ browser: fakeBrowserRuntime({ support: 'wasm' }) })
+    const withoutGpu = await mountCard()
+    await flushPromises()
+    expect(withoutGpu.find('[data-test="choice-browser"]').exists()).toBe(false)
+  })
+
+  it('choosing "In this browser" selects the browser model and shows its download panel', async () => {
+    const runtime = fakeBrowserRuntime({ support: 'webgpu' })
+    const { configureProvider } = await import('../../composables/useProvider')
+    configureProvider({ browser: runtime })
+    const wrapper = await mountCard()
+    await flushPromises()
+    await wrapper.get('[data-test="choice-browser"]').trigger('click')
+
+    const { usePreferences } = await import('../../composables/usePreferences')
+    expect(usePreferences().state.provider).toEqual({ kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' })
+    await wrapper.get('[data-test="browser-panel"] [data-test="download-model"]').trigger('click')
+    await flushPromises()
+    expect(runtime.loadModel).toHaveBeenCalledTimes(1)
   })
 })

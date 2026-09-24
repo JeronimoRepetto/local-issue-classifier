@@ -4,6 +4,8 @@
 // fields, so Settings mounts one component. Presentational: it owns no
 // persistence and no network. Values flow out through emits; the connection
 // test is the injected `probe` (useProvider().probe in the container).
+// The third kind, "In this browser" (docs/browser-inference.md), mounts
+// BrowserModelPanel and relays its download / remove intents.
 import { computed, ref, watch } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiInput from '../../ui/UiInput.vue'
@@ -11,9 +13,14 @@ import UiSecretInput from '../../ui/UiSecretInput.vue'
 import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
 import LocalSetupGuide from './LocalSetupGuide.vue'
+import BrowserModelPanel from './BrowserModelPanel.vue'
+import type { BrowserPanelState } from './BrowserModelPanel.vue'
 import {
+  BROWSER_MODELS,
   LOCAL_PRESETS,
+  defaultBrowserProviderConfig,
   defaultLocalProviderConfig,
+  findBrowserModel,
   findPreset,
   validateLocalBaseUrl,
 } from '../../domain/provider'
@@ -28,6 +35,8 @@ const props = defineProps<{
   classifyMode: ClassifyMode
   trimmingFloor: TrimmingProfileId
   probe: () => Promise<ProviderProbeResult>
+  /** The in-browser model's state (useProvider().browserStatus); only read for the browser kind. */
+  browser?: BrowserPanelState
 }>()
 
 const emit = defineEmits<{
@@ -35,7 +44,18 @@ const emit = defineEmits<{
   'update:apiKey': [value: string]
   'update:classifyMode': [value: ClassifyMode]
   'update:trimmingFloor': [value: TrimmingProfileId]
+  'download-model': []
+  'remove-model': []
 }>()
+
+const IDLE_BROWSER: BrowserPanelState = {
+  phase: 'idle',
+  progress: null,
+  support: null,
+  device: null,
+  cachedBytes: null,
+  error: null,
+}
 
 const PRESET_OPTIONS: SelectOption[] = [
   ...LOCAL_PRESETS.map((p) => ({ value: p.id, label: `${p.label} (${p.baseUrl})` })),
@@ -57,6 +77,9 @@ const PROBE_TEXT: Record<ProviderProbeResult['status'], string> = {
 
 const local = computed<LocalProviderConfig | null>(() =>
   props.modelValue.kind === 'local' ? props.modelValue : null,
+)
+const browserModel = computed(() =>
+  props.modelValue.kind === 'browser' ? (findBrowserModel(props.modelValue.modelId) ?? BROWSER_MODELS[0]) : null,
 )
 const preset = computed(() => findPreset(props.modelValue)?.id ?? 'custom')
 const validation = computed(() => (local.value ? validateLocalBaseUrl(local.value.baseUrl) : null))
@@ -85,7 +108,12 @@ watch(
 
 function selectKind(kind: ProviderConfig['kind']): void {
   if (kind === props.modelValue.kind) return
-  emit('update:modelValue', kind === 'typesafe' ? { kind: 'typesafe' } : defaultLocalProviderConfig())
+  const next: Record<ProviderConfig['kind'], () => ProviderConfig> = {
+    typesafe: () => ({ kind: 'typesafe' }),
+    local: defaultLocalProviderConfig,
+    browser: defaultBrowserProviderConfig,
+  }
+  emit('update:modelValue', next[kind]())
 }
 
 function patchLocal(patch: Partial<Omit<LocalProviderConfig, 'kind'>>): void {
@@ -137,7 +165,31 @@ async function testConnection(): Promise<void> {
         />
         Local server (Kev, JevK5)
       </label>
+      <label class="provider-selector__radio">
+        <input
+          data-test="kind-browser"
+          type="radio"
+          name="provider-kind"
+          value="browser"
+          :checked="modelValue.kind === 'browser'"
+          @change="selectKind('browser')"
+        />
+        <span data-test="kind-browser-label">In this browser (experimental)</span>
+      </label>
     </fieldset>
+
+    <div v-if="browserModel" class="provider-selector__local">
+      <BrowserModelPanel
+        :model="browserModel"
+        :state="browser ?? IDLE_BROWSER"
+        @download="emit('download-model')"
+        @remove="emit('remove-model')"
+      />
+      <p class="provider-selector__note" data-test="browser-per-issue-note">
+        Runs one issue at a time, one request per issue: the batched mode and the concurrency setting do not apply.
+        Nothing leaves this page and it costs nothing per token.
+      </p>
+    </div>
 
     <div v-if="local" class="provider-selector__local">
       <LocalSetupGuide :status="result?.status ?? null" />

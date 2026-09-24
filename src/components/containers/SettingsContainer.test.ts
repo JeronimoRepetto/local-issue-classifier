@@ -4,6 +4,7 @@
 // wired together by SettingsContainer.vue.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { fakeBrowserRuntime } from '../../../tests/fakes/fakeBrowserRuntime'
 import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
 import { createAnalysis } from '../../domain/analysis'
 import { defaultPreferences, defaultProjectContext } from '../../domain/types'
@@ -284,6 +285,51 @@ describe('SettingsContainer', () => {
       })
 
       expect(wrapper.get('[data-test="local-providers-link"]').attributes('href')).toBe('docs/local-providers.md')
+    })
+  })
+
+  // In-browser inference (docs/browser-inference.md).
+  describe('Browser provider', () => {
+    it('selecting "In this browser" and downloading loads the model through useProvider', async () => {
+      const runtime = fakeBrowserRuntime()
+      const { configureProvider } = await import('../../composables/useProvider')
+      configureProvider({ browser: runtime })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      await wrapper.get('[data-test="kind-browser"]').setValue(true)
+
+      const { usePreferences } = await import('../../composables/usePreferences')
+      expect(usePreferences().state.provider).toEqual({ kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' })
+      expect(wrapper.get('[data-test="provider-label"]').text()).toMatch(/In this browser/)
+
+      await wrapper.get('[data-test="download-model"]').trigger('click')
+      await flushPromises()
+      expect(runtime.loadModel).toHaveBeenCalledTimes(1)
+      expect(wrapper.get('[data-test="browser-model-status"]').text()).toMatch(/ready/i)
+    })
+
+    it('Local data shows the downloaded model size and removes it', async () => {
+      const runtime = fakeBrowserRuntime({ cachedBytes: 578_917_626 })
+      const { configureProvider } = await import('../../composables/useProvider')
+      configureProvider({ browser: runtime })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      await flushPromises()
+
+      expect(wrapper.get('[data-test="downloaded-model"]').text()).toMatch(/Downloaded model: 579 MB/)
+      await wrapper.get('[data-test="remove-downloaded-model"]').trigger('click')
+      await flushPromises()
+      expect(runtime.removeCached).toHaveBeenCalledWith('onnx-community/Qwen3-0.6B-ONNX')
+      expect(wrapper.find('[data-test="downloaded-model"]').exists()).toBe(false)
+    })
+
+    it('Local data has no model line when nothing was downloaded', async () => {
+      const { configureProvider } = await import('../../composables/useProvider')
+      configureProvider({ browser: fakeBrowserRuntime() })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      await flushPromises()
+      expect(wrapper.find('[data-test="downloaded-model"]').exists()).toBe(false)
     })
   })
 })

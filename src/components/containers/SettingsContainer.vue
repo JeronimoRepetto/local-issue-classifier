@@ -50,6 +50,14 @@ function onClearAllConfirm(): void {
 // request itself (navigator.storage.persist) happens once, on the first save.
 onMounted(() => {
   void analyses.checkPersistence()
+  // In-browser model (docs/browser-inference.md): passive checks only, no download.
+  void provider.checkBrowserSupport()
+  void provider.refreshBrowserCache()
+})
+
+const downloadedModelMb = computed(() => {
+  const bytes = provider.browserStatus.cachedBytes ?? 0
+  return bytes > 0 ? Math.round(bytes / 1e6) : null
 })
 const PERSISTENCE_TEXT = {
   unknown: 'Persistent storage: checking…',
@@ -183,7 +191,10 @@ onBeforeUnmount(() => stopTheme?.())
           :classify-mode="prefs.state.classifyMode"
           :trimming-floor="prefs.state.trimmingFloor"
           :probe="provider.probe"
+          :browser="provider.browserStatus"
           @update:model-value="onProviderChange"
+          @download-model="provider.downloadBrowserModel()"
+          @remove-model="provider.removeBrowserModel()"
           @update:api-key="secrets.setLocalApiKey($event)"
           @update:classify-mode="prefs.update({ classifyMode: $event })"
           @update:trimming-floor="prefs.update({ trimmingFloor: $event })"
@@ -230,6 +241,12 @@ onBeforeUnmount(() => stopTheme?.())
       </div>
       <div class="settings__body">
         <p class="settings__persistence" data-test="storage-persistence">{{ persistenceText }}</p>
+        <div v-if="downloadedModelMb !== null" class="settings__model" data-test="downloaded-model">
+          <p>Downloaded model: {{ downloadedModelMb }} MB (in-browser classifier, kept in the browser cache).</p>
+          <UiButton data-test="remove-downloaded-model" variant="ghost" size="compact" @click="provider.removeBrowserModel()">
+            Remove
+          </UiButton>
+        </div>
         <div class="settings__danger">
           <p>
             Removes all saved analyses (this browser's local database) and preferences, and clears your keys. This
@@ -364,6 +381,22 @@ onBeforeUnmount(() => stopTheme?.())
 
 .settings__persistence {
   margin: 0 0 var(--space-2h);
+  color: var(--color-text-muted);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
+}
+
+.settings__model {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2h);
+}
+
+.settings__model p {
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--text-table-size);
   line-height: var(--text-table-line);

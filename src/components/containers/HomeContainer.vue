@@ -64,10 +64,13 @@ const clearingAll = ref(false)
  */
 const onboarding = computed<OnboardingSteps>(() => {
   const providerConfig = provider.config.value
+  // A browser provider (docs/browser-inference.md) is ready once its model is loaded.
   const keys =
     providerConfig.kind === 'typesafe'
       ? secrets.hasJevKey.value
-      : provider.status.value === 'direct' || provider.status.value === 'proxied'
+      : providerConfig.kind === 'browser'
+        ? provider.ready.value
+        : provider.status.value === 'direct' || provider.status.value === 'proxied'
 
   // Repo: check for saved analyses or current analysis
   const repo = analyses.state.entries.length > 0 || analysis.current.value !== null

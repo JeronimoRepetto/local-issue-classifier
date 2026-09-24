@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ProviderSelector from './ProviderSelector.vue'
 import type { ProviderConfig, ProviderProbeResult } from '../../domain/provider'
+import { defaultBrowserProviderConfig } from '../../domain/provider'
 
 const LOCAL: ProviderConfig = { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' }
 
@@ -143,5 +144,41 @@ describe('ProviderSelector', () => {
     await wrapper.get('[data-test="test-connection"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-test="unreachable-hint"]').text()).toMatch(/port 8009/)
+  })
+
+  // In-browser inference (docs/browser-inference.md): a third, experimental kind.
+  it('offers "In this browser (experimental)" and emits the default browser model', async () => {
+    const wrapper = mountSelector()
+    expect(wrapper.get('[data-test="kind-browser-label"]').text()).toBe('In this browser (experimental)')
+    await wrapper.get('[data-test="kind-browser"]').setValue(true)
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([defaultBrowserProviderConfig()])
+  })
+
+  it('mounts the browser model panel only for the browser kind, and relays its intents', async () => {
+    expect(mountSelector().find('[data-test="browser-model-panel"]').exists()).toBe(false)
+    const wrapper = mountSelector({ modelValue: defaultBrowserProviderConfig() })
+    expect((wrapper.get('[data-test="kind-browser"]').element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.find('[data-test="base-url"]').exists()).toBe(false)
+    await wrapper.get('[data-test="download-model"]').trigger('click')
+    expect(wrapper.emitted('download-model')).toHaveLength(1)
+  })
+
+  it('gates the download on browser support: disabled without WebGPU or WASM', () => {
+    const wrapper = mount(ProviderSelector, {
+      props: {
+        modelValue: defaultBrowserProviderConfig(),
+        apiKey: '',
+        classifyMode: 'batched',
+        trimmingFloor: 'minimal',
+        probe: async () => ({ status: 'direct', models: null }),
+        browser: { phase: 'unsupported', progress: null, support: 'none', device: null, cachedBytes: null, error: null },
+      },
+    })
+    expect(wrapper.get('[data-test="download-model"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('notes that the browser always runs per issue', () => {
+    const wrapper = mountSelector({ modelValue: defaultBrowserProviderConfig() })
+    expect(wrapper.get('[data-test="browser-per-issue-note"]').text()).toMatch(/one issue at a time/i)
   })
 })

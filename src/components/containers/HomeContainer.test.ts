@@ -3,6 +3,7 @@
 // right composable call and reacts to shared state.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { fakeBrowserRuntime } from '../../../tests/fakes/fakeBrowserRuntime'
 import { createAnalysis } from '../../domain/analysis'
 import { defaultPreferences, defaultProjectContext } from '../../domain/types'
 import type { Analysis } from '../../domain/types'
@@ -377,5 +378,22 @@ describe('HomeContainer', () => {
     await settle()
 
     expect(wrapper.find('[data-test="onboarding-checklist"]').exists()).toBe(false)
+  })
+
+  it('"Keys" step for the browser provider is done once its model is loaded', async () => {
+    const preferenceMod = await import('../../composables/usePreferences')
+    const { defaultBrowserProviderConfig } = await import('../../domain/provider')
+    preferenceMod.usePreferences().update({ provider: defaultBrowserProviderConfig() })
+    const providerMod = await import('../../composables/useProvider')
+    providerMod.configureProvider({ browser: fakeBrowserRuntime() })
+
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+    const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
+    expect(keysStep().classes()).not.toContain('onboarding-checklist__item--done')
+
+    await providerMod.useProvider().downloadBrowserModel()
+    await wrapper.vm.$nextTick()
+    expect(keysStep().classes()).toContain('onboarding-checklist__item--done')
   })
 })

@@ -7,6 +7,9 @@
 //   `/jev-local` Vite proxy with the target in `x-local-target`. The decision
 //   is cached in memory per base URL; an unreachable result is not cached, so
 //   the next call probes again.
+// - Browser (docs/browser-inference.md): no server. The model is downloaded
+//   once on request (downloadBrowserModel), cached by the browser, and answers
+//   in-process through createBrowserJevTransport; `ready` means loaded.
 // The optional local key lives in useSecrets().state.localApiKey, never in
 // Preferences. Nothing here logs.
 import { computed, reactive } from 'vue'
@@ -14,17 +17,24 @@ import {
   JEV_LOCAL_PROXY_PREFIX,
   LOCAL_PROXY_MARKER_HEADER,
   LOCAL_TARGET_HEADER,
+  BROWSER_MODELS,
   defaultLocalProviderConfig,
   defaultProviderConfig,
   parseModelNames,
   providerKey,
   validateLocalBaseUrl,
 } from '../domain/provider'
-import type { ProviderConfig, ProviderProbeResult, ProviderRouteStatus } from '../domain/provider'
+import type { BrowserProviderConfig, ProviderConfig, ProviderProbeResult, ProviderRouteStatus } from '../domain/provider'
 import { createJevClient } from '../adapters/jev/client'
 import type { JevClient } from '../adapters/jev/client'
 import { JevTransportError, createHttpJevTransport, resolveJevBaseUrl } from '../adapters/jev/transport'
 import type { JevTransport } from '../adapters/jev/transport'
+import { createBrowserJevTransport } from '../adapters/browser/browserJevTransport'
+import { loadBrowserModel } from '../adapters/browser/browserModel'
+import type { BrowserBackend, LoadedBrowserModel, LoadBrowserModelOptions } from '../adapters/browser/browserModel'
+import { cachedModelBytes, removeCachedModel } from '../adapters/browser/modelCache'
+import { detectBrowserSupport } from '../adapters/browser/webgpu'
+import type { BrowserSupport } from '../adapters/browser/webgpu'
 import { usePreferences } from './usePreferences'
 import { useSecrets } from './useSecrets'
 
@@ -33,7 +43,32 @@ export const LOCAL_TIMEOUT_MS = 180_000
 /** The connection check must answer quickly or count as failed. */
 export const PROBE_TIMEOUT_MS = 5_000
 
+/** The in-browser runtime: real transformers.js and Cache API by default, fakes in tests. */
+export interface BrowserRuntime {
+  detectSupport: () => Promise<BrowserSupport>
+  loadModel: (options: Pick<LoadBrowserModelOptions, 'modelId' | 'backend' | 'onProgress'>) => Promise<LoadedBrowserModel>
+  /** null when the Cache API is unavailable. */
+  cachedBytes: (modelId: string) => Promise<number | null>
+  removeCached: (modelId: string) => Promise<number>
+}
+
+export type BrowserModelPhase = 'idle' | 'downloading' | 'ready' | 'unsupported' | 'error'
+
+export interface BrowserModelStatus {
+  phase: BrowserModelPhase
+  /** 0..1 over the files seen so far while downloading; null otherwise. */
+  progress: number | null
+  /** What this browser offers; null until checked. */
+  support: BrowserSupport | null
+  /** The backend the loaded model runs on. */
+  device: BrowserBackend | null
+  /** Bytes of the configured model in the browser cache; null when unknown. */
+  cachedBytes: number | null
+  error: string | null
+}
+
 export interface ProviderEnvironment {
+  browser: BrowserRuntime
   fetch: typeof fetch
   /** The TypeSafe proxy path, VITE_JEV_BASE_URL (default '/jev'). */
   typesafeBaseUrl: string
@@ -43,6 +78,12 @@ export interface ProviderEnvironment {
 }
 
 let env: ProviderEnvironment = {
+  browser: {
+    detectSupport: () => detectBrowserSupport(),
+    loadModel: (options) => loadBrowserModel(options),
+    cachedBytes: (modelId) => cachedModelBytes(modelId),
+    removeCached: (modelId) => removeCachedModel(modelId),
+  },
   fetch: (input, init) => globalThis.fetch(input, init),
   typesafeBaseUrl: resolveJevBaseUrl(import.meta.env.VITE_JEV_BASE_URL),
   localProxyPrefix: JEV_LOCAL_PROXY_PREFIX,
@@ -65,30 +106,54 @@ const inflight = new Map<string, Promise<ProviderProbeResult>>()
 
 const config = computed<ProviderConfig>(() => prefs.state.provider ?? defaultProviderConfig())
 const isLocal = computed(() => config.value.kind === 'local')
+const isBrowser = computed(() => config.value.kind === 'browser')
+
+// ── Browser model (in memory; the weights themselves live in the Cache API) ──
+const browserStatus = reactive<BrowserModelStatus>({
+  phase: 'idle',
+  progress: null,
+  support: null,
+  device: null,
+  cachedBytes: null,
+  error: null,
+})
+/** The loaded model, by repo id; at most one is kept. */
+let browserModel: { modelId: string; model: LoadedBrowserModel } | null = null
+let browserLoading: Promise<void> | null = null
+const browserModelId = () => (config.value.kind === 'browser' ? config.value.modelId : null)
+/** The model whose cached files Settings measures: the configured one, else the default. */
+const cacheModelId = () => browserModelId() ?? BROWSER_MODELS[0].id
 const status = computed<ProviderRouteStatus>(() => routes[providerKey(config.value)] ?? 'unknown')
 const models = computed<string[] | null>(() => modelLists[providerKey(config.value)] ?? null)
 
 /** TypeSafe needs a Jev key; a local server needs a valid base URL (its key is optional). */
+/** A browser provider is ready once its model is loaded in this page. */
 const ready = computed(() => {
   const c = config.value
-  return c.kind === 'typesafe' ? secrets.hasJevKey.value : validateLocalBaseUrl(c.baseUrl).ok
+  if (c.kind === 'typesafe') return secrets.hasJevKey.value
+  if (c.kind === 'browser') return browserStatus.phase === 'ready' && browserStatus.device !== null
+  return validateLocalBaseUrl(c.baseUrl).ok
 })
 
 function getApiKey(): string {
-  return config.value.kind === 'typesafe' ? secrets.state.jevApiKey : secrets.state.localApiKey
+  const c = config.value
+  if (c.kind === 'browser') return ''
+  return c.kind === 'typesafe' ? secrets.state.jevApiKey : secrets.state.localApiKey
 }
 
 /** The model sent with every request: Preferences.jevModel, or the local config's model. */
 function model(): string {
   const c = config.value
   if (c.kind === 'typesafe') return prefs.state.jevModel
+  if (c.kind === 'browser') return c.modelId
   return c.model.trim() || defaultLocalProviderConfig().model
 }
 
 /** After a rejected key (401/403): drop the key of the provider that rejected it. */
 function dropKey(): void {
-  if (config.value.kind === 'typesafe') secrets.setJevKey('')
-  else secrets.setLocalApiKey('')
+  const kind = config.value.kind
+  if (kind === 'typesafe') secrets.setJevKey('')
+  else if (kind === 'local') secrets.setLocalApiKey('')
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -154,6 +219,8 @@ async function probeTypeSafe(apiKey: string): Promise<ProviderProbeResult> {
 }
 
 function probeConfig(c: ProviderConfig): Promise<ProviderProbeResult> {
+  // A browser model has no server to test; its state is browserStatus.
+  if (c.kind === 'browser') return Promise.resolve({ status: 'unreachable', models: null })
   const key = providerKey(c)
   const running = inflight.get(key)
   if (running) return running
@@ -217,6 +284,98 @@ export interface CreateProviderClientOptions {
   model?: string
 }
 
+// ── Browser model lifecycle ─────────────────────────────────────────
+async function checkBrowserSupport(): Promise<BrowserSupport> {
+  if (browserStatus.support === null) browserStatus.support = await env.browser.detectSupport()
+  if (browserStatus.support === 'none') browserStatus.phase = 'unsupported'
+  return browserStatus.support
+}
+
+/** Re-reads how much of the configured model the browser has cached. */
+async function refreshBrowserCache(): Promise<void> {
+  const modelId = cacheModelId()
+  try {
+    browserStatus.cachedBytes = await env.browser.cachedBytes(modelId)
+  } catch {
+    browserStatus.cachedBytes = null
+  }
+}
+
+function progressOf(files: Map<string, { loaded: number; total: number }>): number | null {
+  let loaded = 0
+  let total = 0
+  for (const file of files.values()) {
+    loaded += file.loaded
+    total += file.total
+  }
+  return total > 0 ? loaded / total : null
+}
+
+/** Downloads (or reads from the cache) and loads the configured model. One load at a time. */
+function downloadBrowserModel(): Promise<void> {
+  if (browserLoading) return browserLoading
+  browserLoading = (async () => {
+    const modelId = browserModelId()
+    if (!modelId) return
+    const support = await checkBrowserSupport()
+    if (support === 'none') return
+    if (browserModel?.modelId === modelId) {
+      browserStatus.phase = 'ready'
+      return
+    }
+    const files = new Map<string, { loaded: number; total: number }>()
+    browserStatus.phase = 'downloading'
+    browserStatus.progress = 0
+    browserStatus.error = null
+    try {
+      const model = await env.browser.loadModel({
+        modelId,
+        backend: support,
+        onProgress: ({ file, loaded, total }) => {
+          files.set(file, { loaded, total })
+          browserStatus.progress = progressOf(files)
+        },
+      })
+      await browserModel?.model.dispose()
+      browserModel = { modelId, model }
+      browserStatus.device = model.device
+      browserStatus.phase = 'ready'
+    } catch (error) {
+      browserStatus.device = null
+      browserStatus.phase = 'error'
+      browserStatus.error = error instanceof Error && error.message ? error.message : 'The model could not be loaded.'
+    } finally {
+      browserStatus.progress = null
+      await refreshBrowserCache()
+    }
+  })().finally(() => {
+    browserLoading = null
+  })
+  return browserLoading
+}
+
+/** "Remove downloaded model": unloads it and deletes its files from the browser cache. */
+async function removeBrowserModel(): Promise<void> {
+  const modelId = cacheModelId()
+  if (browserModel?.modelId === modelId) {
+    await browserModel.model.dispose()
+    browserModel = null
+  }
+  await env.browser.removeCached(modelId)
+  browserStatus.device = null
+  browserStatus.phase = browserStatus.support === 'none' ? 'unsupported' : 'idle'
+  await refreshBrowserCache()
+}
+
+function browserTransport(c: BrowserProviderConfig): JevTransport {
+  return createBrowserJevTransport({
+    getModel: async () => {
+      if (browserModel?.modelId !== c.modelId) throw new Error('The browser model is not loaded')
+      return browserModel.model
+    },
+  })
+}
+
 /** The Jev client for the current provider (read once, at call time). */
 function createClient(options: CreateProviderClientOptions = {}): JevClient {
   const c = config.value
@@ -228,7 +387,9 @@ function createClient(options: CreateProviderClientOptions = {}): JevClient {
           getApiKey: getKey,
           fetch: (input, init) => env.fetch(input, init),
         })
-      : localTransport({ ...c }, getKey)
+      : c.kind === 'browser'
+        ? browserTransport({ ...c })
+        : localTransport({ ...c }, getKey)
   return createJevClient({ transport, model: options.model ?? model() })
 }
 
@@ -237,12 +398,16 @@ function __resetForTests(): void {
   for (const key of Object.keys(routes)) delete routes[key]
   for (const key of Object.keys(modelLists)) delete modelLists[key]
   inflight.clear()
+  browserModel = null
+  browserLoading = null
+  Object.assign(browserStatus, { phase: 'idle', progress: null, support: null, device: null, cachedBytes: null, error: null })
 }
 
 export function useProvider() {
   return {
     config,
     isLocal,
+    isBrowser,
     ready,
     status,
     models,
@@ -251,6 +416,11 @@ export function useProvider() {
     model,
     dropKey,
     createClient,
+    browserStatus,
+    checkBrowserSupport,
+    downloadBrowserModel,
+    removeBrowserModel,
+    refreshBrowserCache,
     __resetForTests,
   }
 }

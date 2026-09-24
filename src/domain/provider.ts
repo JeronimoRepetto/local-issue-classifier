@@ -5,12 +5,51 @@
 //
 // A local server's optional key is a secret: it lives in useSecrets() only and
 // is deliberately NOT part of ProviderConfig, so Preferences never carry it.
+//
+// A third kind, `browser` (docs/browser-inference.md), runs a small model in
+// this page with transformers.js; it has no server, no URL and no key.
 
 export type ProviderConfig =
   | { kind: 'typesafe' }
   | { kind: 'local'; baseUrl: string; model: string }
+  | { kind: 'browser'; modelId: string }
 
 export type LocalProviderConfig = Extract<ProviderConfig, { kind: 'local' }>
+export type BrowserProviderConfig = Extract<ProviderConfig, { kind: 'browser' }>
+
+/** A model the browser provider can download from the Hugging Face Hub. */
+export interface BrowserModelPreset {
+  /** Hugging Face repo id. */
+  id: string
+  label: string
+  /** Bytes fetched on first load: the ONNX weights for that backend plus config and tokenizer files. */
+  downloadBytes: { webgpu: number; wasm: number }
+  /** A generic model standing in for Jev: its answers are placeholders, not classifications. */
+  placeholder: boolean
+}
+
+// Sizes from the Hub's file listing (checked 2026-09-24): onnx/model_q4f16.onnx
+// 569 789 750 B (WebGPU), onnx/model_q4.onnx 919 096 585 B (WASM), plus
+// tokenizer.json 9 117 040 B, tokenizer_config.json 9 705 B, config.json 912 B,
+// generation_config.json 219 B.
+const QWEN3_SIDE_FILES = 9_117_040 + 9_705 + 912 + 219
+
+export const BROWSER_MODELS: readonly BrowserModelPreset[] = [
+  {
+    id: 'onnx-community/Qwen3-0.6B-ONNX',
+    label: 'Qwen3 0.6B',
+    downloadBytes: { webgpu: 569_789_750 + QWEN3_SIDE_FILES, wasm: 919_096_585 + QWEN3_SIDE_FILES },
+    placeholder: true,
+  },
+]
+
+export function defaultBrowserProviderConfig(): BrowserProviderConfig {
+  return { kind: 'browser', modelId: BROWSER_MODELS[0].id }
+}
+
+export function findBrowserModel(modelId: string): BrowserModelPreset | null {
+  return BROWSER_MODELS.find((m) => m.id === modelId) ?? null
+}
 
 /** Browser-side path of the Vite proxy for local servers (server/jevProxy.ts, docs/deployment.md). */
 export const JEV_LOCAL_PROXY_PREFIX = '/jev-local'
@@ -147,6 +186,9 @@ export function findPreset(config: ProviderConfig): LocalPreset | null {
 
 export function providerLabel(config: ProviderConfig): string {
   if (config.kind === 'typesafe') return 'TypeSafe cloud (Jev)'
+  if (config.kind === 'browser') {
+    return `In this browser (${findBrowserModel(config.modelId)?.label ?? config.modelId}, experimental)`
+  }
   const url = normalizedBaseUrl(config.baseUrl)
   const preset = findPreset(config)
   return preset ? `${preset.label} (local, ${url})` : `Local server (${url})`
@@ -154,7 +196,9 @@ export function providerLabel(config: ProviderConfig): string {
 
 /** Routing-cache key: one decision per provider and normalized base URL. */
 export function providerKey(config: ProviderConfig): string {
-  return config.kind === 'typesafe' ? 'typesafe' : `local:${normalizedBaseUrl(config.baseUrl)}`
+  if (config.kind === 'typesafe') return 'typesafe'
+  if (config.kind === 'browser') return `browser:${config.modelId}`
+  return `local:${normalizedBaseUrl(config.baseUrl)}`
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -163,10 +207,15 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 /**
  * Tolerant loading of a stored value: unknown shapes fall back to TypeSafe, a
- * local config keeps only its base URL and model (never a key or extra field).
+ * local config keeps only its base URL and model (never a key or extra field),
+ * a browser config only its model id.
  * An invalid base URL is kept as typed; validateLocalBaseUrl reports it.
  */
 export function sanitizeProviderConfig(value: unknown): ProviderConfig {
+  if (isObject(value) && value.kind === 'browser') {
+    const modelId = typeof value.modelId === 'string' ? value.modelId.trim() : ''
+    return modelId === '' ? defaultBrowserProviderConfig() : { kind: 'browser', modelId }
+  }
   if (!isObject(value) || value.kind !== 'local') return defaultProviderConfig()
   const seed = defaultLocalProviderConfig()
   const baseUrl = typeof value.baseUrl === 'string' ? value.baseUrl : seed.baseUrl
