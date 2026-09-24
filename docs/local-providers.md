@@ -226,13 +226,23 @@ JevK5's README does not document these fields. When a server leaves them out, no
 ## Switching from the analysis view
 
 The classify bar (screen 3) carries a provider switch next to the Classify button, so you can pick
-Jev, Kev or JevK5 without opening Settings: it probes both local presets once when the analysis
-view opens (one `GET /v1/models` per preset, cached for the session — reachable ones show their
-first model name and, when the server reports it, its device), and disables whichever preset it
-could not reach with that reason as a tooltip. Selecting one there updates the same
-`Preferences.provider` the Settings selector edits, so both stay in sync; re-running Classify with
-a different provider replaces every result and the analysis header's "Classified by" line updates
-to match. The switch is disabled while a run is active.
+Jev, Kev or JevK5 without opening Settings: on your machine, opening the analysis view probes both
+local presets once (one `GET /v1/models` per preset, cached for the session — reachable ones show
+their first model name and, when the server reports it, its device), and disables whichever preset
+it could not reach with that reason as a tooltip.
+
+On a hosted page (e.g. local-issue-classifier.pages.dev) it never probes a preset you have not
+explicitly set up in Settings — doing that unconditionally is what triggered Chrome's Local Network
+Access prompt ("wants to access other apps and services on this device") the moment the analysis
+view opened. There, every preset shows disabled with "Set up in Settings." as its reason; the one
+preset you did configure in Settings keeps its normal reachable/unreachable readout, since choosing
+it there already probed it (see "Connection status" above). The in-browser model's WebGPU check is
+unaffected either way.
+
+Selecting an available candidate there updates the same `Preferences.provider` the Settings selector
+edits, so both stay in sync; re-running Classify with a different provider replaces every result and
+the analysis header's "Classified by" line updates to match. The switch is disabled while a run is
+active.
 
 ## CORS and the `/jev-local` proxy
 

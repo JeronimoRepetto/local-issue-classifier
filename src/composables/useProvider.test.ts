@@ -469,6 +469,74 @@ describe('useProvider: candidates, probeAll, selectProvider', () => {
   })
 })
 
+// Hosted-site bugfix (2026-09-24, T-FIX-HOSTED-PROBE): opening the analysis
+// view on a hosted build (local-issue-classifier.pages.dev) must not touch
+// any localhost preset — that is what triggers Chrome's Local Network Access
+// prompt. probeAll now mirrors autoProbe's `presets` option (WebGPU is still
+// always checked), and the switcher hides an unconfigured preset behind
+// "Set up in Settings." on a hosted runtime, without probing it — unless the
+// user explicitly chose that exact preset in Settings, whose probe already ran.
+describe('useProvider: probeAll presets gating (hosted vs local runtime)', () => {
+  it('defaults to probing every local preset (today\'s behavior, unchanged)', async () => {
+    await load((call) => (call.url.startsWith('http://localhost:8009') ? json({ models: [{ name: 'kev-latest' }] }) : json(MODELS)))
+    const provider = mods.provider.useProvider()
+    await provider.probeAll()
+    expect(seen.map((c) => c.url).sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+  })
+
+  it('skips every local preset when presets is false (hosted page), but still checks WebGPU', async () => {
+    await load(() => json(MODELS))
+    mods.provider.configureProvider({
+      browser: {
+        detectSupport: async () => 'webgpu',
+        loadModel: async () => {
+          throw new Error('not used')
+        },
+        cachedBytes: async () => 0,
+        removeCached: async () => 0,
+      },
+    })
+    const provider = mods.provider.useProvider()
+    await provider.probeAll({ presets: false })
+    expect(seen).toEqual([])
+    expect(provider.candidates.value.find((c) => c.id === 'browser')!.available).toBe(true)
+  })
+})
+
+describe('useProvider: candidates on a hosted runtime (isLocalRuntime env)', () => {
+  it('an unconfigured local preset is unavailable with "Set up in Settings." and is never probed', async () => {
+    await load(() => json(MODELS))
+    mods.provider.configureProvider({ isLocalRuntime: () => false })
+    const provider = mods.provider.useProvider()
+    const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
+    const jevk5 = provider.candidates.value.find((c) => c.id === 'local:jevk5')!
+    expect(kev).toMatchObject({ available: false, reason: 'Set up in Settings.' })
+    expect(jevk5).toMatchObject({ available: false, reason: 'Set up in Settings.' })
+    await provider.probeAll({ presets: false })
+    expect(seen).toEqual([])
+  })
+
+  it('keeps probing-based availability for the local preset the user explicitly configured, even hosted', async () => {
+    await load((call) => (call.url.endsWith('/v1/models') ? json(MODELS) : json(ANSWERS)), { provider: LOCAL })
+    mods.provider.configureProvider({ isLocalRuntime: () => false })
+    const provider = mods.provider.useProvider()
+    await provider.probe()
+    const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
+    expect(kev.available).toBe(true)
+    expect(kev.reason).toBeUndefined()
+    // The other, unconfigured preset stays hidden behind Settings.
+    const jevk5 = provider.candidates.value.find((c) => c.id === 'local:jevk5')!
+    expect(jevk5).toMatchObject({ available: false, reason: 'Set up in Settings.' })
+  })
+
+  it('a local runtime (default in tests) keeps today\'s reachable/unreachable reasons for every preset', async () => {
+    await load(() => json(MODELS))
+    const provider = mods.provider.useProvider()
+    const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
+    expect(kev.reason).toBe('Server not reachable on :8009')
+  })
+})
+
 // Auto-probe (docs/local-providers.md "Connection status"): the configured
 // local URL and the Kev/JevK5 presets are probed on load and when "On this
 // computer" is selected, cached per session; returning to Home re-probes only

@@ -10,7 +10,16 @@ import { http, ok, scriptedClient } from '../../../tests/fakes/fakeJev'
 import type { Handler } from '../../../tests/fakes/fakeJev'
 import type { ProviderConfig } from '../../domain/provider'
 
-async function setup(handler: Handler, withKey = true, provider?: ProviderConfig) {
+interface SetupOptions {
+  /** Test override for useRuntime's `dev` check, passed as ClassifyContainer's `isDev` prop. */
+  isDev?: boolean
+  /** Test override for useRuntime's `hostname` check, passed as ClassifyContainer's `hostname` prop. */
+  hostname?: string
+  /** Records every fetch call instead of the default fixed 404 responder. */
+  fetch?: typeof fetch
+}
+
+async function setup(handler: Handler, withKey = true, provider?: ProviderConfig, options: SetupOptions = {}) {
   vi.resetModules()
   const { setAppStorage } = await import('../../adapters/storage/appStorage')
   setAppStorage(new MemoryStorage())
@@ -21,7 +30,7 @@ async function setup(handler: Handler, withKey = true, provider?: ProviderConfig
   const { configureProvider, useProvider } = await import('../../composables/useProvider')
   configureClassifier({ createClient: () => scriptedClient(handler), sleep: async () => undefined })
   // Every candidate probe goes through this fake fetch too; nothing real is contacted.
-  configureProvider({ fetch: async () => new Response(JSON.stringify({ models: [] }), { status: 404 }) })
+  configureProvider({ fetch: options.fetch ?? (async () => new Response(JSON.stringify({ models: [] }), { status: 404 })) })
   if (provider) usePreferences().update({ provider })
   useAnalysis().setCurrent(
     createAnalysis({
@@ -37,7 +46,10 @@ async function setup(handler: Handler, withKey = true, provider?: ProviderConfig
   )
   if (withKey) useSecrets().setJevKey('jev-test')
   const { default: ClassifyContainer } = await import('./ClassifyContainer.vue')
-  return { wrapper: mount(ClassifyContainer, { attachTo: document.body }), useSecrets, useProvider }
+  const props: Record<string, unknown> = {}
+  if (options.isDev !== undefined) props.isDev = options.isDev
+  if (options.hostname !== undefined) props.hostname = options.hostname
+  return { wrapper: mount(ClassifyContainer, { attachTo: document.body, props }), useSecrets, useProvider }
 }
 
 beforeEach(() => {
@@ -138,6 +150,43 @@ describe('ClassifyContainer: provider switcher', () => {
     expect(wrapper.get('[data-test="provider-option-local:kev"]').attributes('disabled')).toBeDefined()
     release()
     await flushPromises()
+    wrapper.unmount()
+  })
+})
+
+// Bugfix (2026-09-24, T-FIX-HOSTED-PROBE): on the hosted site
+// (local-issue-classifier.pages.dev), opening the analysis view was probing
+// every LOCAL_PRESETS URL unconditionally, which is exactly what triggers
+// Chrome's Local Network Access prompt ("wants to access other apps and
+// services on this device"). Mirrors ProviderOnboardingCard's isDev/hostname
+// test-override props (see useRuntime.ts) to simulate a hosted runtime.
+describe('ClassifyContainer: skips localhost probes on a hosted runtime', () => {
+  it('issues no request to any local preset URL when hosted (isDev=false, non-loopback hostname)', async () => {
+    const calls: string[] = []
+    const fetchSpy: typeof fetch = async (input) => {
+      calls.push(String(input))
+      return new Response(JSON.stringify({ models: [] }), { status: 404 })
+    }
+    const { wrapper } = await setup(() => ok(), true, undefined, {
+      fetch: fetchSpy,
+      isDev: false,
+      hostname: 'local-issue-classifier.pages.dev',
+    })
+    await flushPromises()
+    expect(calls.some((u) => u.includes(':8009') || u.includes(':8090'))).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('still probes both local presets when the runtime is local (default: dev mode under vitest)', async () => {
+    const calls: string[] = []
+    const fetchSpy: typeof fetch = async (input) => {
+      calls.push(String(input))
+      return new Response(JSON.stringify({ models: [] }), { status: 404 })
+    }
+    const { wrapper } = await setup(() => ok(), true, undefined, { fetch: fetchSpy })
+    await flushPromises()
+    expect(calls.some((u) => u.includes(':8009'))).toBe(true)
+    expect(calls.some((u) => u.includes(':8090'))).toBe(true)
     wrapper.unmount()
   })
 })

@@ -15,6 +15,7 @@ import RunSummary from '../ui/RunSummary.vue'
 import { useClassifier } from '../../composables/useClassifier'
 import type { ClassifyRequest } from '../../composables/useClassifier'
 import { useProvider } from '../../composables/useProvider'
+import { useRuntime } from '../../composables/useRuntime'
 import { candidateIdFor } from '../../domain/provider'
 import type { RunSummary as Summary } from '../../domain/classifyRun'
 
@@ -23,12 +24,17 @@ export type OpenSettingsReason = 'jev-key-missing' | 'jev-key-rejected'
 const props = defineProps<{
   /** Issue numbers of the current filtered table view; enables "Classify filtered view". */
   filteredNumbers?: number[]
+  /** Test override for useRuntime's `dev` check; defaults to import.meta.env.DEV. */
+  isDev?: boolean
+  /** Test override for useRuntime's `hostname` check; defaults to location.hostname. */
+  hostname?: string
 }>()
 
 const emit = defineEmits<{ 'open-settings': [reason: OpenSettingsReason] }>()
 
 const classifier = useClassifier()
 const provider = useProvider()
+const runtime = useRuntime({ dev: props.isDev, hostname: props.hostname })
 const { reduced } = useReducedMotion()
 
 const scope = ref<ClassifyButtonScope>('unclassified')
@@ -39,9 +45,12 @@ let toastId = 0
 const running = computed(() => classifier.state.phase === 'running')
 
 // Provider switcher (T-provider-switch, docs/local-providers.md, docs/browser-inference.md):
-// probe every local preset and check WebGPU once, when this bar mounts with the analysis view.
+// probe every local preset and check WebGPU once, when this bar mounts with the analysis
+// view — but only the presets, and only when this page runs locally (bugfix, 2026-09-24,
+// T-FIX-HOSTED-PROBE): probing a localhost preset unconditionally on the hosted site is what
+// triggered Chrome's Local Network Access prompt.
 onMounted(() => {
-  void provider.probeAll()
+  void provider.probeAll({ presets: runtime.isLocal.value })
 })
 
 const selectedProviderId = computed(() => candidateIdFor(provider.config.value))

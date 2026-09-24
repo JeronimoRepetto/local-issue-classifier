@@ -31,6 +31,7 @@ import {
 import type { BrowserProviderConfig, ProviderConfig, ProviderProbeResult, ProviderRouteStatus } from '../domain/provider'
 import { parseModelRuntime, shortRuntimeLabel } from '../domain/localDevice'
 import type { ModelRuntime } from '../domain/localDevice'
+import { isLocalRuntime } from '../domain/runtime'
 import { createJevClient } from '../adapters/jev/client'
 import type { JevClient } from '../adapters/jev/client'
 import { JevTransportError, createHttpJevTransport, resolveJevBaseUrl } from '../adapters/jev/transport'
@@ -85,6 +86,13 @@ export interface ProviderEnvironment {
   probeTimeoutMs: number
   /** Wall clock in ms, for autoProbe's staleness rule. */
   now: () => number
+  /**
+   * Whether this page runs locally (docs/local-providers.md "Hosted pages"),
+   * i.e. `useRuntime().isLocal.value`: gates probeAll's default and the
+   * switcher's unconfigured-preset candidates. Overridable for tests, the
+   * same way ProviderOnboardingCard.vue overrides useRuntime() itself.
+   */
+  isLocalRuntime: () => boolean
 }
 
 let env: ProviderEnvironment = {
@@ -100,6 +108,7 @@ let env: ProviderEnvironment = {
   localTimeoutMs: LOCAL_TIMEOUT_MS,
   probeTimeoutMs: PROBE_TIMEOUT_MS,
   now: () => Date.now(),
+  isLocalRuntime: () => isLocalRuntime({ dev: import.meta.env.DEV, hostname: location.hostname }),
 }
 
 /** Dependency injection for tests (fake fetch). */
@@ -522,8 +531,19 @@ function portOf(baseUrl: string): string {
 }
 
 function localCandidate(preset: (typeof LOCAL_PRESETS)[number]): ProviderCandidate {
-  const config: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
-  const key = providerKey(config)
+  const presetConfig: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
+  const key = providerKey(presetConfig)
+  // On a hosted runtime, an unconfigured preset is never probed (probeAll's
+  // `presets` gate above), so its route is always 'unknown' — show it as an
+  // advanced, Settings-only option instead of a misleading "not reachable".
+  // The one preset the user explicitly chose in Settings is exempt: its
+  // route comes from that explicit probe (useProvider's `config`-only probe
+  // in autoProbe runs regardless of `presets`), so today's reachable /
+  // unreachable readout still applies to it.
+  const isCurrentChoice = config.value.kind === 'local' && providerKey(config.value) === key
+  if (!env.isLocalRuntime() && !isCurrentChoice) {
+    return { id: `local:${preset.id}`, label: preset.label, kind: 'local', available: false, reason: 'Set up in Settings.', detail: preset.baseUrl }
+  }
   const routeStatus = routes[key] ?? 'unknown'
   const available = routeStatus === 'direct' || routeStatus === 'proxied'
   const modelName = modelLists[key]?.[0] ?? preset.model
@@ -569,16 +589,30 @@ const candidates = computed<ProviderCandidate[]>(() => [
   },
 ])
 
+export interface ProbeAllOptions {
+  /**
+   * Also probe the Kev/JevK5 presets; default true. ClassifyContainer.vue
+   * passes `useRuntime().isLocal.value` here so a hosted build (e.g.
+   * local-issue-classifier.pages.dev) never touches a localhost preset when
+   * the analysis view opens — that unconditional probe is exactly what
+   * triggered Chrome's Local Network Access prompt (bugfix, 2026-09-24,
+   * T-FIX-HOSTED-PROBE). WebGPU support is always checked either way.
+   */
+  presets?: boolean
+}
+
 /**
  * Probes every local preset not yet known this session, and checks WebGPU
  * support once — both passive (no benchmark), both cached: called once on
  * mount of the analysis view, never polled.
  */
-function probeAll(): Promise<void> {
+function probeAll(options: ProbeAllOptions = {}): Promise<void> {
   const tasks: Promise<unknown>[] = [checkBrowserSupport()]
-  for (const preset of LOCAL_PRESETS) {
-    const config: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
-    if (routes[providerKey(config)] === undefined) tasks.push(probeConfig(config))
+  if (options.presets ?? true) {
+    for (const preset of LOCAL_PRESETS) {
+      const config: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
+      if (routes[providerKey(config)] === undefined) tasks.push(probeConfig(config))
+    }
   }
   return Promise.all(tasks).then(() => undefined)
 }
