@@ -290,7 +290,7 @@ kit page exists only in development). Tokens, components, motion rules and the i
 
 Not implemented in v1; tracked as future work:
 
-- **Pin-to-top** for individual issues, independent of sort (SPEC.md §2.5).
+- **Pin-to-top** for individual issues, independent of sort.
 - **Responsive filter collapse** below 1280 px — the filter bar does not yet collapse into a
   compact form at narrower widths (the table itself already scrolls within its container at
   1024 px, per the design-quality checklist).
@@ -299,9 +299,10 @@ Not implemented in v1; tracked as future work:
 
 ## Known limitations
 
-- **Jev classification latency has not been measured.** SPEC.md §4.7 carries an assumed 1–2 s
-  per call; no Jev key was available while building the runner. See "Measuring classification
-  latency" in [`docs/deployment.md`](docs/deployment.md) for how to measure and record it.
+- **Classification latency varies by mode.** Measured on 2026-09-24 with the TypeSafe cloud API:
+  22 issues were classified in about 3.2 s in a single batched request (≈44k input tokens);
+  per-issue mode took about 11 s for the same set. Accuracy of batched vs per-issue mode has not
+  been measured yet (see [`docs/batching.md`](docs/batching.md) and [`scripts/compare-batching.mjs`](scripts/compare-batching.mjs)).
 - **Browser CORS forces the local proxy.** The Jev API rejects browser origins outright, so every
   mode needs a proxy (`server/jevProxy.ts` in v1); there is no way to call Jev directly from the
   browser.

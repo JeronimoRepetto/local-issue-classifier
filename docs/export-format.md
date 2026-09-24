@@ -1,6 +1,6 @@
 # Export format
 
-The **Export…** dialog (SPEC.md §2.6) builds a plain-text report with a pure formatter,
+The **Export…** dialog builds a plain-text report with a pure formatter,
 `src/domain/exportText.ts`'s `formatExport(analysis, options, now)`, and saves it through the
 anchor-based download helper (`src/adapters/download.ts`) as
 `{owner}-{repo}-issues-{YYYYMMDD-HHmm}.txt` (the stem comes from `exportFilenameStem`).
@@ -132,7 +132,7 @@ Dismissed (1)
 
 ## Priority (Task 14)
 
-`exportText.ts` imports `priorityOf` from `domain/priority.ts` (SPEC.md §4.9) directly; the golden
+`exportText.ts` imports `priorityOf` from `domain/priority.ts` directly; the golden
 fixture stayed byte-identical after the swap, since the formula was already the exact one used
 here. The table's own `priority` sort key (`sort.ts`) uses the same `priorityOf`, so the export
 order and the table order agree: `null` (unclassified, or every weight 0) always sorts last in

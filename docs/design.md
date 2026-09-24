@@ -1,7 +1,6 @@
 # Design system (v2)
 
-The design system lives in `src/ui/` and implements SPEC §10 with the v2 look described in
-[`redesign-brief.md`](redesign-brief.md). It imports only Vue and `src/assets/icons/`. It never
+The design system lives in `src/ui/` and implements the v2 design direction. It imports only Vue and `src/assets/icons/`. It never
 imports composables, adapters or domain code, and `tests/architecture.test.ts` enforces that.
 
 To see everything, run `pnpm dev` and open http://localhost:5200/?kit. The kit page is the

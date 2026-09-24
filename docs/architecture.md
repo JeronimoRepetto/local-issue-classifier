@@ -91,7 +91,8 @@ there is no `STORAGE_KEYS` entry for them, and `useSecrets.ts` is architecturall
 importing a storage adapter or a web-storage API (enforced above). A reload, closing the tab, or
 **Clear keys** loses them; a 401 from either service clears the affected key. Every persisted key
 (preferences and every saved analysis) is scanned for both secret values by
-`tests/secretsNeverPersisted.test.ts`. See `SPEC.md` §8 for the full policy and residual risks.
+`tests/secretsNeverPersisted.test.ts`. Secrets live in memory by default; nothing secret is
+persisted, and the guard test enforces it.
 
 ## The Jev proxy
 
