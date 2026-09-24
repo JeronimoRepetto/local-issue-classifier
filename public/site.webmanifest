@@ -1,6 +1,6 @@
 {
-  "name": "local-issue-classifier",
-  "short_name": "local-issue-classifier",
+  "name": "Issue Classifier",
+  "short_name": "Issue Classifier",
   "description": "Local-first GitHub issue triage, classified by Jev.",
   "start_url": "/",
   "display": "standalone",

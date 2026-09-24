@@ -48,7 +48,7 @@ describe('formatExportMarkdown — format rules', () => {
     const analysis = baseExportAnalysis()
     const model = buildExportModel(analysis, analysis.working.exportOptions, NOW)
     const text = formatExportMarkdown(model)
-    expect(text.startsWith('# local-issue-classifier report\n')).toBe(true)
+    expect(text.startsWith('# Issue Classifier report\n')).toBe(true)
     expect(text.endsWith('\n')).toBe(true)
     expect(text.endsWith('\n\n')).toBe(false)
   })

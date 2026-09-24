@@ -1,6 +1,6 @@
 # Third-party notices
 
-The local-issue-classifier source code is MIT-licensed. The third-party assets below are bundled with
+The Issue Classifier source code is MIT-licensed. The third-party assets below are bundled with
 the app and keep their own licenses; they are **not** relicensed under MIT.
 
 ## Runtime dependencies

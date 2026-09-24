@@ -1,4 +1,4 @@
-# local-issue-classifier
+# Issue Classifier
 
 [![License: MIT](https://img.shields.io/github/license/JeronimoRepetto/local-issue-classifier)](LICENSE)
 [![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)
@@ -84,7 +84,7 @@ Home tracks this the first time and disappears once each step has happened once:
 1. Sign in to the TypeSafe console and open the API keys dashboard at
    <https://console.typesafe.ai/keys>.
 2. Create a key.
-3. Paste it into local-issue-classifier's Settings. It is kept in memory only: a reload or
+3. Paste it into Issue Classifier's Settings. It is kept in memory only: a reload or
    **Clear keys** forgets it, and it is never written to disk, `localStorage` or the export.
 
 What the Jev docs do not cover: account sign-up, key scopes, key rotation, spending limits and
@@ -98,7 +98,7 @@ issues costs roughly $0.03–0.06.
 A token is optional. Without one, public repositories load at 60 requests/hour and comments are skipped by default. With one, the limit is 5 000 requests/hour.
 
 1. On GitHub, open **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
-2. Name it (for example `local-issue-classifier`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
+2. Name it (for example `Issue Classifier`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
 3. Under **Repository access**, choose **Public repositories** (read-only) or **Only select repositories** for the private repos you want to analyse.
 4. Under **Permissions → Repository permissions**, set:
    - **Issues: Read-only**, for issues and their comments;
@@ -130,7 +130,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full convention and the archite
 
 ## Keys
 
-local-issue-classifier uses two keys, both entered in **Settings**:
+Issue Classifier uses two keys, both entered in **Settings**:
 
 - **Jev API key** — required to classify issues. See
   [Getting a Jev API key](#getting-a-jev-api-key).
@@ -146,7 +146,7 @@ wipes both immediately, and so does **Clear all local data**.
 
 ## Local data and privacy
 
-local-issue-classifier is local-only: everything below lives in this browser profile. Nothing is
+Issue Classifier is local-only: everything below lives in this browser profile. Nothing is
 ever sent anywhere except GitHub (`api.github.com`, for the repository you analyse) and, when you
 classify issues, the local Jev proxy.
 
@@ -376,7 +376,7 @@ MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own lic
 
 ## Support the project
 
-If local-issue-classifier is useful to you, consider supporting its development on Ko-fi:
+If Issue Classifier is useful to you, consider supporting its development on Ko-fi:
 
 <a href="https://ko-fi.com/jeronimorepetto" target="_blank" rel="noopener noreferrer">
   <img height="36" src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" />

@@ -28,7 +28,7 @@ onBeforeUnmount(() => document.getElementById(STYLE_ID)?.remove())
     <header class="kit__header">
       <h1 class="kit__title">
         <IconLogo class="kit__logo" />
-        <span class="kit__wordmark u-pixel-font">local-issue-classifier</span>
+        <span class="kit__wordmark u-pixel-font">Issue Classifier</span>
         <span class="kit__badge u-micro">UI kit</span>
       </h1>
       <label class="kit__toggle">

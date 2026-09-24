@@ -1,6 +1,6 @@
 # Security model
 
-local-issue-classifier is a browser app. Your keys stay in the tab. The only server-side piece is
+Issue Classifier is a browser app. Your keys stay in the tab. The only server-side piece is
 a small proxy that forwards two Jev endpoints and nothing else. This page describes what the app
 defends against, how it does it, and what it does **not** protect.
 

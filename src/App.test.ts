@@ -83,13 +83,13 @@ afterEach(() => {
 describe('App', () => {
   it('mounts and shows the wordmark, with Home as the default view', async () => {
     const wrapper = await mountApp()
-    expect(wrapper.text()).toContain('local-issue-classifier')
+    expect(wrapper.text()).toContain('Issue Classifier')
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true)
   })
 
-  it('names the product local-issue-classifier in the wordmark; the document title is the marketing title (tests/linkPreview.test.ts)', async () => {
+  it('names the product Issue Classifier in the wordmark; the document title is the marketing title (tests/linkPreview.test.ts)', async () => {
     const wrapper = await mountApp()
-    expect(wrapper.get('[data-test="brand"]').text()).toBe('local-issue-classifier')
+    expect(wrapper.get('[data-test="brand"]').text()).toBe('Issue Classifier')
     const html = readFileSync(join(__dirname, '..', 'index.html'), 'utf8')
     expect(html).toContain('<title>Issue Classifier — AI triage for GitHub issues</title>')
   })

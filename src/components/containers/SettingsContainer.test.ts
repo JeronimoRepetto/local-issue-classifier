@@ -26,7 +26,7 @@ describe('SettingsContainer', () => {
     const headings = wrapper.findAll('h1')
     expect(headings.map((h) => h.text())).toEqual(['Settings'])
     const about = wrapper.get('[data-test="about"]').text()
-    expect(about).toContain('local-issue-classifier')
+    expect(about).toContain('Issue Classifier')
     expect(about).toContain('Geist')
     expect(about).not.toMatch(/Inter|Silkscreen/)
   })

@@ -78,7 +78,7 @@ describe('ExportContainer', () => {
 
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
     expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain(
-      'local-issue-classifier report',
+      'Issue Classifier report',
     )
   })
 
@@ -166,7 +166,7 @@ describe('ExportContainer', () => {
 
     ;(document.querySelector('[data-test="export-download"]') as HTMLButtonElement).click()
     expect(downloadMod.downloadText).toHaveBeenCalledWith(
-      expect.stringContaining('local-issue-classifier report'),
+      expect.stringContaining('Issue Classifier report'),
       'acme-widgets-issues-20260923-1405.txt',
     )
   })
@@ -183,7 +183,7 @@ describe('ExportContainer', () => {
 
     expect(analysisMod.useAnalysis().current.value?.working.exportOptions.format).toBe('markdown')
     expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain(
-      '# local-issue-classifier report',
+      '# Issue Classifier report',
     )
     expect(document.querySelector('[data-test="export-preview-note"]')?.textContent).toContain('Markdown')
   })

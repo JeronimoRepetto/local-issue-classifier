@@ -1,4 +1,4 @@
-local-issue-classifier report
+Issue Classifier report
 Repository : acme/widgets (open issues)
 Generated  : <TIMESTAMP>
 Model      : jev-1.13.0 · questions v1

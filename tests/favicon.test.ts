@@ -91,7 +91,7 @@ describe('public/ icon assets (committed output — run `pnpm favicons` if this 
 
   it('site.webmanifest names the app and uses the light-theme accent/background', () => {
     const manifest = JSON.parse(readFileSync(join(PUBLIC_DIR, 'site.webmanifest'), 'utf8'))
-    expect(manifest.name).toBe('local-issue-classifier')
+    expect(manifest.name).toBe('Issue Classifier')
     expect(manifest.theme_color).toBe(tokens.color.light.accent)
     expect(manifest.background_color).toBe(tokens.color.light.bg)
     const srcs = manifest.icons.map((i: { src: string }) => i.src)
