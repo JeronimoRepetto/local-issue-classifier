@@ -82,6 +82,16 @@ describe('ExportContainer', () => {
     )
   })
 
+  it('describes the dialog format-neutrally: no "plain-text" wording and no repo-internal doc path', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(ExportContainer, { props: { open: true }, attachTo: document.body })
+    await flush()
+
+    const description = document.querySelector('.ui-dialog__description')?.textContent ?? ''
+    expect(description).not.toMatch(/plain-text/i)
+    expect(description).not.toMatch(/docs\//)
+  })
+
   it('lays the dialog out as labelled rows: scope, include, format, order and preview', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     mount(ExportContainer, { props: { open: true }, attachTo: document.body })
