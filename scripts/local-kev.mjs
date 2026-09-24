@@ -3,14 +3,24 @@
 // Kev (jaredpalmer/kev) in one command, so "Local server" in Settings is not a
 // dead end (docs/local-providers.md, src/components/ui/LocalSetupGuide.vue).
 //
-//   pnpm local:kev [--model kev-0.8b|kev-4b|kev-9b] [--port 8009] [--dir <path>] [--cuda]
+//   pnpm local:kev [--model kev-0.8b|kev-4b|kev-9b] [--port 8009] [--dir <path>] [--sync] [--cuda]
+//
+// Bugfix (2026-09-24, verified on real hardware — see docs/local-providers.md
+// "Why --no-sync"): `uv run --extra serve ...` re-syncs the project
+// environment against Kev's lockfile *every time*, which silently reinstalls
+// the CPU-only torch from PyPI even after a CUDA build was installed by hand
+// or by --cuda below. `uv run --no-sync ...` skips that re-sync. So: (1) only
+// run `uv sync` when .venv does not exist yet, or when --sync is passed; (2)
+// always launch the server with `uv run --no-sync ...`; (3) after a --cuda
+// install (which itself must run after any sync, or sync would undo it),
+// verify with the same `--no-sync` python check used to print the GPU notice.
 //
 // Safety: this script clones a third-party repo, downloads a model on first
 // run and starts a long-lived server — it does none of that at import time.
 // Every side-effecting step lives in main(), guarded by the `isMain` check at
 // the bottom, so tests can import the pure parts (parseArgs, planCommands,
-// checkPrerequisites, uvInstallHint, cudaInstallCommand) without running
-// anything real.
+// checkPrerequisites, uvInstallHint, cudaInstallCommand, cudaCheckCommand,
+// parseCudaCheckOutput, formatGpuNotice) without running anything real.
 import { spawn, spawnSync as nodeSpawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -25,18 +35,23 @@ const MODELS = ['kev-0.8b', 'kev-4b', 'kev-9b']
 const USAGE = `Usage: pnpm local:kev [options]
 
 Clones jaredpalmer/kev into ${DEFAULT_DIR} (if not already there), installs its
-dependencies with uv, and starts the server in the foreground.
+dependencies with uv (skipped if .venv already exists, unless --sync is
+passed), and starts the server in the foreground with 'uv run --no-sync' —
+so a CUDA torch build already installed in .venv survives (plain 'uv run'
+re-syncs on every launch and silently reinstalls the CPU-only build).
 
 Options:
   --model <name>   kev-0.8b (default), kev-4b or kev-9b (docs/hardware-fit.md)
   --port <n>       port to serve on (default: ${DEFAULT_PORT})
   --dir <path>     where to clone/find Kev (default: ${DEFAULT_DIR})
+  --sync           re-run 'uv sync' even if .venv already exists (this
+                   reinstalls the CPU-only torch; re-run --cuda afterwards)
   --cuda           also install a CUDA build of torch into Kev's venv, for an
                    NVIDIA GPU on Windows or Linux (macOS uses Metal already)
   -h, --help       show this help`
 
 // ── Pure: argument parsing ──────────────────────────────────────────────────
-/** @returns {{ ok: true, value: { model: string, port: number, dir: string, cuda: boolean, help: boolean } } | { ok: false, error: string }} */
+/** @returns {{ ok: true, value: { model: string, port: number, dir: string, cuda: boolean, sync: boolean, help: boolean } } | { ok: false, error: string }} */
 export function parseArgs(argv) {
   let parsed
   try {
@@ -48,6 +63,7 @@ export function parseArgs(argv) {
         port: { type: 'string' },
         dir: { type: 'string' },
         cuda: { type: 'boolean', default: false },
+        sync: { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
       },
     })
@@ -56,7 +72,7 @@ export function parseArgs(argv) {
   }
   const { values } = parsed
   if (values.help) {
-    return { ok: true, value: { model: 'kev-0.8b', port: DEFAULT_PORT, dir: DEFAULT_DIR, cuda: false, help: true } }
+    return { ok: true, value: { model: 'kev-0.8b', port: DEFAULT_PORT, dir: DEFAULT_DIR, cuda: false, sync: false, help: true } }
   }
   const model = values.model ?? 'kev-0.8b'
   if (!MODELS.includes(model)) {
@@ -66,7 +82,7 @@ export function parseArgs(argv) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     return { ok: false, error: '--port must be an integer between 1 and 65535' }
   }
-  return { ok: true, value: { model, port, dir: values.dir ?? DEFAULT_DIR, cuda: values.cuda, help: false } }
+  return { ok: true, value: { model, port, dir: values.dir ?? DEFAULT_DIR, cuda: values.cuda, sync: values.sync, help: false } }
 }
 
 // ── Pure: prerequisite install hints ────────────────────────────────────────
@@ -87,10 +103,10 @@ export function cudaInstallCommand(platform = process.platform) {
 
 // ── Pure: command planning (no execution) ───────────────────────────────────
 /**
- * @param {{ platform?: string, dir: string, model: string, port: number, cuda: boolean, repoExists: boolean }} opts
+ * @param {{ platform?: string, dir: string, model: string, port: number, cuda: boolean, repoExists: boolean, venvExists: boolean, sync: boolean }} opts
  * @returns {{ id: string, description: string, command: string, args: string[], cwd?: string }[]}
  */
-export function planCommands({ platform = process.platform, dir, model, port, cuda, repoExists }) {
+export function planCommands({ platform = process.platform, dir, model, port, cuda, repoExists, venvExists, sync }) {
   const steps = []
   if (!repoExists) {
     steps.push({
@@ -100,13 +116,19 @@ export function planCommands({ platform = process.platform, dir, model, port, cu
       args: ['clone', 'https://github.com/jaredpalmer/kev.git', dir],
     })
   }
-  steps.push({
-    id: 'sync',
-    description: "Install Kev's dependencies",
-    command: 'uv',
-    args: ['sync', '--extra', 'serve'],
-    cwd: dir,
-  })
+  // Only (re-)sync when the venv isn't there yet, or the caller asked for it:
+  // `uv sync` re-installs Kev's lockfile deps, which silently overwrites a
+  // CUDA torch build with the CPU-only one otherwise (docs/local-providers.md
+  // "Why --no-sync").
+  if (!venvExists || sync) {
+    steps.push({
+      id: 'sync',
+      description: "Install Kev's dependencies",
+      command: 'uv',
+      args: ['sync', '--extra', 'serve'],
+      cwd: dir,
+    })
+  }
   if (cuda) {
     const cudaCommand = cudaInstallCommand(platform)
     if (cudaCommand) {
@@ -118,10 +140,36 @@ export function planCommands({ platform = process.platform, dir, model, port, cu
     id: 'serve',
     description: `Start Kev (${model}) on port ${port}`,
     command: 'uv',
-    args: ['run', '--extra', 'serve', 'python', '-m', 'kev.serve', '--run', `jaredpalmer/${model}`, '--port', String(port)],
+    // --no-sync: without it, uv re-syncs against the lockfile on every launch
+    // and silently reinstalls the CPU-only torch, undoing --cuda above (or a
+    // CUDA build installed by hand).
+    args: ['run', '--no-sync', '--extra', 'serve', 'python', '-m', 'kev.serve', '--run', `jaredpalmer/${model}`, '--port', String(port)],
     cwd: dir,
   })
   return steps
+}
+
+// ── Pure: the GPU/torch status check, run with --no-sync so it never syncs ──
+/** @returns {{ command: string, args: string[], cwd: string }} */
+export function cudaCheckCommand(dir) {
+  return {
+    command: 'uv',
+    args: ['run', '--no-sync', 'python', '-c', 'import torch; print(torch.__version__, torch.cuda.is_available())'],
+    cwd: dir,
+  }
+}
+
+/** @returns {{ torchVersion: string, available: boolean } | null} */
+export function parseCudaCheckOutput(stdout) {
+  const match = /^(\S+)\s+(True|False)$/.exec((stdout ?? '').trim())
+  if (!match) return null
+  return { torchVersion: match[1], available: match[2] === 'True' }
+}
+
+/** @param {{ torchVersion: string, available: boolean } | null} result */
+export function formatGpuNotice(result) {
+  if (result?.available) return `GPU: available (torch ${result.torchVersion})`
+  return 'GPU: not available — pass --cuda to install the CUDA build (Windows/Linux, NVIDIA)'
 }
 
 // ── Pure(ish): prerequisite checks — spawnSync is injected, so tests fake it ─
@@ -180,12 +228,13 @@ async function main() {
     console.log(USAGE)
     return
   }
-  const { model, port, dir, cuda } = parsed.value
+  const { model, port, dir, cuda, sync } = parsed.value
   const absoluteDir = resolve(ROOT, dir)
 
   const prereqs = checkPrerequisites(nodeSpawnSync, process.platform)
   // uv is required for every remaining step; git is only required to clone.
   const repoExists = existsSync(join(absoluteDir, '.git'))
+  const venvExists = existsSync(join(absoluteDir, '.venv'))
   const required = repoExists ? { uv: prereqs.uv } : { git: prereqs.git, uv: prereqs.uv }
   if (!reportPrerequisites(required)) {
     process.exitCode = 1
@@ -195,7 +244,7 @@ async function main() {
     console.warn(`local-kev: warning — ${prereqs.python.hint} (uv can also manage its own Python; continuing).`)
   }
 
-  const steps = planCommands({ platform: process.platform, dir: absoluteDir, model, port, cuda, repoExists })
+  const steps = planCommands({ platform: process.platform, dir: absoluteDir, model, port, cuda, repoExists, venvExists, sync })
   const setupSteps = steps.filter((s) => s.id !== 'serve')
   const serveStep = steps.find((s) => s.id === 'serve')
 
@@ -208,6 +257,19 @@ async function main() {
       return
     }
   }
+
+  // GPU/torch status, checked with --no-sync so it never re-triggers the sync
+  // this script just avoided (or just ran). This is also the --cuda install's
+  // own verification: it runs right after that step, before serve starts.
+  const gpuCheck = cudaCheckCommand(absoluteDir)
+  let gpuResult = null
+  try {
+    const result = nodeSpawnSync(gpuCheck.command, gpuCheck.args, { cwd: gpuCheck.cwd, encoding: 'utf8' })
+    if (result && !result.error && result.status === 0) gpuResult = parseCudaCheckOutput(result.stdout)
+  } catch {
+    gpuResult = null
+  }
+  console.log(`local-kev: ${formatGpuNotice(gpuResult)}`)
 
   console.log(`local-kev: ${serveStep.description}`)
   console.log(`  $ ${serveStep.command} ${serveStep.args.join(' ')}`)

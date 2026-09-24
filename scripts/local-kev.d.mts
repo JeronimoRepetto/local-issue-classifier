@@ -4,6 +4,7 @@ export interface LocalKevArgs {
   port: number
   dir: string
   cuda: boolean
+  sync: boolean
   help: boolean
 }
 
@@ -24,6 +25,8 @@ export interface PlanCommandsOptions {
   port: number
   cuda: boolean
   repoExists: boolean
+  venvExists: boolean
+  sync: boolean
 }
 
 export interface PrereqCheck {
@@ -44,6 +47,17 @@ export type SpawnSyncLike = (
   options?: unknown,
 ) => { status: number | null; stdout?: string; stderr?: string; error?: Error }
 
+export interface SpawnCommand {
+  command: string
+  args: string[]
+  cwd: string
+}
+
+export interface CudaCheckResult {
+  torchVersion: string
+  available: boolean
+}
+
 export const CUDA_TORCH_INDEX_URL: string
 
 export declare function parseArgs(argv: string[]): ParseArgsResult
@@ -51,3 +65,6 @@ export declare function uvInstallHint(platform?: string): string
 export declare function cudaInstallCommand(platform?: string): string | null
 export declare function planCommands(opts: PlanCommandsOptions): PlanStep[]
 export declare function checkPrerequisites(spawnSyncFn: SpawnSyncLike, platform?: string): PrereqResults
+export declare function cudaCheckCommand(dir: string): SpawnCommand
+export declare function parseCudaCheckOutput(stdout: string | undefined | null): CudaCheckResult | null
+export declare function formatGpuNotice(result: CudaCheckResult | null): string

@@ -39,7 +39,7 @@ optional CUDA step.
 ```sh
 git clone https://github.com/jaredpalmer/kev.git && cd kev
 uv sync --extra serve
-uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
+uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 ```
 
 - `--run` takes a Hub model id (`jaredpalmer/kev-0.8b`, `jaredpalmer/kev-4b`, `jaredpalmer/kev-9b`),
@@ -52,10 +52,14 @@ uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 
 **Or skip all three commands**: from this repo, run `pnpm local:kev` (add `--model kev-4b` or
 `--model kev-9b` to pick a bigger size, `--port` to change the port, `--cuda` to also run the CUDA
-step below). It checks git/uv/Python, clones Kev into `.local/kev` if it isn't there yet, installs
-its dependencies and starts the server in your terminal — `Ctrl+C` stops it. See
-`scripts/local-kev.mjs --help` for every option. If you already have a Kev checkout from an earlier
-session, point `--dir` at it instead of letting the script clone a new one.
+step below, `--sync` to force a re-sync of an existing `.venv`). It checks git/uv/Python, clones
+Kev into `.local/kev` if it isn't there yet, installs its dependencies **only if `.venv` doesn't
+exist yet** (or `--sync` is passed), then always launches with `uv run --no-sync` so an installed
+CUDA torch build survives — see "Why `--no-sync`" under Troubleshooting. It prints a one-line
+`GPU: available (torch <version>)` / `GPU: not available — pass --cuda …` notice before starting.
+`Ctrl+C` stops the server. See `scripts/local-kev.mjs --help` for every option. If you already have
+a Kev checkout from an earlier session, point `--dir` at it instead of letting the script clone a
+new one.
 
 ### Optional: use an NVIDIA GPU (Windows, Linux)
 
@@ -71,6 +75,10 @@ Pip, CUDA — checked 2026-09-24 from `download.pytorch.org/assets/quick-start-m
 offers `cu126` and `cu132`). Check the site again if this stops working — the offered CUDA
 versions change over time. **Not applicable on macOS**: Apple Silicon uses Metal (MPS)
 automatically, with no separate install.
+
+**Always start Kev afterwards with `--no-sync`** (see "Run Kev" above and "Why `--no-sync`" under
+Troubleshooting) — otherwise `uv run` re-syncs against Kev's lockfile and silently reinstalls the
+CPU-only build, undoing this step.
 
 ### Which Kev size fits your GPU
 
@@ -163,9 +171,24 @@ is much slower than the TypeSafe API.
 On Windows and Linux, `uv sync --extra serve` installs a CPU-only build of torch by default,
 because Kev's `pyproject.toml` names no CUDA wheel index (confirmed 2026-09-23, see "Measured on
 2026-09-23" below). Run the CUDA step under "Run Kev" above once, inside the `kev` folder, after
-`uv sync`, then restart the server. Not applicable on macOS (Apple Silicon already uses Metal/MPS).
-JevK5 needs a real NVIDIA GPU in practice (~9 GB in bf16); it has not been checked for a CPU-only
-fallback.
+`uv sync`, then restart the server **with `--no-sync`** (see "Why `--no-sync`" right below — without
+it, the very next launch reinstalls the CPU-only build). Not applicable on macOS (Apple Silicon
+already uses Metal/MPS). JevK5 needs a real NVIDIA GPU in practice (~9 GB in bf16); it has not been
+checked for a CPU-only fallback.
+
+**Why `--no-sync`.**
+
+`uv run --extra serve …` (without `--no-sync`) re-syncs the project environment against Kev's
+lockfile *on every launch*, and that lockfile pins the CPU-only torch (no CUDA wheel index). This
+is silent: installing the CUDA build once with `uv pip install …` (above) works and
+`torch.cuda.is_available()` reports `True` — until the next `uv run` without `--no-sync`, which
+reinstalls `torch` from the lockfile and undoes it, with no warning. Verified on 2026-09-24: after
+installing the CUDA build, `uv run --extra serve python -m kev.serve …` silently downgraded torch
+back to the CPU-only build; `uv run --no-sync --extra serve python -m kev.serve …` did not, and the
+server reported `"device":"cuda"`. Always launch with `--no-sync` once a CUDA build is installed —
+`pnpm local:kev` and the in-app guide's commands already do this. Pass `--sync` to `pnpm local:kev`
+(or run a plain `uv sync --extra serve`) only when you deliberately want to re-sync (for example,
+after Kev's lockfile changes), and re-run the CUDA step afterwards if you still want the GPU build.
 
 **The first start takes a long time, or looks stuck.**
 
@@ -252,6 +275,27 @@ open because of CORS, and the proxy forwards correctly. It does **not** measure 
 agreement figures compare Kev-0.8B with itself in two request layouts, on 4 synthetic issues with
 almost no content, and without a `--noise` row, so there is no noise level to read them against.
 They say nothing about agreement with Jev on the TypeSafe cloud, and nothing about Kev-4B or
-Kev-9B. The timings are for CPU inference and do not show GPU speed. A real repository, the
-`--noise` baseline and a CUDA build of torch are needed before drawing any conclusion about
-batching on a small local model.
+Kev-9B. The timings above are for CPU inference and do not show GPU speed for batching. A real
+repository and the `--noise` baseline are still needed before drawing any conclusion about
+batching on a small local model; the GPU speed-up itself is now measured below (single requests,
+not batching).
+
+## Measured on 2026-09-24 (Kev-0.8B, RTX 5070, CUDA)
+
+Following up on the CPU-only run above: a CUDA build of torch was installed into Kev's `.venv`
+(`uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/cu130`
+→ `torch 2.14.0+cu130`, `torch.cuda.is_available()` reports `True`), and the server was restarted
+with `uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009`
+(see "Why `--no-sync`" above — without it, this step silently reinstalls the CPU-only build).
+
+| | CPU (2026-09-23) | GPU / CUDA (2026-09-24) |
+|---|---|---|
+| `/v1/models` `"device"` | `cpu` | `cuda` |
+| `"dtype"` | `float32` | `bfloat16` |
+| Latency per request | ~470 ms | ~197 ms |
+| VRAM used (Kev-0.8B) | — | ~4.5 GB (RTX 5070, 12 GB) |
+
+This is a single functional smoke check, not a benchmark: one request measured per device, on one
+machine (Windows 11, RTX 5070 12 GB). It confirms the CUDA build is picked up and roughly halves
+per-request latency for Kev-0.8B; it says nothing about Kev-4B/9B, batching throughput, or
+agreement with Jev.
