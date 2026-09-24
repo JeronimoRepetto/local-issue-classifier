@@ -23,6 +23,9 @@ import { useProvider } from '../../composables/useProvider'
 import { detectHardware } from '../../adapters/hardware/detect'
 import { defaultLocalProviderConfig, findPreset, providerLabel } from '../../domain/provider'
 import { sanitizeLocalMaxStateTokens } from '../../domain/providerBatching'
+import { localDeviceAdvice } from '../../domain/localDevice'
+import { detectOs } from '../../domain/localCommands'
+import { useHardwareDetection } from '../../composables/useHardwareDetection'
 import type { ProviderConfig } from '../../domain/provider'
 
 const ABOUT_TEXT =
@@ -72,6 +75,16 @@ const persistenceText = computed(() => PERSISTENCE_TEXT[analyses.state.persisten
 
 // T16, WIRE-2: which server classifies, and, for a local one, its live status
 // (useProvider().localStatus, checked automatically; docs/local-providers.md).
+
+/** GPU vs CPU readout for the local server, from its last probe and the shared (passive) hardware detection. */
+const hardware = useHardwareDetection()
+const deviceAdvice = computed(() =>
+  localDeviceAdvice({
+    runtime: provider.localRuntime.value,
+    gpuVendor: hardware.report.value?.gpu.vendor ?? null,
+    os: detectOs(navigator),
+  }),
+)
 
 /** Switching to a local server (or one of its presets) checks it at once; typing a custom URL waits for "Test connection". */
 function onProviderChange(value: ProviderConfig): void {
@@ -192,6 +205,7 @@ onBeforeUnmount(() => stopTheme?.())
           :local-max-state-tokens="prefs.state.localMaxStateTokens"
           :probe="provider.probe"
           :live-status="provider.localStatus.value.text"
+          :device-advice="deviceAdvice"
           :browser="provider.browserStatus"
           @update:model-value="onProviderChange"
           @download-model="provider.downloadBrowserModel()"

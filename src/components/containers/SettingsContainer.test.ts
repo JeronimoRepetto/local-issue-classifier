@@ -277,6 +277,23 @@ describe('SettingsContainer', () => {
       expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Connected')
     })
 
+    it('shows the GPU readout from the server in the Settings selector', async () => {
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
+      const { configureProvider, useProvider } = await import('../../composables/useProvider')
+      configureProvider({
+        fetch: async () =>
+          new Response(JSON.stringify({ models: [{ name: 'kev-0.8b', device: 'cuda', dtype: 'bfloat16' }] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      })
+      await useProvider().autoProbe({ presets: false })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      expect(wrapper.get('[data-test="device-callout-running-gpu"]').text()).toContain('Running on GPU (cuda · bf16)')
+    })
+
     it('shows "Not reachable on :8009" when nothing answers', async () => {
       const { usePreferences } = await import('../../composables/usePreferences')
       usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })

@@ -174,6 +174,23 @@ Results are cached for the session. There is no polling loop; nothing runs in th
 Home card and Settings show the live status: **Looking for a local server…**, then **Connected** or
 **Not reachable on :8009**. **Test connection** stays as the manual retry.
 
+## GPU or CPU
+
+Kev's `GET /v1/models` reports, per model, the `device` it runs on (`cuda` or `cpu`) and its
+`dtype`. The Home card, the Settings selector and the provider switch show it:
+
+- **GPU**: "Running on GPU (cuda · bf16)" as an `info` callout (the switch shows `GPU (cuda · bf16)`).
+- **CPU**: a `warning`, "Running on CPU and RAM — works, but slow (measured 0.8B: ≈470 ms vs
+  ≈197 ms per request on GPU; 4B impractical on CPU)". If hardware detection found an NVIDIA GPU,
+  the callout adds the exact CUDA torch step for your OS (the same one as "Run Kev" above). Only the
+  NVIDIA driver is required: the torch wheels bundle the CUDA runtime, so there is no CUDA Toolkit
+  to install. Restart the server with `--no-sync` afterwards.
+- **No NVIDIA GPU detected**: before any server answers, an `info` callout says Kev will run on the
+  CPU and RAM and recommends Kev 0.8B (about 4 GB of RAM). AMD GPUs accelerate only on Linux with
+  ROCm; Apple Silicon accelerates automatically.
+
+JevK5's README does not document these fields. When a server leaves them out, nothing is shown.
+
 ## Switching from the analysis view
 
 The classify bar (screen 3) carries a provider switch next to the Classify button, so you can pick

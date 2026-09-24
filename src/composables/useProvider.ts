@@ -23,14 +23,14 @@ import {
   defaultBrowserProviderConfig,
   defaultLocalProviderConfig,
   defaultProviderConfig,
-  deviceLabel,
-  parseFirstModelDevice,
   parseModelNames,
   providerKey,
   providerLabel,
   validateLocalBaseUrl,
 } from '../domain/provider'
 import type { BrowserProviderConfig, ProviderConfig, ProviderProbeResult, ProviderRouteStatus } from '../domain/provider'
+import { parseModelRuntime, shortRuntimeLabel } from '../domain/localDevice'
+import type { ModelRuntime } from '../domain/localDevice'
 import { createJevClient } from '../adapters/jev/client'
 import type { JevClient } from '../adapters/jev/client'
 import { JevTransportError, createHttpJevTransport, resolveJevBaseUrl } from '../adapters/jev/transport'
@@ -113,16 +113,16 @@ const secrets = useSecrets()
 /** Routing decisions and model lists, keyed by providerKey(). In memory only. */
 const routes = reactive<Record<string, ProviderRouteStatus>>({})
 const modelLists = reactive<Record<string, string[] | null>>({})
-/** The first model's device, when a probed server's /v1/models includes one. */
-const modelDevices = reactive<Record<string, string | null>>({})
+/** The first model's device and dtype, when a probed server's /v1/models includes them (domain/localDevice.ts). */
+const modelRuntimes = reactive<Record<string, ModelRuntime | null>>({})
 const inflight = new Map<string, Promise<ProviderProbeResult>>()
 /** When each key's last probe finished (env.now()), for autoProbe's session cache. */
 const probedAt = new Map<string, number>()
 /** Keys with a probe in flight, so the UI can say it is still looking. */
 const probing = reactive<Record<string, boolean>>({})
 
-/** probeLocal's internal result: the same shape ProviderProbeResult exposes, plus the device. */
-type LocalProbeResult = ProviderProbeResult & { device: string | null }
+/** probeLocal's internal result: the same shape ProviderProbeResult exposes, plus the runtime. */
+type LocalProbeResult = ProviderProbeResult & { runtime: ModelRuntime | null }
 
 const config = computed<ProviderConfig>(() => prefs.state.provider ?? defaultProviderConfig())
 const isLocal = computed(() => config.value.kind === 'local')
@@ -210,7 +210,7 @@ async function probeLocal(baseUrl: string, apiKey: string): Promise<LocalProbeRe
     // Any HTTP answer (even a 404 from a server without /v1/models) proves CORS works.
     const response = await timedFetch(`${baseUrl}/v1/models`, { method: 'GET', mode: 'cors', headers })
     const parsed = response.ok ? await readJson(response) : null
-    return { status: 'direct', models: parseModelNames(parsed), device: parseFirstModelDevice(parsed) }
+    return { status: 'direct', models: parseModelNames(parsed), runtime: parseModelRuntime(parsed) }
   } catch {
     // CORS refused, CSP blocked, or the server is down: try the proxy.
   }
@@ -221,12 +221,12 @@ async function probeLocal(baseUrl: string, apiKey: string): Promise<LocalProbeRe
     })
     if (response.headers.get(LOCAL_PROXY_MARKER_HEADER) === 'upstream') {
       const parsed = response.ok ? await readJson(response) : null
-      return { status: 'proxied', models: parseModelNames(parsed), device: parseFirstModelDevice(parsed) }
+      return { status: 'proxied', models: parseModelNames(parsed), runtime: parseModelRuntime(parsed) }
     }
   } catch {
     // The proxy itself is absent (e.g. a hosted build).
   }
-  return { status: 'unreachable', models: null, device: null }
+  return { status: 'unreachable', models: null, runtime: null }
 }
 
 async function probeTypeSafe(apiKey: string): Promise<ProviderProbeResult> {
@@ -249,21 +249,22 @@ function probeConfig(c: ProviderConfig): Promise<ProviderProbeResult> {
   const apiKey = c.kind === 'typesafe' ? secrets.state.jevApiKey : secrets.state.localApiKey
   let task: Promise<LocalProbeResult>
   if (c.kind === 'typesafe') {
-    task = probeTypeSafe(apiKey).then((result) => ({ ...result, device: null }))
+    task = probeTypeSafe(apiKey).then((result) => ({ ...result, runtime: null }))
   } else {
     const valid = validateLocalBaseUrl(c.baseUrl)
-    task = valid.ok ? probeLocal(valid.url, apiKey) : Promise.resolve({ status: 'unreachable', models: null, device: null })
+    task = valid.ok ? probeLocal(valid.url, apiKey) : Promise.resolve({ status: 'unreachable', models: null, runtime: null })
   }
   probing[key] = true
   const done = task.then((result): ProviderProbeResult => {
     routes[key] = result.status
     modelLists[key] = result.models
-    modelDevices[key] = result.device
+    modelRuntimes[key] = result.runtime
     probedAt.set(key, env.now())
     delete probing[key]
     inflight.delete(key)
-    // The device is an internal extra for the switcher's label (candidates
-    // below); probe()'s public result stays exactly { status, models }.
+    // The runtime is an internal extra for the switcher's label and the GPU
+    // vs CPU readout (localRuntime); probe()'s public result stays exactly
+    // { status, models }.
     return { status: result.status, models: result.models }
   })
   inflight.set(key, done)
@@ -319,6 +320,12 @@ export interface LocalLiveStatus {
   phase: 'checking' | 'connected' | 'unreachable'
   text: string
 }
+
+/** The configured local server's model, device and dtype from its last probe; null until one answers with them. */
+const localRuntime = computed<ModelRuntime | null>(() => {
+  const c = config.value
+  return c.kind === 'local' ? (modelRuntimes[providerKey(c)] ?? null) : null
+})
 
 const localStatus = computed<LocalLiveStatus>(() => {
   const c = config.value
@@ -485,7 +492,7 @@ function createClient(options: CreateProviderClientOptions = {}): JevClient {
 function __resetForTests(): void {
   for (const key of Object.keys(routes)) delete routes[key]
   for (const key of Object.keys(modelLists)) delete modelLists[key]
-  for (const key of Object.keys(modelDevices)) delete modelDevices[key]
+  for (const key of Object.keys(modelRuntimes)) delete modelRuntimes[key]
   for (const key of Object.keys(probing)) delete probing[key]
   inflight.clear()
   probedAt.clear()
@@ -520,7 +527,7 @@ function localCandidate(preset: (typeof LOCAL_PRESETS)[number]): ProviderCandida
   const routeStatus = routes[key] ?? 'unknown'
   const available = routeStatus === 'direct' || routeStatus === 'proxied'
   const modelName = modelLists[key]?.[0] ?? preset.model
-  const device = deviceLabel(modelDevices[key] ?? null)
+  const device = shortRuntimeLabel(modelRuntimes[key] ?? null)
   return {
     id: `local:${preset.id}`,
     label: available ? `${preset.label} · ${modelName}${device ? ` · ${device}` : ''}` : preset.label,
@@ -593,6 +600,7 @@ export function useProvider() {
     probe,
     autoProbe,
     localStatus,
+    localRuntime,
     getApiKey,
     model,
     dropKey,

@@ -14,6 +14,8 @@ import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
 import LocalSetupGuide from './LocalSetupGuide.vue'
 import BrowserModelPanel from './BrowserModelPanel.vue'
+import LocalDeviceCallouts from './LocalDeviceCallouts.vue'
+import type { DeviceAdvice } from '../../domain/localDevice'
 import type { BrowserPanelState } from './BrowserModelPanel.vue'
 import {
   BROWSER_MODELS,
@@ -40,6 +42,8 @@ const props = defineProps<{
   probe: () => Promise<ProviderProbeResult>
   /** The local server's live status from the automatic check (useProvider().localStatus); shown until a manual test runs. */
   liveStatus?: string
+  /** GPU vs CPU callouts for the local server (domain/localDevice.ts's localDeviceAdvice). */
+  deviceAdvice?: readonly DeviceAdvice[]
   /** The in-browser model's state (useProvider().browserStatus); only read for the browser kind. */
   browser?: BrowserPanelState
 }>()
@@ -260,6 +264,7 @@ async function testConnection(): Promise<void> {
           {{ checking ? 'Checking…' : result ? PROBE_TEXT[result.status] : liveStatus }}
         </p>
       </div>
+      <LocalDeviceCallouts :advice="deviceAdvice ?? []" />
       <p v-if="result?.status === 'unreachable'" class="provider-selector__hint" data-test="unreachable-hint">
         Is the server running on port {{ localPort }}? See the setup guide above.
       </p>

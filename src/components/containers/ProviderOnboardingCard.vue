@@ -45,6 +45,8 @@ import UiSegmented from '../../ui/UiSegmented.vue'
 import UiCallout from '../../ui/UiCallout.vue'
 import CopyCommandLine from '../ui/CopyCommandLine.vue'
 import BrowserModelPanel from '../ui/BrowserModelPanel.vue'
+import LocalDeviceCallouts from '../ui/LocalDeviceCallouts.vue'
+import { localDeviceAdvice } from '../../domain/localDevice'
 import { useProvider } from '../../composables/useProvider'
 import { usePreferences } from '../../composables/usePreferences'
 import { useSecrets } from '../../composables/useSecrets'
@@ -197,6 +199,17 @@ const isDevMode = computed(() => runtime.dev)
 
 const os = ref<KevOs>(props.initialOs ?? detectOs(navigator))
 
+/** GPU vs CPU readout (docs/local-providers.md "GPU or CPU"): what the server
+ *  reports, cross-checked with the detected GPU; the no-NVIDIA note shows
+ *  upfront, before any server answers. */
+const deviceAdvice = computed(() =>
+  localDeviceAdvice({
+    runtime: provider.localRuntime.value,
+    gpuVendor: hw.report.value?.gpu.vendor ?? null,
+    os: os.value,
+  }),
+)
+
 function fits(verdict: TierVerdict | undefined): boolean {
   return verdict?.verdict === 'ok' || verdict?.verdict === 'tight'
 }
@@ -320,6 +333,15 @@ const summarySteps = computed<KevCommandStep[]>(() => {
     </div>
 
     <div v-if="showLocalPanel" class="provider-onboarding__panel" data-test="local-panel">
+      <div class="provider-onboarding__test">
+        <p role="status" class="provider-onboarding__status" data-test="probe-status">
+          {{ provider.localStatus.value.text }}
+        </p>
+        <UiButton data-test="test-connection" :loading="checking" @click="testConnection">
+          Test connection
+        </UiButton>
+      </div>
+      <LocalDeviceCallouts :advice="deviceAdvice" />
       <div class="provider-onboarding__callouts">
         <UiCallout tone="warning" title="Prerequisites" data-test="callout-prereqs">{{ KEV_PREREQS_NOTE }}</UiCallout>
         <UiCallout tone="warning" title="GPU is optional" data-test="callout-gpu-optional">{{ KEV_GPU_OPTIONAL_NOTE }}</UiCallout>
@@ -333,14 +355,6 @@ const summarySteps = computed<KevCommandStep[]>(() => {
           <CopyCommandLine v-if="step.command" :id="step.id" :command="step.command" />
           <p v-if="step.note" class="provider-onboarding__note">{{ step.note }}</p>
         </div>
-      </div>
-      <div class="provider-onboarding__test">
-        <p role="status" class="provider-onboarding__status" data-test="probe-status">
-          {{ provider.localStatus.value.text }}
-        </p>
-        <UiButton data-test="test-connection" :loading="checking" @click="testConnection">
-          Test connection
-        </UiButton>
       </div>
       <UiButton data-test="open-settings-local" variant="ghost" size="compact" @click="openSettings">
         Full guide in Settings

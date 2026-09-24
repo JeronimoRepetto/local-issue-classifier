@@ -143,6 +143,24 @@ describe('ProviderSelector', () => {
     expect(wrapper.emitted('update:localMaxStateTokens')?.[0]).toEqual([6_000])
   })
 
+  it('renders the GPU vs CPU callouts it is given, with a copyable command, for a local provider', () => {
+    const wrapper = mount(ProviderSelector, {
+      props: {
+        modelValue: LOCAL,
+        apiKey: '',
+        classifyMode: 'batched',
+        trimmingFloor: 'minimal',
+        probe: async () => ({ status: 'direct', models: null }),
+        deviceAdvice: [
+          { id: 'running-cpu', tone: 'warning', title: 'Running on CPU and RAM', text: 'Slow.' },
+          { id: 'cuda-fix', tone: 'warning', title: 'Use your NVIDIA GPU', text: 'Driver only.', command: 'uv pip install x' },
+        ],
+      },
+    })
+    expect(wrapper.get('[data-test="device-callout-running-cpu"]').text()).toContain('Slow.')
+    expect(wrapper.get('[data-test="device-callout-cuda-fix"] [data-test="command-cuda-fix"]').text()).toBe('uv pip install x')
+  })
+
   // FB-4 — the local setup guide, and a hint pointing to it when unreachable.
   it('mounts the local setup guide only for a local provider', () => {
     expect(mountSelector().find('[data-test="local-setup-guide"]').exists()).toBe(false)

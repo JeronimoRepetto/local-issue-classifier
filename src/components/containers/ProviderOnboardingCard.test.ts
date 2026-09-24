@@ -463,3 +463,56 @@ describe('ProviderOnboardingCard', () => {
     })
   })
 })
+
+// GPU vs CPU readout (docs/local-providers.md "GPU or CPU").
+describe('ProviderOnboardingCard: GPU vs CPU readout', () => {
+  const RX_7800: HardwareReport = {
+    gpu: { vendor: 'amd', model: 'AMD Radeon RX 7800 XT', vramGb: 16, source: 'webgl' },
+    ramGb: 8,
+    ramIsLowerBound: true,
+    cpuThreads: 16,
+    platform: 'Windows',
+    unifiedMemory: false,
+    confidence: 'high',
+  }
+
+  async function withServer(model: Record<string, unknown>) {
+    const { configureProvider } = await import('../../composables/useProvider')
+    configureProvider({
+      fetch: async () =>
+        new Response(JSON.stringify({ models: [model] }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    })
+  }
+
+  it('says "Running on GPU (cuda · bf16)" when the server reports cuda', async () => {
+    await withServer({ name: 'kev-0.8b', device: 'cuda', dtype: 'bfloat16' })
+    const wrapper = await mountCard({ initialOs: 'windows' })
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="device-callout-running-gpu"]').text()).toContain('Running on GPU (cuda · bf16)')
+    expect(wrapper.find('[data-test="device-callout-running-cpu"]').exists()).toBe(false)
+  })
+
+  it('warns about CPU and shows the exact CUDA torch step when an NVIDIA GPU was detected', async () => {
+    await withServer({ name: 'kev-0.8b', device: 'cpu', dtype: 'float32' })
+    const wrapper = await mountCard({ hardware: RTX_5070, initialOs: 'windows' })
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    await flushPromises()
+    const cpu = wrapper.get('[data-test="device-callout-running-cpu"]')
+    expect(cpu.attributes('class')).toContain('ui-callout--warning')
+    expect(cpu.text()).toContain('Running on CPU and RAM — works, but slow')
+    const fix = wrapper.get('[data-test="device-callout-cuda-fix"]')
+    expect(fix.text()).toMatch(/only the NVIDIA driver is required/i)
+    expect(fix.find('[data-test="command-cuda-fix"]').text()).toContain('uv pip install --python .venv torch torchvision --index-url')
+  })
+
+  it('says upfront that it runs on CPU and RAM without an NVIDIA GPU, even before a server answers', async () => {
+    const wrapper = await mountCard({ hardware: RX_7800, initialOs: 'windows' })
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    await flushPromises()
+    const upfront = wrapper.get('[data-test="device-callout-no-nvidia"]')
+    expect(upfront.text()).toMatch(/CPU and RAM/)
+    expect(upfront.text()).toMatch(/ROCm/)
+    expect(wrapper.find('[data-test="device-callout-cuda-fix"]').exists()).toBe(false)
+  })
+})

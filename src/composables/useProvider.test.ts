@@ -406,7 +406,7 @@ describe('useProvider: candidates, probeAll, selectProvider', () => {
 
     const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
     expect(kev.available).toBe(true)
-    expect(kev.label).toBe('Kev · kev-latest · GPU')
+    expect(kev.label).toBe('Kev · kev-latest · GPU (cuda)')
 
     seen = []
     await provider.probeAll()
@@ -550,5 +550,22 @@ describe('useProvider: autoProbe and the live local status', () => {
     await provider.autoProbe({ presets: false })
     await provider.probe()
     expect(seen).toHaveLength(2)
+  })
+})
+
+describe('useProvider: localRuntime (GPU vs CPU readout)', () => {
+  it("exposes the configured server's model, device and dtype from /v1/models", async () => {
+    await load(() => json({ models: [{ name: 'kev-0.8b', device: 'cuda', dtype: 'bfloat16' }] }), { provider: LOCAL })
+    const provider = mods.provider.useProvider()
+    expect(provider.localRuntime.value).toBeNull()
+    await provider.autoProbe({ presets: false })
+    expect(provider.localRuntime.value).toEqual({ name: 'kev-0.8b', device: 'cuda', dtype: 'bf16' })
+  })
+
+  it('labels a reachable preset in the switcher with the short readout', async () => {
+    await load(() => json({ models: [{ name: 'kev-0.8b', device: 'cpu', dtype: 'float32' }] }))
+    const provider = mods.provider.useProvider()
+    await provider.probeAll()
+    expect(provider.candidates.value.find((c) => c.id === 'local:kev')!.label).toBe('Kev · kev-0.8b · CPU')
   })
 })
