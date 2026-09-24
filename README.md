@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![pnpm](https://img.shields.io/badge/pnpm-11-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
 [![Tested with Vitest](https://img.shields.io/badge/tested_with-vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
-[![Node >= 20](https://img.shields.io/badge/node-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![Node >= 22.13](https://img.shields.io/badge/node-%3E%3D22.13-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![CI](https://github.com/JeronimoRepetto/local-issue-classifier/actions/workflows/ci.yml/badge.svg)](https://github.com/JeronimoRepetto/local-issue-classifier/actions/workflows/ci.yml)
 
 Local-first web app that pulls a GitHub repo's issues and README, then asks Jev (TypeSafe AI's
@@ -41,7 +41,7 @@ each question asks and how its answer becomes a value.
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 22.13 or newer
 - pnpm 11
 - A Jev API key (required to classify issues)
 - A GitHub personal access token (optional — raises the GitHub API rate limit)

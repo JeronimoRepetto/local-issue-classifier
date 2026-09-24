@@ -45,11 +45,11 @@ describe('.github/workflows/ci.yml', () => {
     expect(SOURCE).toMatch(/runs-on:\s*ubuntu-latest/)
   })
 
-  it('sets up pnpm from the packageManager field, then Node 20 with the pnpm cache', () => {
+  it('sets up pnpm from the packageManager field, then Node 24 with the pnpm cache', () => {
     expect(SOURCE).toMatch(/uses:\s*actions\/checkout@v\d/)
     expect(SOURCE).toMatch(/uses:\s*pnpm\/action-setup@v\d/)
     expect(SOURCE).toMatch(/uses:\s*actions\/setup-node@v\d/)
-    expect(SOURCE).toMatch(/node-version:\s*['"]?20['"]?/)
+    expect(SOURCE).toMatch(/node-version:\s*['"]?24['"]?/)
     expect(SOURCE).toMatch(/cache:\s*pnpm/)
 
     const checkout = firstIndexOf(/actions\/checkout@/)

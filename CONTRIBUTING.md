@@ -10,7 +10,7 @@ pnpm install
 pnpm dev      # http://localhost:5200
 ```
 
-Node 20+ and pnpm 11 are required. pnpm 11 ignores the `pnpm` field in `package.json` for build
+Node 22.13+ and pnpm 11 are required (pnpm 11 does not run on Node 20). pnpm 11 ignores the `pnpm` field in `package.json` for build
 approvals; this repo grants esbuild's native postinstall step through `allowBuilds` in
 `pnpm-workspace.yaml` instead.
 
