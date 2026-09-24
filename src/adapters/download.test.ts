@@ -1,13 +1,17 @@
 // Task 13 — "downloadText(filename, text) is anchor-based:
 // Blob URL → <a download> click → revoke on the next tick." Mirrors the
 // AI-Tools house style (qr-tool/design-studio's downloadBlob/downloadText).
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { downloadBlob, downloadText } from './download'
 
 describe('downloadBlob — anchor-based download', () => {
   let createObjectURL: ReturnType<typeof vi.fn>
   let revokeObjectURL: ReturnType<typeof vi.fn>
-  let clickSpy: ReturnType<typeof vi.fn>
+  // Typed to the real signature so it can be assigned onto the prototype below —
+  // vitest 4's `vi.fn()` defaults its Mock to `Procedure | Constructable`, which
+  // is no longer assignable to a plain `() => void` (see vitest v3→v4 migration
+  // guide, "Typing of `vi.fn` and `vi.spyOn`").
+  let clickSpy: Mock<() => void>
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -15,7 +19,7 @@ describe('downloadBlob — anchor-based download', () => {
     revokeObjectURL = vi.fn()
     URL.createObjectURL = createObjectURL as unknown as typeof URL.createObjectURL
     URL.revokeObjectURL = revokeObjectURL as unknown as typeof URL.revokeObjectURL
-    clickSpy = vi.fn()
+    clickSpy = vi.fn<() => void>()
     HTMLAnchorElement.prototype.click = clickSpy
   })
 
