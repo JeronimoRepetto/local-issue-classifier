@@ -4,8 +4,9 @@
 // no longer a dead end. Presentational: it owns no persistence and no
 // network; `status` (the container's last connection-test result) only
 // decides whether it starts collapsed. The commands mirror
-// docs/local-providers.md and scripts/local-kev.mjs verbatim — keep the three
-// in sync.
+// docs/local-providers.md and scripts/local-kev.mjs verbatim — keep the four
+// in sync (the fourth being the condensed summary in Home's
+// ProviderOnboardingCard.vue, PoC odd/tasks/home-provider-onboarding.md).
 import { computed, ref, watch } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSegmented from '../../ui/UiSegmented.vue'

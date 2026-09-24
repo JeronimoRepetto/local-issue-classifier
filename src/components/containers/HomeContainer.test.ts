@@ -186,4 +186,22 @@ describe('HomeContainer', () => {
     expect(repoMod.readStoredPreferences().onboarding.repo).toBe(true)
     expect(repoStep().classes()).toContain('onboarding-checklist__item--done')
   })
+
+  it('shows the provider onboarding card directly above the repo loader, and leaves the one primary action unchanged', async () => {
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-test="provider-onboarding-card"]').exists()).toBe(true)
+
+    // RepoInput's "New analysis" stays the only primary-variant action on Home.
+    const submit = wrapper.get('[data-test="repo-input-submit"]')
+    expect(submit.classes()).toContain('ui-button--primary')
+    expect(wrapper.find('[data-test="provider-onboarding-card"] .ui-button--primary').exists()).toBe(false)
+
+    // Mounted directly above RepoLoaderContainer (see HomeContainer.vue's own
+    // comment: "the single primary action on this screen is New analysis").
+    const html = wrapper.html()
+    expect(html.indexOf('provider-onboarding-card')).toBeGreaterThan(-1)
+    expect(html.indexOf('provider-onboarding-card')).toBeLessThan(html.indexOf('data-test="repo-input"'))
+  })
 })
