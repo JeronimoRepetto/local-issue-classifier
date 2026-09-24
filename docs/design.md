@@ -66,7 +66,7 @@ literal in `src/ui`, `src/components`, `App.vue` or `style.css`.
 | `success` / `warning` / `danger` / `info` | `#15803D` / `#A15C07` / `#B91C1C` / `#1D4ED8` | `#4ADE80` / `#FBBF24` / `#F87171` / `#60A5FA` | Status text and icons |
 | `level-*-fg/bg` | 5–10% tints of the status colors | darker tints | Level chips |
 | `scale-1..5` | `#67676F` `#2563EB` `#975A06` `#C2410C` `#B91C1C` | `#8A8A94` `#60A5FA` `#FACC15` `#FB923C` `#F87171` | Heat ramp (cool to hot) for priority and relevance numbers |
-| `icon-social` | `#7F7F81` | `#7F7F81` (same) | GitHub app-bar link |
+| `icon-social` | `#000000` | `#FFFFFF` | GitHub and LinkedIn app-bar links — both marks now use black/white per theme |
 | `brand-linkedin-mark` | `#000000` | `#FFFFFF` | LinkedIn app-bar link — the official [in] Logo, unaltered (see "Icons" below); not `icon-social`, since brand guidelines fix its color |
 
 `src/ui/tokens.test.ts` checks every pair in `CONTRAST_PAIRS` in both themes: at least 4.5:1
@@ -85,12 +85,12 @@ identified only by its outline. Buttons and chips carry text, so they use the qu
 Color is never the only signal: level chips show a text label and a three-bar meter, score
 pills show their number, and status labels show a word.
 
-The app-bar GitHub icon is the same `#7F7F81` in both themes on purpose (icons, not
-text, so WCAG 1.4.11's 3:1 non-text-contrast minimum applies, not 4.5:1): `#7F7F81` on `bg`
-is 4.00:1 in light and 4.98:1 in dark, both `>= 3:1`. `#111113` (the dark theme's own `text`
-color) was considered and rejected: it is only 1.05:1 on the dark `bg`, i.e. effectively
-invisible there. `icon-social` is checked by the same `CONTRAST_PAIRS` suite as every other
-role (`{ fg: 'icon-social', bg: 'bg', kind: 'ui' }`), so a future palette change cannot
+The app-bar social icons now use black (`#000000`) in the light theme and white (`#FFFFFF`) in
+the dark theme — matching the LinkedIn mark for visual consistency (icons, not text, so WCAG 1.4.11's
+3:1 non-text-contrast minimum applies): `#000000` on `#FFFFFF` is 21:1 in light, and `#FFFFFF` on
+`#09090B` is 21:1 in dark, both `>= 3:1`. This superseded the earlier `#7F7F81` (grey) decision
+from 2026-09-24 to align both marks. `icon-social` is checked by the same `CONTRAST_PAIRS` suite as
+every other role (`{ fg: 'icon-social', bg: 'bg', kind: 'ui' }`), so a future palette change cannot
 silently regress it below 3:1.
 
 `brand-linkedin-mark` (`#000000` light / `#FFFFFF` dark) is deliberately *not* in

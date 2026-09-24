@@ -110,9 +110,8 @@ export const tokens: Tokens = {
       'inverse-surface': '#18181B',
       'inverse-hover': '#3F3F46',
       'on-inverse': '#FAFAFA',
-      // App-bar GitHub link: same grey in both themes on purpose (docs/design.md
-      // "Icons" — #111113 would vanish on the dark bg).
-      'icon-social': '#7F7F81',
+      // App-bar social links: black in light theme to match the LinkedIn mark.
+      'icon-social': '#000000',
       // LinkedIn's [in] Logo, unaltered: the official black variant (verified
       // against LinkedIn's own in-logo.zip download — see THIRD_PARTY_NOTICES.md
       // "Brand icons"). Not part of icon-social: brand guidelines forbid
@@ -152,8 +151,8 @@ export const tokens: Tokens = {
       'inverse-surface': '#EDEDEF',
       'inverse-hover': '#D4D4D8',
       'on-inverse': '#09090B',
-      // Same grey as the light theme, deliberately not `text`/`text-muted`.
-      'icon-social': '#7F7F81',
+      // App-bar social links: white in dark theme to match the LinkedIn mark.
+      'icon-social': '#FFFFFF',
       // The official white variant (verified against in-logo.zip), for legibility
       // on the dark bg — see the light-theme comment above.
       'brand-linkedin-mark': '#FFFFFF',

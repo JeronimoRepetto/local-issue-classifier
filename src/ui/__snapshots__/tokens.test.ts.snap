@@ -24,7 +24,7 @@ exports[`tokensToCss > emits the dark theme variables 1`] = `
   --color-inverse-surface: #EDEDEF;
   --color-inverse-hover: #D4D4D8;
   --color-on-inverse: #09090B;
-  --color-icon-social: #7F7F81;
+  --color-icon-social: #FFFFFF;
   --color-brand-linkedin-mark: #FFFFFF;
   --color-level-high-fg: #F87171;
   --color-level-high-bg: #2A1414;
@@ -134,7 +134,7 @@ exports[`tokensToCss > emits the light theme variables 1`] = `
   --color-inverse-surface: #18181B;
   --color-inverse-hover: #3F3F46;
   --color-on-inverse: #FAFAFA;
-  --color-icon-social: #7F7F81;
+  --color-icon-social: #000000;
   --color-brand-linkedin-mark: #000000;
   --color-level-high-fg: #B91C1C;
   --color-level-high-bg: #FEF2F2;
