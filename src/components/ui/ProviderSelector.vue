@@ -10,6 +10,7 @@ import UiInput from '../../ui/UiInput.vue'
 import UiSecretInput from '../../ui/UiSecretInput.vue'
 import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
+import LocalSetupGuide from './LocalSetupGuide.vue'
 import {
   LOCAL_PRESETS,
   defaultLocalProviderConfig,
@@ -63,6 +64,16 @@ const urlError = computed(() => (validation.value && !validation.value.ok ? vali
 
 const checking = ref(false)
 const result = ref<ProviderProbeResult | null>(null)
+
+/** The local server's port, for the unreachable hint; '' when the URL has none or is malformed. */
+const localPort = computed(() => {
+  if (!local.value) return ''
+  try {
+    return new URL(local.value.baseUrl).port
+  } catch {
+    return ''
+  }
+})
 
 // A result belongs to one address: forget it when the provider or URL changes.
 watch(
@@ -129,6 +140,7 @@ async function testConnection(): Promise<void> {
     </fieldset>
 
     <div v-if="local" class="provider-selector__local">
+      <LocalSetupGuide :status="result?.status ?? null" />
       <UiSelect
         data-test="preset"
         label="Preset"
@@ -174,6 +186,9 @@ async function testConnection(): Promise<void> {
           {{ checking ? 'Checking…' : result ? PROBE_TEXT[result.status] : '' }}
         </p>
       </div>
+      <p v-if="result?.status === 'unreachable'" class="provider-selector__hint" data-test="unreachable-hint">
+        Is the server running on port {{ localPort }}? See the setup guide above.
+      </p>
       <ul v-if="result?.models?.length" class="provider-selector__models" data-test="probe-models">
         <li v-for="name in result.models" :key="name">{{ name }}</li>
       </ul>
@@ -242,6 +257,7 @@ p {
 }
 
 .provider-selector__status,
+.provider-selector__hint,
 .provider-selector__note {
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
