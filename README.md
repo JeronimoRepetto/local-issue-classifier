@@ -233,8 +233,11 @@ Jev scores (see [`docs/jev-questions.md`](docs/jev-questions.md#priority)).
 
 ## Export format
 
-**Export…** opens a dialog to build a plain-text report of the current analysis (or a saved copy of
-its filtered view). You choose:
+**Export…** opens a dialog to build a report of the current analysis (or a saved copy of its
+filtered view) in one of three **Format**s — Text, Markdown (handy for pasting into an AI
+conversation) or self-contained HTML (for viewing or sharing) — each carrying the model(s) that
+produced the classifications, so two exports made with different models (e.g. Jev vs. Kev) can be
+compared. You also choose:
 
 - **Scope** — the current filtered view (default) or every issue in the analysis. Dismissed issues
   are always excluded unless you check **Include dismissed**.
@@ -244,12 +247,14 @@ its filtered view). You choose:
   popover (add, remove, reorder with Alt+↑/↓). **Use current table sort** copies the table's own
   order into the export in one click.
 
-The order and options are saved per analysis. **Download** saves the previewed text as
-`{owner}-{repo}-issues-{YYYYMMDD-HHmm}.txt` through an anchor-based download (no server involved).
-With nothing in scope, Download is disabled and the dialog says "Nothing to export."
+The format, order and options are saved per analysis. **Download** saves the previewed text as
+`{owner}-{repo}-issues-{YYYYMMDD-HHmm}.{txt|md|html}` through an anchor-based download (no server
+involved), with the matching MIME type. With nothing in scope, Download is disabled and the dialog
+says "Nothing to export."
 
-The full format — every header line, the row layout, the Unclassified/Dismissed sections and a
-worked example — is specified in [`docs/export-format.md`](docs/export-format.md).
+The full format for all three — every header line, the row layout, the Markdown table columns, the
+HTML document shape, the Unclassified/Dismissed sections and a worked example — is specified in
+[`docs/export-format.md`](docs/export-format.md).
 
 ## Local providers
 
