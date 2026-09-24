@@ -17,6 +17,11 @@ the weights are downloaded once from the Hugging Face Hub and kept by the browse
    progress bar. Later visits load it from the browser cache.
 3. **Classify** as usual. The run goes one issue at a time; the cost estimate is 0.
 
+The classify bar's provider switch (screen 3) also lists **In this browser**, so an already-loaded
+model can be picked without leaving the analysis view; it stays disabled with "WebGPU is not
+available in this browser" as its tooltip when this browser has no WebGPU, and the first download
+still happens from Settings or Home.
+
 ## How it works
 
 | Step | What happens | Code |

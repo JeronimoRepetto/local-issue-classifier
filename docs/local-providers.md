@@ -131,6 +131,17 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
 No TypeSafe key is needed for a local server. The cost estimate before a run shows **$0**. The
 request count and the latency estimate still apply.
 
+## Switching from the analysis view
+
+The classify bar (screen 3) carries a provider switch next to the Classify button, so you can pick
+Jev, Kev or JevK5 without opening Settings: it probes both local presets once when the analysis
+view opens (one `GET /v1/models` per preset, cached for the session — reachable ones show their
+first model name and, when the server reports it, its device), and disables whichever preset it
+could not reach with that reason as a tooltip. Selecting one there updates the same
+`Preferences.provider` the Settings selector edits, so both stay in sync; re-running Classify with
+a different provider replaces every result and the analysis header's "Classified by" line updates
+to match. The switch is disabled while a run is active.
+
 ## CORS and the `/jev-local` proxy
 
 A browser can only call a server on another origin when that server sends CORS headers. Kev's and

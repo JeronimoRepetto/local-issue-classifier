@@ -253,7 +253,10 @@ worked example — is specified in [`docs/export-format.md`](docs/export-format.
 
 ## Local providers
 
-By default the app classifies with **Jev on the TypeSafe cloud**, which needs a Jev API key. In
+By default the app classifies with **Jev on the TypeSafe cloud**, which needs a Jev API key. A
+provider switch on the analysis view's classify bar also lets you pick Jev, a local server or the
+in-browser model without opening Settings — see
+[`docs/local-providers.md`](docs/local-providers.md#switching-from-the-analysis-view). In
 Settings → **Classifier**, choose **Local server** for a copy-pasteable, step-by-step guide to
 running Kev (`jaredpalmer/kev`) or JevK5 (`allebee/jevk5`) — or just run `pnpm local:kev` from this
 repo, which clones, installs and starts Kev for you. A local server costs nothing per token, keeps
