@@ -3,11 +3,17 @@
 // vite.config.ts alone.
 //
 // The Jev API rejects browser origins, so the browser calls `/jev/v1/...` on
-// the Vite server, which forwards it upstream as a server-to-server call:
-// - allowlist: only `/v1/systemone` and `/v1/models`; anything else under the
-//   prefix gets a 404 and never reaches upstream;
-// - `origin`, `referer` and `cookie` are stripped; `authorization` and the JSON
-//   body are forwarded unchanged, in transit only;
+// the Vite server, which forwards it upstream as a server-to-server call.
+// Every request is decided by the shared policy in server/jevProxyPolicy.ts
+// (the same one the hosted Pages Function uses), in `jevProxyGuard`:
+// - allowlist: only `/v1/systemone` (POST) and `/v1/models` (GET); anything
+//   else under the prefix gets a 404 (or 405) and never reaches upstream;
+// - callers must be same-origin (403 otherwise), bodies are capped at 2 MB,
+//   and each client IP is rate limited (429 with Retry-After);
+// - only `authorization`, `content-type` and `accept` reach upstream (plus the
+//   transport headers the HTTP client needs); the JSON body is forwarded
+//   unchanged, in transit only;
+// - answers carry `Cache-Control: no-store`, and upstream cookies are dropped;
 // - nothing here logs or stores headers or bodies.
 //
 // `/jev-local` (T16, docs/local-providers.md) forwards the same two paths to a
@@ -24,12 +30,22 @@ import {
   LOCAL_TARGET_HEADER,
   validateLocalBaseUrl,
 } from '../src/domain/provider'
+import {
+  createTokenBucketLimiter,
+  decideJevProxyRequest,
+  JEV_FORWARDED_REQUEST_HEADERS,
+  JEV_RESPONSE_HEADERS,
+  type JevRateLimiter,
+} from './jevProxyPolicy'
 
 export { JEV_LOCAL_PROXY_PREFIX, LOCAL_PROXY_MARKER_HEADER, LOCAL_TARGET_HEADER }
 
 export const JEV_UPSTREAM_DEFAULT = 'https://api.typesafe.ai'
 export const JEV_PROXY_PREFIX_DEFAULT = '/jev'
 export const STRIPPED_REQUEST_HEADERS = ['origin', 'referer', 'cookie'] as const
+/** Set by the HTTP client for the hop itself, so they survive the header allowlist. */
+export const TRANSPORT_REQUEST_HEADERS = ['host', 'content-length', 'transfer-encoding', 'connection'] as const
+const KEPT_REQUEST_HEADERS = new Set<string>([...JEV_FORWARDED_REQUEST_HEADERS, ...TRANSPORT_REQUEST_HEADERS])
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -66,28 +82,65 @@ export function createJevProxy(config: JevProxyConfig = {}): Record<string, Prox
       configure: (proxy) => {
         // Silent on purpose: no header, body or URL is ever logged here.
         proxy.on('proxyReq', (proxyReq) => {
-          for (const header of STRIPPED_REQUEST_HEADERS) proxyReq.removeHeader(header)
+          // The allowlist also covers STRIPPED_REQUEST_HEADERS (origin, referer, cookie).
+          for (const header of proxyReq.getHeaderNames()) {
+            if (!KEPT_REQUEST_HEADERS.has(header.toLowerCase())) proxyReq.removeHeader(header)
+          }
+        })
+        proxy.on('proxyRes', (proxyRes) => {
+          delete proxyRes.headers['set-cookie']
+          for (const [name, value] of Object.entries(JEV_RESPONSE_HEADERS)) proxyRes.headers[name] = value
         })
       },
     },
   }
 }
 
+export interface JevProxyGuardConfig extends Pick<JevProxyConfig, 'prefix'> {
+  /**
+   * Origins accepted from Origin/Referer when Sec-Fetch-Site is absent. When
+   * omitted, the server's own origin is derived from each request's Host
+   * header (Vite's own allowedHosts check already refuses unknown hosts).
+   */
+  allowedOrigins?: readonly string[]
+  /** Per-IP limiter; default an in-memory token bucket with DEFAULT_RATE_LIMITS. */
+  limiter?: JevRateLimiter
+  now?: () => number
+  maxBodyBytes?: number
+}
+
 /**
- * Answers 404 for any path under the prefix that is not allowlisted, so it
- * neither reaches upstream nor falls through to the SPA fallback.
+ * Runs every request under the prefix through the shared policy before Vite's
+ * proxy sees it: a refused request neither reaches upstream nor falls through
+ * to the SPA fallback. An allowed one continues to `server.proxy` unchanged.
  */
-export function jevProxyGuard(config: Pick<JevProxyConfig, 'prefix'> = {}): Plugin {
+export function jevProxyGuard(config: JevProxyGuardConfig = {}): Plugin {
   const prefix = config.prefix ?? JEV_PROXY_PREFIX_DEFAULT
-  const allowed = new RegExp(jevProxyKey(prefix))
+  const limiter = config.limiter ?? createTokenBucketLimiter()
+  const now = config.now ?? Date.now
   const guard: Connect.NextHandleFunction = (req, res, next) => {
     const url = req.url ?? ''
     const underPrefix =
       url === prefix || url.startsWith(`${prefix}/`) || url.startsWith(`${prefix}?`)
-    if (!underPrefix || allowed.test(url)) return next()
-    res.statusCode = 404
+    if (!underPrefix) return next()
+    const host = req.headers.host
+    const decision = decideJevProxyRequest(
+      { method: req.method ?? 'GET', path: url, headers: req.headers, ip: req.socket.remoteAddress },
+      {
+        allowedOrigins: config.allowedOrigins ?? (host ? [`http://${host}`, `https://${host}`] : []),
+        now: now(),
+        limiter,
+        prefix,
+        maxBodyBytes: config.maxBodyBytes,
+      },
+    )
+    for (const [name, value] of Object.entries(decision.responseHeaders)) res.setHeader(name, value)
+    if (decision.allow) return next()
+    for (const [name, value] of Object.entries(decision.headers ?? {})) res.setHeader(name, value)
+    res.statusCode = decision.status
+    if (decision.status === 204) return res.end()
     res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify({ error: 'Not found' }))
+    res.end(JSON.stringify({ error: decision.reason }))
   }
   return {
     name: 'local-issue-classifier:jev-proxy-guard',
@@ -103,7 +156,7 @@ export function jevProxyGuard(config: Pick<JevProxyConfig, 'prefix'> = {}): Plug
 // ── /jev-local: a local Jev-compatible server named per request ─────────────
 
 /** Only these request headers reach the local server (so origin, referer, cookie and the target never do). */
-export const LOCAL_FORWARDED_REQUEST_HEADERS = ['authorization', 'content-type', 'accept'] as const
+export const LOCAL_FORWARDED_REQUEST_HEADERS = JEV_FORWARDED_REQUEST_HEADERS
 /** Only these response headers come back, plus the marker. */
 export const LOCAL_FORWARDED_RESPONSE_HEADERS = ['content-type', 'retry-after', 'retry-after-ms'] as const
 /** A batched request carries a large state, but never this much. */
