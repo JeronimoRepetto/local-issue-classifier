@@ -65,7 +65,7 @@ const hasCache = computed(() => (props.state.cachedBytes ?? 0) > 0)
       <strong>{{ model.label }}</strong> (<code>{{ model.id }}</code>) · {{ downloadSize }} download
     </p>
     <p v-if="model.placeholder" class="browser-model__caveat" data-test="placeholder-caveat">
-      Experimental: this small generic model is not Jev, JevK5 or Kev. Its answers are placeholders that show the
+      Experimental: this small generic model is not Jev, JevK5, Kev or Laya. Its answers are placeholders that show the
       pipeline works, not real classifications.
     </p>
 
