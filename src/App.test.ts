@@ -6,7 +6,7 @@
 // now touches every module singleton.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { createApp, nextTick } from 'vue'
 import { createAnalysis } from './domain/analysis'
 import { defaultPreferences, defaultProjectContext } from './domain/types'
 import { fakeIssue, fakeRepo } from '../tests/fakes/domainFixtures'
@@ -135,6 +135,29 @@ describe('App', () => {
     expect(wrapper.find('[data-test="issue-count"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="classify-start"]').exists()).toBe(true)
     wrapper.unmount()
+  })
+
+  // GitHub issue #8 (docs/architecture.md "SEO"): index.html's `<div id="app">` ships static,
+  // crawlable markup (a heading + a couple of paragraphs). Unlike the tests above, this one
+  // mounts with the real `createApp(...).mount('#app')` (src/main.ts's own call), over that
+  // exact static markup extracted straight from index.html, instead of @vue/test-utils' `mount`
+  // (which renders into its own throwaway container and never exercises this replacement at
+  // all). Vue's docs are explicit that a plain (non-SSR) mount is "not a hydration call" and
+  // that "the container's content will be replaced" — this is the regression test for that
+  // contract, and for keeping exactly one <h1> (HomeContainer's) once the real app has painted.
+  it('mount replaces the static SEO fallback markup inside #app, leaving exactly one h1', async () => {
+    const html = readFileSync(join(__dirname, '..', 'index.html'), 'utf8')
+    const appHtml = /<div id="app">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? ''
+    expect(appHtml).toMatch(/<h1/) // sanity: the fixture actually has static content to replace
+
+    document.body.innerHTML = `<div id="app">${appHtml}</div>`
+    createApp(App).mount('#app')
+    await vi.waitFor(() => expect(document.querySelector('[data-test="app-loading"]')).toBeNull())
+    await flush()
+
+    const container = document.getElementById('app')!
+    expect(container.querySelectorAll('h1')).toHaveLength(1)
+    expect(container.querySelector('[data-test="home-container"]')).not.toBeNull()
   })
 
   describe('bootstrap ordering', () => {
