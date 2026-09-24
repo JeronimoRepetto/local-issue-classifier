@@ -330,10 +330,26 @@ describe('App', () => {
       expect(links.indexOf(linkedin.element)).toBeLessThan(links.indexOf(wrapper.get('[data-test="theme-toggle"]').element))
     })
 
-    it('renders both social icons in the shared --color-icon-social token color', () => {
+    it('keeps GitHub on the shared --color-icon-social token color (24-grid currentColor mark)', () => {
       const wrapper = mount(App)
-      expect(wrapper.get('[data-test="social-github"]').classes()).toContain('app-shell__social-link')
-      expect(wrapper.get('[data-test="social-linkedin"]').classes()).toContain('app-shell__social-link')
+      const github = wrapper.get('[data-test="social-github"]')
+      expect(github.classes()).toContain('app-shell__social-link')
+      expect(github.get('svg').attributes('viewBox')).toBe('0 0 24 24')
+    })
+
+    it("renders LinkedIn's official [in] Logo mark, unaltered, in place of the generic external-link icon", () => {
+      const wrapper = mount(App)
+      const linkedin = wrapper.get('[data-test="social-linkedin"]')
+      expect(linkedin.classes()).toContain('app-shell__social-link')
+
+      const svg = linkedin.get('svg')
+      // 0 0 28 28 is the official [in] Logo's own viewBox (brand.linkedin.com/in-logo),
+      // distinct from the 24-grid stroke icons the kit generates (fill="none").
+      expect(svg.attributes('viewBox')).toBe('0 0 28 28')
+      expect(svg.attributes('fill')).not.toBe('none')
+
+      const path = linkedin.get('path')
+      expect(path.attributes('d')).toContain('m25.9 0h-23.8')
     })
   })
 

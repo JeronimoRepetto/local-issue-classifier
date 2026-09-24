@@ -23,8 +23,8 @@ import IconLogo from './assets/icons/IconLogo.vue'
 import IconMoon from './assets/icons/IconMoon.vue'
 import IconSun from './assets/icons/IconSun.vue'
 import IconSettings from './assets/icons/IconSettings.vue'
-import IconExternalLink from './assets/icons/IconExternalLink.vue'
 import GitHubMarkIcon from './ui/GitHubMarkIcon.vue'
+import LinkedInMarkIcon from './ui/LinkedInMarkIcon.vue'
 import UiTooltip from './ui/UiTooltip.vue'
 import HomeContainer from './components/containers/HomeContainer.vue'
 import AnalysisViewContainer from './components/containers/AnalysisViewContainer.vue'
@@ -96,10 +96,11 @@ function cycleTheme(): void {
 // T16: ready is a Jev key for TypeSafe, or a valid base URL for a local provider (key optional).
 const showKeysBanner = computed(() => !provider.ready.value && !prefs.state.keysBannerDismissed)
 
-// Author links (requested after the Home provider-card approval). No
-// LinkedIn brand mark is bundled: Simple Icons does not ship one under a
-// free license (see docs/design.md "Icons" and THIRD_PARTY_NOTICES.md), so
-// IconExternalLink stands in for it instead of GitHub's real mark.
+// Author links (requested after the Home provider-card approval). Both now
+// render their real brand mark: GitHub's (Simple Icons, CC0) and, since
+// 2026-09-24, LinkedIn's own official [in] Logo (see docs/design.md "Icons" and
+// THIRD_PARTY_NOTICES.md "Brand icons" for sourcing and the brand-guideline
+// rules each mark follows).
 const GITHUB_REPO_URL = 'https://github.com/JeronimoRepetto/local-issue-classifier'
 const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
 </script>
@@ -158,7 +159,7 @@ const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
               aria-label="Author on LinkedIn"
               :aria-describedby="describedBy"
             >
-              <IconExternalLink />
+              <LinkedInMarkIcon />
             </a>
           </template>
         </UiTooltip>
