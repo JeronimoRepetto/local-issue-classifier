@@ -4,6 +4,7 @@ export { default as IconArrowLeft } from './IconArrowLeft.vue'
 export { default as IconCheck } from './IconCheck.vue'
 export { default as IconChevronDown } from './IconChevronDown.vue'
 export { default as IconClose } from './IconClose.vue'
+export { default as IconCoffee } from './IconCoffee.vue'
 export { default as IconColumns } from './IconColumns.vue'
 export { default as IconCopy } from './IconCopy.vue'
 export { default as IconDownload } from './IconDownload.vue'
@@ -29,4 +30,4 @@ export { default as IconSun } from './IconSun.vue'
 export { default as IconTrash } from './IconTrash.vue'
 export { default as IconWarning } from './IconWarning.vue'
 
-export const ICON_NAMES = ['IconArrowLeft', 'IconCheck', 'IconChevronDown', 'IconClose', 'IconColumns', 'IconCopy', 'IconDownload', 'IconEmptyBox', 'IconExternalLink', 'IconEye', 'IconEyeOff', 'IconFilter', 'IconInfo', 'IconKey', 'IconLock', 'IconLogo', 'IconMenu', 'IconMoon', 'IconPlus', 'IconQuestion', 'IconRefresh', 'IconRepo', 'IconSearch', 'IconSettings', 'IconSort', 'IconSun', 'IconTrash', 'IconWarning'] as const
+export const ICON_NAMES = ['IconArrowLeft', 'IconCheck', 'IconChevronDown', 'IconClose', 'IconCoffee', 'IconColumns', 'IconCopy', 'IconDownload', 'IconEmptyBox', 'IconExternalLink', 'IconEye', 'IconEyeOff', 'IconFilter', 'IconInfo', 'IconKey', 'IconLock', 'IconLogo', 'IconMenu', 'IconMoon', 'IconPlus', 'IconQuestion', 'IconRefresh', 'IconRepo', 'IconSearch', 'IconSettings', 'IconSort', 'IconSun', 'IconTrash', 'IconWarning'] as const

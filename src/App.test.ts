@@ -368,6 +368,39 @@ describe('App', () => {
       expect(links.indexOf(linkedin.element)).toBeLessThan(links.indexOf(wrapper.get('[data-test="theme-toggle"]').element))
     })
 
+    it('links to the Ko-fi profile, safely, right after LinkedIn and before the theme toggle', async () => {
+      const wrapper = await mountApp()
+      const linkedin = wrapper.get('[data-test="social-linkedin"]')
+      const kofi = wrapper.get('[data-test="social-kofi"]')
+      const themeToggle = wrapper.get('[data-test="theme-toggle"]')
+
+      expect(kofi.attributes('href')).toBe('https://ko-fi.com/jeronimorepetto')
+      expect(kofi.attributes('target')).toBe('_blank')
+      expect(kofi.attributes('rel')).toBe('noopener noreferrer')
+      expect(kofi.attributes('aria-label')).toBe('Support the author on Ko-fi')
+      expect(kofi.classes()).toContain('app-shell__social-link')
+
+      const nav = wrapper.get('[data-test="open-settings"]').element.parentElement!
+      const links = Array.from(nav.children)
+      // Each link's <a> sits inside a UiTooltip wrapper span, which is the
+      // actual direct child of <nav>; compare those wrapper positions.
+      const linkedinSlot = linkedin.element.closest('.ui-tooltip')!
+      const kofiSlot = kofi.element.closest('.ui-tooltip')!
+      expect(links.indexOf(linkedinSlot)).toBeGreaterThanOrEqual(0)
+      expect(links.indexOf(kofiSlot)).toBeGreaterThanOrEqual(0)
+      expect(links.indexOf(linkedinSlot)).toBeLessThan(links.indexOf(kofiSlot))
+      expect(links.indexOf(kofiSlot)).toBeLessThan(links.indexOf(themeToggle.element))
+    })
+
+    it("renders Ko-fi's icon as an original coffee-mug stroke icon, not a hand-inlined third-party mark", async () => {
+      const wrapper = await mountApp()
+      const kofi = wrapper.get('[data-test="social-kofi"]')
+      const svg = kofi.get('svg')
+      expect(svg.attributes('viewBox')).toBe('0 0 24 24')
+      expect(svg.attributes('fill')).toBe('none')
+      expect(svg.attributes('stroke')).toBe('currentColor')
+    })
+
     it('keeps GitHub on the shared --color-icon-social token color (24-grid currentColor mark)', async () => {
       const wrapper = await mountApp()
       const github = wrapper.get('[data-test="social-github"]')
