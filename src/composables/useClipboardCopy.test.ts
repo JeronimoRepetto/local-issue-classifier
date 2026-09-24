@@ -53,6 +53,21 @@ describe('useClipboardCopy', () => {
     expect(copiedId.value).toBeNull()
   })
 
+  it('keeps the "Copied" state for ~1.5s (not shorter, not much longer)', async () => {
+    vi.useFakeTimers()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+
+    const { copiedId, copy } = useClipboardCopy()
+    await copy('serve', 'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009')
+
+    vi.advanceTimersByTime(1499)
+    expect(copiedId.value).toBe('serve')
+
+    vi.advanceTimersByTime(1)
+    expect(copiedId.value).toBeNull()
+  })
+
   it('does nothing for an empty/null command', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })

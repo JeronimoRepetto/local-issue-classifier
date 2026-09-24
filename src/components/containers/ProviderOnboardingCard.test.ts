@@ -1,6 +1,8 @@
 // Home provider-onboarding card (PoC, odd/tasks/home-provider-onboarding.md):
-// surfaces the classifier-provider choice on Home (not only in Settings),
-// together with the hardware-fit result and a condensed local-setup summary.
+// surfaces the classifier-provider choice ("Use Jev in the cloud" vs "Run a
+// model locally") on Home, not only in Settings, together with the
+// hardware-fit result and a compact local-setup summary, so a first-time
+// user decides where the AI runs before loading a repo.
 // Same reload-the-module-graph pattern as HomeContainer.test.ts /
 // SettingsContainer.test.ts: usePreferences, useSecrets, useProvider and
 // useHardwareDetection are module singletons wired together by this
@@ -43,15 +45,27 @@ beforeEach(async () => {
   setAppStorage(storage)
 })
 
+interface MountOptions {
+  hardware?: HardwareReport
+  isDev?: boolean
+  /** Test-only override for useRuntime's hostname check (see useRuntime.ts). */
+  hostname?: string
+  /** Test-only override for the OS toggle's initial value (defaults to detectOs(navigator)). */
+  initialOs?: 'windows' | 'macos' | 'linux'
+}
+
 /** Pre-seeds the shared hardware-detection cache (passive: no real detection
- *  runs in jsdom), then mounts the card fresh over the current module graph.
- *  `isDev` overrides import.meta.env.DEV (defaults true under vitest), so the
- *  repo-shortcut line can be tested in both modes. */
-async function mountCard(hardware: HardwareReport = RTX_5070, isDev?: boolean) {
+ *  runs in jsdom), then mounts the card fresh over the current module graph. */
+async function mountCard(opts: MountOptions = {}) {
+  const { hardware = RTX_5070, isDev, hostname, initialOs } = opts
   const { useHardwareDetection } = await import('../../composables/useHardwareDetection')
   await useHardwareDetection().run(async () => hardware)
   const { default: ProviderOnboardingCard } = await import('./ProviderOnboardingCard.vue')
-  return mount(ProviderOnboardingCard, { props: isDev === undefined ? {} : { isDev } })
+  const props: Record<string, unknown> = {}
+  if (isDev !== undefined) props.isDev = isDev
+  if (hostname !== undefined) props.hostname = hostname
+  if (initialOs !== undefined) props.initialOs = initialOs
+  return mount(ProviderOnboardingCard, { props })
 }
 
 describe('ProviderOnboardingCard', () => {
@@ -65,7 +79,7 @@ describe('ProviderOnboardingCard', () => {
   })
 
   it('shows a cloud-recommended fit line when no suitable GPU is detected', async () => {
-    const wrapper = await mountCard(unknownHardwareReport())
+    const wrapper = await mountCard({ hardware: unknownHardwareReport() })
     expect(wrapper.get('[data-test="hardware-fit-line"]').text().toLowerCase()).toContain('cloud')
   })
 
@@ -80,16 +94,15 @@ describe('ProviderOnboardingCard', () => {
   })
 
   it('choosing Local applies the Kev preset via usePreferences and shows the setup summary', async () => {
-    const wrapper = await mountCard(RTX_5070, true)
+    const wrapper = await mountCard({ isDev: true, initialOs: 'windows' })
     await wrapper.get('[data-test="choice-local"]').trigger('click')
 
     const { usePreferences } = await import('../../composables/usePreferences')
     expect(usePreferences().state.provider).toEqual(defaultLocalProviderConfig())
 
     expect(wrapper.get('[data-test="command-shortcut"]').text()).toBe('pnpm local:kev --model kev-4b')
-    expect(wrapper.get('[data-test="command-clone"]').text()).toBe(
-      'git clone https://github.com/jaredpalmer/kev.git && cd kev',
-    )
+    expect(wrapper.get('[data-test="command-clone"]').text()).toBe('git clone https://github.com/jaredpalmer/kev.git')
+    expect(wrapper.get('[data-test="command-cd"]').text()).toBe('cd kev')
     expect(wrapper.get('[data-test="command-sync"]').text()).toBe('uv sync --extra serve')
     expect(wrapper.get('[data-test="command-serve"]').text()).toBe(
       'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009',
@@ -100,21 +113,21 @@ describe('ProviderOnboardingCard', () => {
 
   describe('recommended model follows the detected hardware', () => {
     it('recommends Kev 4B for a 12 GB GPU', async () => {
-      const wrapper = await mountCard(RTX_5070)
+      const wrapper = await mountCard({ hardware: RTX_5070 })
       await wrapper.get('[data-test="choice-local"]').trigger('click')
       expect(wrapper.get('[data-test="recommended-model-line"]').text()).toBe('Recommended for your GPU: Kev 4B')
       expect(wrapper.get('[data-test="command-serve"]').text()).toContain('jaredpalmer/kev-4b')
     })
 
     it('recommends Kev 9B for a 24 GB GPU', async () => {
-      const wrapper = await mountCard(RTX_4090)
+      const wrapper = await mountCard({ hardware: RTX_4090 })
       await wrapper.get('[data-test="choice-local"]').trigger('click')
       expect(wrapper.get('[data-test="recommended-model-line"]').text()).toBe('Recommended for your GPU: Kev 9B')
       expect(wrapper.get('[data-test="command-serve"]').text()).toContain('jaredpalmer/kev-9b')
     })
 
     it('recommends the smallest Kev with a hint when hardware detection is unknown', async () => {
-      const wrapper = await mountCard(unknownHardwareReport())
+      const wrapper = await mountCard({ hardware: unknownHardwareReport() })
       await wrapper.get('[data-test="choice-local"]').trigger('click')
       expect(wrapper.get('[data-test="recommended-model-line"]').text()).toBe(
         'Recommended for your GPU: Kev 0.8B (smallest; detection unknown)',
@@ -123,26 +136,66 @@ describe('ProviderOnboardingCard', () => {
     })
   })
 
-  describe('the repo shortcut only makes sense from the repo dev server', () => {
-    it('shows the pnpm local:kev shortcut in dev mode', async () => {
-      const wrapper = await mountCard(RTX_5070, true)
+  describe('OS toggle (same options as the Settings guide)', () => {
+    it('defaults to the given initialOs (test override for detectOs(navigator))', async () => {
+      const wrapper = await mountCard({ initialOs: 'macos' })
       await wrapper.get('[data-test="choice-local"]').trigger('click')
-      expect(wrapper.find('[data-test="command-shortcut"]').exists()).toBe(true)
-      expect(wrapper.find('[data-test="hosted-hint"]').exists()).toBe(false)
+      expect(wrapper.get('[data-test="segment-macos"]').attributes('aria-checked')).toBe('true')
+      expect(wrapper.get('[data-test="command-clone"]').text()).toBe(
+        'git clone https://github.com/jaredpalmer/kev.git && cd kev',
+      )
     })
 
-    it('hides the shortcut and shows a hint when not running from the repo dev server', async () => {
-      const wrapper = await mountCard(RTX_5070, false)
+    it('switching to Windows splits clone/cd into two lines', async () => {
+      const wrapper = await mountCard({ initialOs: 'linux' })
       await wrapper.get('[data-test="choice-local"]').trigger('click')
-      expect(wrapper.find('[data-test="command-shortcut"]').exists()).toBe(false)
-      expect(wrapper.text()).not.toContain('pnpm local:kev')
-      expect(wrapper.get('[data-test="hosted-hint"]').text()).toMatch(
-        /clone the repo or run kev manually with the commands below/i,
-      )
+      await wrapper.get('[data-test="segment-windows"]').trigger('click')
+      expect(wrapper.get('[data-test="command-clone"]').text()).toBe('git clone https://github.com/jaredpalmer/kev.git')
+      expect(wrapper.get('[data-test="command-cd"]').text()).toBe('cd kev')
     })
   })
 
-  describe('copy buttons', () => {
+  describe('the repo shortcut only makes sense from the repo dev server', () => {
+    it('shows "From the project folder", the shortcut and the --dir hint in dev mode', async () => {
+      const wrapper = await mountCard({ isDev: true, initialOs: 'windows' })
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.find('[data-test="command-shortcut"]').exists()).toBe(true)
+      expect(wrapper.get('[data-test="command-project-folder"]').text()).toBe('cd local-issue-classifier')
+      expect(wrapper.text()).toMatch(/from the project folder/i)
+      expect(wrapper.text()).toMatch(/--dir `?C:\\path\\to\\kev/)
+      expect(wrapper.text()).toMatch(/skips clone and sync/)
+    })
+
+    it('hides the shortcut and the project-folder step outside dev mode', async () => {
+      const wrapper = await mountCard({ isDev: false, hostname: 'localhost' })
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.find('[data-test="command-shortcut"]').exists()).toBe(false)
+      expect(wrapper.find('[data-test="command-project-folder"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('pnpm local:kev')
+    })
+  })
+
+  describe('critical-information callouts (UiCallout)', () => {
+    it('shows Prerequisites, the GPU-optional note and what will not work', async () => {
+      const wrapper = await mountCard()
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+
+      const prereqs = wrapper.get('[data-test="callout-prereqs"]')
+      expect(prereqs.classes()).toContain('ui-callout--warning')
+      expect(prereqs.text()).toMatch(/git, python 3\.12 or 3\.13, and uv/i)
+
+      const gpu = wrapper.get('[data-test="callout-gpu-optional"]')
+      expect(gpu.classes()).toContain('ui-callout--warning')
+      expect(gpu.text()).toMatch(/nvidia gpu is optional/i)
+
+      const unsupported = wrapper.get('[data-test="callout-unsupported"]')
+      expect(unsupported.classes()).toContain('ui-callout--danger')
+      expect(unsupported.attributes('role')).toBe('alert')
+      expect(unsupported.text()).toMatch(/won't work/i)
+    })
+  })
+
+  describe('copy buttons (CopyCommandLine, icon-only)', () => {
     const originalClipboard = navigator.clipboard
 
     afterEach(() => {
@@ -154,14 +207,15 @@ describe('ProviderOnboardingCard', () => {
       const writeText = vi.fn().mockResolvedValue(undefined)
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
 
-      const wrapper = await mountCard(RTX_5070, true)
+      const wrapper = await mountCard({ isDev: true })
       await wrapper.get('[data-test="choice-local"]').trigger('click')
       await wrapper.get('[data-test="copy-serve"]').trigger('click')
 
       expect(writeText).toHaveBeenCalledWith(
         'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009',
       )
-      expect(wrapper.get('[data-test="copy-serve"]').text()).toMatch(/copied/i)
+      expect(wrapper.get('[data-test="copy-serve"]').attributes('aria-label')).toBe('Copy command')
+      expect(wrapper.get('[data-test="copied-serve"]').text()).toMatch(/copied/i)
     })
   })
 
@@ -230,7 +284,7 @@ describe('ProviderOnboardingCard', () => {
     expect(wrapper.get('[data-test="choice-local"]').classes()).not.toContain('provider-onboarding__choice--active')
   })
 
-  it('the two choice cards share the same base classes and an equal-columns grid (equal width/height)', async () => {
+  it('the choice cards share the same base classes and an equal, wrapping auto-fit grid', async () => {
     const wrapper = await mountCard()
     const cloud = wrapper.get('[data-test="choice-cloud"]')
     const local = wrapper.get('[data-test="choice-local"]')
@@ -240,14 +294,15 @@ describe('ProviderOnboardingCard', () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
     const source = readFileSync(join(__dirname, 'ProviderOnboardingCard.vue'), 'utf8')
-    expect(source).toMatch(/\.provider-onboarding__choices\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+    expect(source).toMatch(
+      /\.provider-onboarding__choices\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(14rem,\s*1fr\)\)/,
+    )
     expect(source).toMatch(/\.provider-onboarding__choices\s*\{[^}]*align-items:\s*stretch/)
   })
 
   it('never renders a primary-variant button (RepoInput stays Home\'s one primary action)', async () => {
     const wrapper = await mountCard()
     await wrapper.get('[data-test="choice-cloud"]').trigger('click')
-    await wrapper.get('[data-test="choice-local"]').trigger('click')
     expect(wrapper.find('.ui-button--primary').exists()).toBe(false)
   })
 
@@ -283,5 +338,96 @@ describe('ProviderOnboardingCard', () => {
     await wrapper.get('[data-test="browser-panel"] [data-test="download-model"]').trigger('click')
     await flushPromises()
     expect(runtime.loadModel).toHaveBeenCalledTimes(1)
+  })
+
+  // Bugfix (2026-09-24): the old `isDev`-only gate showed the "hosted page"
+  // hint even on a plain localhost dev server, because it never accounted
+  // for the loopback hostname (see domain/runtime.ts, useRuntime.ts).
+  describe('local vs. hosted runtime (domain/runtime.ts isLocalRuntime)', () => {
+    it('local runtime (dev server): renders the local card and no hosted hint', async () => {
+      const wrapper = await mountCard({ isDev: true, hostname: 'localhost' })
+      expect(wrapper.find('[data-test="choice-local"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="local-in-settings-hint"]').exists()).toBe(false)
+    })
+
+    it('local runtime via loopback hostname alone (e.g. `vite preview`, dev=false): still shows the local card', async () => {
+      const wrapper = await mountCard({ isDev: false, hostname: '127.0.0.1' })
+      expect(wrapper.find('[data-test="choice-local"]').exists()).toBe(true)
+    })
+
+    it('hosted mode (not local runtime): hides the "On this computer" card entirely (v-if, no placeholder), keeps only Cloud, and shows the Settings link instead', async () => {
+      const wrapper = await mountCard({ isDev: false, hostname: 'example.com' })
+      expect(wrapper.find('[data-test="choice-local"]').exists()).toBe(false)
+      expect(wrapper.find('[data-test="choice-cloud"]').exists()).toBe(true)
+
+      const hint = wrapper.get('[data-test="local-in-settings-hint"]')
+      expect(hint.text()).toMatch(/have a kev\/jevk5 server on your machine\?/i)
+      expect(hint.text()).toMatch(/configure it in settings/i)
+
+      expect(wrapper.find('[data-test="hosted-hint"]').exists()).toBe(false)
+    })
+
+    it('hosted mode never renders the local panel even if a local provider was already configured', async () => {
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: defaultLocalProviderConfig() })
+
+      const wrapper = await mountCard({ isDev: false, hostname: 'example.com' })
+      expect(wrapper.find('[data-test="local-panel"]').exists()).toBe(false)
+    })
+
+    it('clicking the Settings link in hosted mode opens Settings', async () => {
+      const wrapper = await mountCard({ isDev: false, hostname: 'example.com' })
+      const { useView } = await import('../../composables/useView')
+      await wrapper.get('[data-test="local-in-settings-hint"] button').trigger('click')
+      expect(useView().state.view).toBe('settings')
+    })
+  })
+
+  // Card matrix (merge of the local-runtime gate and the WebGPU gate): every
+  // card is `v-if`-rendered in one auto-fit grid, so the grid holds exactly
+  // the cards that apply — never an empty slot or placeholder element.
+  describe('choice-card matrix (runtime x WebGPU)', () => {
+    const cases = [
+      { name: 'local + WebGPU', hostname: 'localhost', support: 'webgpu', cards: ['choice-cloud', 'choice-local', 'choice-browser'] },
+      { name: 'local without WebGPU', hostname: 'localhost', support: 'wasm', cards: ['choice-cloud', 'choice-local'] },
+      { name: 'hosted + WebGPU', hostname: 'example.com', support: 'webgpu', cards: ['choice-cloud', 'choice-browser'] },
+      { name: 'hosted without WebGPU', hostname: 'example.com', support: 'wasm', cards: ['choice-cloud'] },
+    ] as const
+
+    for (const c of cases) {
+      it(`${c.name}: renders exactly ${c.cards.length} card(s) and no placeholder`, async () => {
+        const { configureProvider } = await import('../../composables/useProvider')
+        configureProvider({ browser: fakeBrowserRuntime({ support: c.support }) })
+        const wrapper = await mountCard({ isDev: false, hostname: c.hostname })
+        await flushPromises()
+
+        const grid = wrapper.get('.provider-onboarding__choices')
+        const children = grid.element.children
+        expect(children).toHaveLength(c.cards.length)
+        expect(Array.from(children).map((el) => el.getAttribute('data-test'))).toEqual([...c.cards])
+        expect(wrapper.findAll('.provider-onboarding__choice')).toHaveLength(c.cards.length)
+      })
+    }
+
+    it('the grid never switches to a fixed three-column modifier', async () => {
+      const { configureProvider } = await import('../../composables/useProvider')
+      configureProvider({ browser: fakeBrowserRuntime({ support: 'webgpu' }) })
+      const wrapper = await mountCard({ isDev: true, hostname: 'localhost' })
+      await flushPromises()
+      expect(wrapper.get('.provider-onboarding__choices').classes()).toEqual(['provider-onboarding__choices'])
+    })
+
+    it('reflects an already-configured browser provider as the active choice on mount', async () => {
+      const { configureProvider } = await import('../../composables/useProvider')
+      configureProvider({ browser: fakeBrowserRuntime({ support: 'webgpu' }) })
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: { kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' } })
+
+      const wrapper = await mountCard({ isDev: true, hostname: 'localhost' })
+      await flushPromises()
+      expect(wrapper.get('[data-test="choice-browser"]').classes()).toContain('provider-onboarding__choice--active')
+      expect(wrapper.get('[data-test="choice-local"]').classes()).not.toContain('provider-onboarding__choice--active')
+      expect(wrapper.get('[data-test="choice-cloud"]').classes()).not.toContain('provider-onboarding__choice--active')
+    })
   })
 })

@@ -37,6 +37,9 @@ exports[`tokensToCss > emits the dark theme variables 1`] = `
   --color-scale-3: #FACC15;
   --color-scale-4: #FB923C;
   --color-scale-5: #F87171;
+  --color-warning-soft: #1A1816;
+  --color-danger-soft: #1B1617;
+  --color-info-soft: #15171C;
   --color-overlay: rgba(0, 0, 0, 0.7);
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --elev-2: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -147,6 +150,9 @@ exports[`tokensToCss > emits the light theme variables 1`] = `
   --color-scale-3: #975A06;
   --color-scale-4: #C2410C;
   --color-scale-5: #B91C1C;
+  --color-warning-soft: #F6F2EF;
+  --color-danger-soft: #F9F0EF;
+  --color-info-soft: #EEF2F9;
   --color-overlay: rgba(9, 9, 11, 0.4);
   --elev-1: 0 1px 2px rgba(9, 9, 11, 0.04);
   --elev-2: 0 4px 16px rgba(9, 9, 11, 0.08);

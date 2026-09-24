@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { contrastRatio } from './contrast'
+import { mixOklab } from './colorMix'
 import {
+  CALLOUT_TINT_PERCENT,
   CONTRAST_PAIRS,
   COLOR_ROLES,
   THEMES,
@@ -45,6 +47,31 @@ describe('color tokens', () => {
         `on-inverse on ${bg}`,
       ).toBe(true)
     }
+  })
+
+  // UiCallout (FB local-setup UX task): the tinted background is
+  // `color-mix(in oklab, var(--color-<tone>) <pct>%, var(--color-surface))`
+  // in the live CSS; these `*-soft` tokens hold the exact same computation
+  // (via the same mixOklab helper) purely so the AA check below can run in
+  // plain Node. If either the base tone or `surface` ever changes, this test
+  // fails until the `*-soft` value is recomputed to match.
+  describe('UiCallout tint tokens (warning-soft, danger-soft, info-soft)', () => {
+    it.each(THEMES)('match a fresh mixOklab(tone, surface, %s) in the %s theme', (theme) => {
+      for (const tone of ['warning', 'danger', 'info'] as const) {
+        expect(tokens.color[theme][`${tone}-soft`]).toBe(
+          mixOklab(tokens.color[theme][tone], tokens.color[theme].surface, CALLOUT_TINT_PERCENT),
+        )
+      }
+    })
+
+    it('the tone-on-tint pairs are checked for AA in CONTRAST_PAIRS', () => {
+      for (const tone of ['warning', 'danger', 'info'] as const) {
+        expect(
+          CONTRAST_PAIRS.some((p) => p.fg === tone && p.bg === `${tone}-soft` && p.kind === 'text'),
+          `${tone} on ${tone}-soft`,
+        ).toBe(true)
+      }
+    })
   })
 
   it('checks every text role against every surface it can sit on', () => {

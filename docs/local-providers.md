@@ -39,14 +39,41 @@ detected hardware instead of a fixed size.
 
 ## Run Kev
 
-The commands below are the same on Windows, macOS and Linux, except installing uv (above) and the
-optional CUDA step.
+The `sync` and `serve` commands below are the same on Windows, macOS and Linux (besides installing
+uv, above, and the optional CUDA step). The clone step differs: macOS and Linux fold it into one
+`&&` line; Windows splits it into two.
+
+**macOS / Linux** (bash/zsh, which have always supported `&&`):
 
 ```sh
 git clone https://github.com/jaredpalmer/kev.git && cd kev
 uv sync --extra serve
 uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 ```
+
+**Windows** (PowerShell), as two separate lines instead of one `&&` line:
+
+```powershell
+git clone https://github.com/jaredpalmer/kev.git
+cd kev
+uv sync --extra serve
+uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
+```
+
+PowerShell 5.1 — the version Windows 10/11 ships and opens by default, unless PowerShell 7 was
+installed separately — has no `&&` (or `||`) pipeline chain operator: typing the one-line
+macOS/Linux form there is a syntax error. Confirmed against Microsoft's own docs (checked
+2026-09-24): "Beginning in PowerShell 7, PowerShell implements the `&&` and `||` operators to
+conditionally chain pipelines"
+(<https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_pipeline_chain_operators>)
+— i.e. `&&` did not exist before PowerShell 7. The in-app guide
+([`LocalSetupGuide`](../src/components/ui/LocalSetupGuide.vue), via
+[`kevCommands`](../src/domain/localCommands.ts)) already emits the right form for whichever OS its
+toggle is set to.
+
+Already have a Kev checkout from an earlier session? `pnpm local:kev --dir <path-to-kev>` skips the
+clone and the sync (see "Or skip all three commands" below) — the in-app guide's shortcut line
+shows the same hint, with a path example in your OS's own separator style.
 
 - `--run` takes a Hub model id (`jaredpalmer/kev-0.8b`, `jaredpalmer/kev-4b`, `jaredpalmer/kev-9b`),
   a local checkpoint directory, or a revision (`jaredpalmer/kev-4b@qwen3`).
