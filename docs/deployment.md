@@ -22,19 +22,23 @@ The browser calls `/jev/v1/systemone`; the Vite server forwards it to
 | Mode | Status | Where Jev calls go | `VITE_JEV_BASE_URL` |
 |------|--------|--------------------|---------------------|
 | (a) Local, Vite proxy | **implemented (v1)** | `localhost:5200/jev/...` → `api.typesafe.ai` | `/jev` (default) |
-| (b) Hosted, same-origin rewrite | future, not implemented | `/jev/**` rewritten to a serverless function | `/jev` |
+| (b) Hosted, same-origin function | reference implementation, not deployed | `/jev/**` served by a Cloudflare Pages Function | `/jev` |
 | (b') Hosted, function on another origin | future, not implemented | the function's absolute URL | e.g. `https://fn.example.com/jev` |
 
 ### (a) Local proxy: what it does
 
 Built by `server/jevProxy.ts` and registered in `vite.config.ts` for both `server.proxy` and
-`preview.proxy`:
+`preview.proxy`. Every request first goes through the shared policy in `server/jevProxyPolicy.ts`,
+the same one the hosted function uses (see [security.md](security.md#the-proxy-trust-boundary)):
 
 | Rule | Behaviour |
 |------|-----------|
-| Allowlist | Only `/jev/v1/systemone` and `/jev/v1/models` are forwarded. Any other path under `/jev` gets a 404 and never reaches upstream. |
+| Allowlist | Only `POST /jev/v1/systemone` and `GET /jev/v1/models` are forwarded. Any other path under `/jev` gets a 404, a wrong method a 405, and neither reaches upstream. |
+| Callers | Same-origin only: `Sec-Fetch-Site: same-origin`, or an `Origin`/`Referer` of `http://localhost:5200`, `http://127.0.0.1:5200` or `http://[::1]:5200`. Anything else gets a 403. |
+| Limits | Bodies up to 2 MB (413 above). 300 requests per minute and 3 000 per hour per client IP (429 with `Retry-After`). |
 | Rewrite | `/jev` is stripped, so `/jev/v1/models` becomes `/v1/models` upstream. |
-| Headers | `origin`, `referer` and `cookie` are removed, so upstream sees a server-to-server call. `authorization` and the JSON body are forwarded unchanged. |
+| Headers | Only `authorization`, `content-type` and `accept` are forwarded, plus the transport headers of the hop. `origin`, `referer`, `cookie` and everything else are removed, so upstream sees a server-to-server call. The JSON body is forwarded unchanged. |
+| Answers | `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Upstream `Set-Cookie` is dropped. No CORS headers. |
 | Logging | The proxy code logs nothing. Vite itself prints a one-line `http proxy error` with the path (never headers or bodies) if the upstream cannot be reached. |
 | Binding | Vite binds to `localhost` only. Do not set `host: true`: other machines on the LAN must not use the proxy. |
 
@@ -58,24 +62,81 @@ This proxy exists **only in the local Vite server** (`pnpm dev`, `pnpm preview`)
 (modes b and b') would not offer local providers: a public relay into private networks is exactly
 what the target check forbids.
 
-### (b) Hosted: the contract a future function must honour
+### (b) Hosted: the Cloudflare Pages Function
 
-- The same two allowlisted paths.
-- Forward `Authorization` and the JSON body unchanged.
-- Strip `cookie`, `origin` and `referer`.
-- No logging of headers or bodies, and no storage.
-- With a function on another origin: set `VITE_JEV_BASE_URL` to its absolute URL, add that origin to
-  the CSP `connect-src` in `index.html`, and let the function answer CORS for the site origin only.
+`functions/jev/[[path]].ts` is a reference implementation for Cloudflare Pages. **This repository
+does not deploy it.** Pages routes every path under `/jev/` to it, so the site keeps
+`VITE_JEV_BASE_URL=/jev` and stays same-origin. `functions/` is not part of the Vite build: `dist/`
+never contains it.
 
-Before going public, such a function needs its own review of abuse and rate limiting: it is an open
-relay for anyone who holds a Jev key. That design is out of scope for v1.
+It applies the same policy as the local proxy (`server/jevProxyPolicy.ts`):
+
+| Rule | Hosted behaviour |
+|------|------------------|
+| Allowlist | `POST /jev/v1/systemone`, `GET /jev/v1/models`. Otherwise 404 or 405. `OPTIONS` gets a 204 with no CORS headers. |
+| Same-origin | `Sec-Fetch-Site: same-origin`, or an `Origin`/`Referer` listed in `ALLOWED_ORIGINS`. Otherwise 403, so `issueclassifier.com/jev` is not a public relay. |
+| Rate limits | 300 per minute and 3 000 per hour per `CF-Connecting-IP`, 429 with `Retry-After`. The in-memory bucket is **per isolate**. Use the `sharedLimiter` hook (Durable Object or KV) for a global limit; see [security.md](security.md#the-proxy-trust-boundary). |
+| Body | At most 2 MB, checked against both `Content-Length` and the bytes actually read (413). |
+| Headers | Only `authorization`, `content-type`, `accept` go upstream. Only `content-type`, `retry-after`, `retry-after-ms` come back. |
+| Answers | `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. A failed upstream gets a 502 with no detail. |
+| Logging | None, and no storage. |
+
+Environment variables (set them in the Pages project, never in the repository):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ALLOWED_ORIGINS` | none (only `Sec-Fetch-Site: same-origin` passes) | Comma-separated site origins, e.g. `https://issueclassifier.com,https://www.issueclassifier.com`. |
+| `JEV_UPSTREAM_URL` | `https://api.typesafe.ai` | Upstream origin. |
+
+A function on **another origin** (mode b') would additionally need CORS for the site origin only, a
+`VITE_JEV_BASE_URL` set to its absolute URL, and that origin in the CSP `connect-src` in
+`index.html`. The reference function does not implement it.
+
+### Asking TypeSafe for CORS (removes the proxy)
+
+The proxy exists only because the Jev API rejects browser origins. If TypeSafe allows the site's
+origin, the browser could call Jev directly with the user's own key. The proxy, its rate limiter and
+its hosting cost would then go away. What to ask for:
+
+- Allow the origin `https://issueclassifier.com` for `POST /v1/systemone` and `GET /v1/models`.
+- Allow the request headers `Authorization` and `Content-Type`.
+- Expose the `Retry-After` and `Retry-After-Ms` response headers, which the app uses for backoff.
+
+Once granted: set `VITE_JEV_BASE_URL=https://api.typesafe.ai`, add `https://api.typesafe.ai` to the
+CSP `connect-src`, and stop deploying the function.
+
+Ready-to-send message:
+
+```text
+Subject: CORS allowlist request for issueclassifier.com
+
+Hello TypeSafe team,
+
+I maintain local-issue-classifier, an open-source web app that rates GitHub issues with Jev.
+Each user brings their own Jev API key. The key stays in their browser tab and is sent only to
+your API.
+
+Today the browser cannot call api.typesafe.ai directly because the API rejects browser origins,
+so we relay requests through a small same-origin proxy. We would prefer to remove that proxy.
+
+Could you allow CORS for the origin https://issueclassifier.com on these endpoints?
+
+- POST /v1/systemone
+- GET /v1/models
+
+The requests carry the Authorization and Content-Type headers. It would also help to expose the
+Retry-After and Retry-After-Ms response headers, so the app can back off correctly on 429s.
+
+No other origin or endpoint is needed. Thank you!
+```
 
 ## Configuration
 
 | Variable | Read by | Default | Purpose |
 |----------|---------|---------|---------|
 | `VITE_JEV_BASE_URL` | browser bundle and `vite.config.ts` | `/jev` | Base URL of the Jev proxy. When it is a path, the local proxy listens on that path. Not a secret. |
-| `JEV_UPSTREAM_URL` | `vite.config.ts` only (never bundled) | `https://api.typesafe.ai` | Where the local proxy forwards. Point it at any server that speaks the same `/v1/systemone` and `/v1/models` API. |
+| `JEV_UPSTREAM_URL` | `vite.config.ts` and the hosted function (never bundled) | `https://api.typesafe.ai` | Where the proxy forwards. Point it at any server that speaks the same `/v1/systemone` and `/v1/models` API. |
+| `ALLOWED_ORIGINS` | the hosted function only | none | Site origins accepted from `Origin`/`Referer`; see mode (b). |
 
 The model name defaults to `jev-latest` (one constant, `DEFAULT_JEV_MODEL` in `src/domain/types.ts`)
 and can be changed in Preferences. The response's `confidence` fields are optional, so a compatible
