@@ -30,7 +30,11 @@ import {
   KEV_OS_OPTIONS,
   KEV_PREREQS_NOTE,
   KEV_UNSUPPORTED_NOTE,
+  LAYA_CONTEXT_NOTE,
+  LAYA_CPU_NOTE,
+  LAYA_PREREQS_NOTE,
   kevCommands,
+  layaCommands,
 } from '../../domain/localCommands'
 import type { KevOs } from '../../domain/localCommands'
 
@@ -39,12 +43,16 @@ const props = defineProps<{
   status: ProviderProbeResult['status'] | null
 }>()
 
-type GuideProvider = 'kev' | 'jevk5'
+type GuideProvider = 'kev' | 'jevk5' | 'laya'
 
 const PROVIDER_OPTIONS: SegmentedOption[] = [
   { value: 'kev', label: 'Kev' },
   { value: 'jevk5', label: 'JevK5' },
+  { value: 'laya', label: 'Laya' },
 ]
+
+/** LOCAL_PRESETS[2] (Laya), src/domain/provider.ts. */
+const LAYA_PORT = 8000
 
 // Kev ships three sizes (LOCAL_TIERS, docs/hardware-fit.md); JevK5 is one model.
 const KEV_MODEL_OPTIONS: SelectOption[] = LOCAL_TIERS.filter((t) => t.id !== 'jevk5').map((t) => ({
@@ -67,6 +75,8 @@ const CALLOUT_TONE: Partial<Record<string, CalloutTone>> = {
   'gpu-optional': 'warning',
   unsupported: 'danger',
   cuda: 'warning',
+  context: 'warning',
+  'cpu-ok': 'info',
 }
 
 const provider = ref<GuideProvider>('kev')
@@ -111,7 +121,18 @@ const jevk5Steps: GuideStep[] = [
   { id: 'serve', label: 'Start the server', command: 'jevk5-serve --model alibiserikbay/JevK5 --port 8090' },
 ]
 
-const steps = computed<GuideStep[]>(() => (provider.value === 'kev' ? kevSteps.value : jevk5Steps))
+const layaSteps = computed<GuideStep[]>(() => [
+  { id: 'prereqs', label: 'Prerequisites', command: null, note: LAYA_PREREQS_NOTE },
+  { id: 'cpu-ok', label: 'CPU is enough', command: null, note: LAYA_CPU_NOTE },
+  { id: 'context', label: 'Small context', command: null, note: LAYA_CONTEXT_NOTE },
+  ...layaCommands({ port: LAYA_PORT, os: os.value }),
+])
+
+const steps = computed<GuideStep[]>(() => {
+  if (provider.value === 'kev') return kevSteps.value
+  if (provider.value === 'jevk5') return jevk5Steps
+  return layaSteps.value
+})
 </script>
 
 <template>
@@ -130,7 +151,9 @@ const steps = computed<GuideStep[]>(() => (provider.value === 'kev' ? kevSteps.v
         hint="Pick the size that fits your GPU (docs/hardware-fit.md); Test connection lists what the server actually serves."
         @update:model-value="kevModel = $event"
       />
-      <p v-else class="local-setup-guide__note">JevK5 is one model, needing ~{{ JEVK5_TIER.requiredGb }} GB of GPU memory.</p>
+      <p v-else-if="provider === 'jevk5'" class="local-setup-guide__note">
+        JevK5 is one model, needing ~{{ JEVK5_TIER.requiredGb }} GB of GPU memory.
+      </p>
 
       <ol class="local-setup-guide__steps">
         <li v-for="step in steps" :key="step.id" class="local-setup-guide__step">
