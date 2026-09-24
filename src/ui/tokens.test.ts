@@ -25,7 +25,7 @@ describe('color tokens', () => {
     }
   })
 
-  // SPEC §10.2 / §10.7: the test is the authority, not the hex values in the table.
+  // The test is the authority, not the hex values in the table.
   describe.each(THEMES)('WCAG 2.2 AA in the %s theme', (theme) => {
     it.each(CONTRAST_PAIRS.map((p) => [`${p.fg} on ${p.bg}`, p] as const))(
       '%s',

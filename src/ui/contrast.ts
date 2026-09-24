@@ -1,4 +1,4 @@
-// Pure WCAG 2.x contrast math. Used by the token AA test (SPEC §10.2); no DOM.
+// Pure WCAG 2.x contrast math. Used by the token AA test; no DOM.
 
 export type Rgb = [number, number, number]
 

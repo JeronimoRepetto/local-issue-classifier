@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Tooltip (SPEC §10.4): shown on hover and focus after 300 ms, hidden on leave,
+// Tooltip: shown on hover and focus after 300 ms, hidden on leave,
 // blur or Escape. Plain text only, never interactive content.
 import { onBeforeUnmount, ref, useId } from 'vue'
 

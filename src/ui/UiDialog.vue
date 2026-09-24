@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Modal dialog (SPEC §10.4 / §10.7): focus trap, Esc closes, focus returns to
+// Modal dialog: focus trap, Esc closes, focus returns to
 // the opener, and a destructive variant gated by a typed confirmation phrase.
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import UiButton from './UiButton.vue'

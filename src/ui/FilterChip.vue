@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Filter chip (SPEC §10.4): inactive / active (aria-pressed) / removable (×).
+// Filter chip: inactive / active (aria-pressed) / removable (×).
 // With `summary`, it is the "N filters" chip that opens the filter panel.
 import IconClose from '../assets/icons/IconClose.vue'
 

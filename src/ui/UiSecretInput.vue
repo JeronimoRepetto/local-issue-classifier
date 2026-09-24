@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Secret field (SPEC §10.4). It never persists anything itself: the value flows
+// Secret field. It never persists anything itself: the value flows
 // through v-model only, and the browser is told not to remember it.
 import { computed, ref, useId } from 'vue'
 import UiButton from './UiButton.vue'

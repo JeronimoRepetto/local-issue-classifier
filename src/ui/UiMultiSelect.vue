@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Multi-select (SPEC §10.4): selected values as removable chips, a listbox with
+// Multi-select: selected values as removable chips, a listbox with
 // aria-multiselectable, arrow keys, Enter/Space to toggle and type-ahead.
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import FilterChip from './FilterChip.vue'

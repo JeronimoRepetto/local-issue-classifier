@@ -1,4 +1,4 @@
-// Motion helpers (SPEC §10.6). CSS already zeroes the `--dur-*` variables under
+// Motion helpers. CSS already zeroes the `--dur-*` variables under
 // `prefers-reduced-motion`; this composable gives JS-driven timings (toast
 // timers, sprite steps, FLIP) the same answer.
 import { computed, getCurrentScope, onScopeDispose, readonly, ref } from 'vue'

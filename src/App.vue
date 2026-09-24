@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// App shell (SPEC §6.1, design v2): a tiny view state (home | analysis |
+// App shell (design v2): a tiny view state (home | analysis |
 // settings) plus a hairline top bar with the pixel logo and wordmark, a mono
 // nav and a theme toggle. Home renders HomeContainer, Settings
 // renders SettingsContainer and the analysis view renders AnalysisViewContainer.
@@ -35,7 +35,7 @@ import KeysRequiredBanner from './components/ui/KeysRequiredBanner.vue'
 import UiToastStack from './ui/UiToastStack.vue'
 import type { ToastItem } from './ui/UiToastStack.vue'
 
-// Dev-only UI kit (SPEC §10.4). In production `import.meta.env.DEV` is the
+// Dev-only UI kit. In production `import.meta.env.DEV` is the
 // literal `false`, so the dynamic import and the kit chunk are dropped.
 const KitPage =
   import.meta.env.DEV && isKitRequested(window.location.search)
@@ -84,7 +84,7 @@ watch(
 )
 onBeforeUnmount(() => stopTheme())
 
-// Boot (SPEC §2.2 item 2): move any legacy localStorage analyses into
+// Boot: move any legacy localStorage analyses into
 // IndexedDB (one-line notice when something moved), then restore
 // Preferences.lastAnalysisId. No view renders until this finishes.
 const booting = ref(true)

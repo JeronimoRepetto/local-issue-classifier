@@ -20,7 +20,7 @@ body {
   color: var(--color-text);
 }
 
-/* SPEC §10.7: a 2 px accent ring with a 2 px offset, shown instantly. */
+/* A 2 px accent ring with a 2 px offset, shown instantly. */
 :focus-visible {
   outline: var(--line-thick) solid var(--color-accent);
   outline-offset: var(--line-thick);

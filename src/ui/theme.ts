@@ -1,4 +1,4 @@
-// Theme switching (SPEC §10.2): the preference is 'system' | 'light' | 'dark';
+// Theme switching: the preference is 'system' | 'light' | 'dark';
 // the resolved theme lands on `<html data-theme>`, which the token CSS keys on.
 import { buildStylesheet, tokens } from './tokens'
 import type { ThemeName } from './tokens'

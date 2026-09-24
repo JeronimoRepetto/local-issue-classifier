@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Range slider with a paired numeric input (SPEC §10.4), step 5 by default.
+// Range slider with a paired numeric input, step 5 by default.
 import { computed, useId } from 'vue'
 
 const props = withDefaults(

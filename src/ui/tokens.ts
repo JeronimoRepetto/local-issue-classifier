@@ -1,4 +1,4 @@
-// Design tokens (SPEC §10.2). A typed, pure object; `tokensToCss` turns it into
+// Design tokens. A typed, pure object; `tokensToCss` turns it into
 // CSS custom properties scoped to `:root[data-theme=light|dark]`. This is the only
 // file in `src/` allowed to hold raw colors, pixel sizes and durations.
 
@@ -66,7 +66,7 @@ export interface Tokens {
   weight: { regular: number; medium: number; semibold: number }
   /** `spin` is one turn of the progress arc. */
   duration: { fast: number; base: number; slow: number; spin: number }
-  /** Upper bound for opacity fades under `prefers-reduced-motion` (SPEC §10.6). */
+  /** Upper bound for opacity fades under `prefers-reduced-motion`. */
   reducedFadeCap: number
   easing: { out: string; in: string; standard: string }
   motion: { shift: number; scale: number }
