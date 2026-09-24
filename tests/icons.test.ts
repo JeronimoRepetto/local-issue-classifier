@@ -1,4 +1,4 @@
-// Icon pipeline tests (SPEC §10.5): the normalizer, the generator, and a sanity
+// Icon pipeline tests: the normalizer, the generator, and a sanity
 // scan over every committed generated icon.
 import { describe, expect, it } from 'vitest'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'

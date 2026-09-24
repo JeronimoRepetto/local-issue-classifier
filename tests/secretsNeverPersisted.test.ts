@@ -1,4 +1,4 @@
-// SPEC.md §7.3 "Secrets never persisted, as a behaviour test", against the
+// "Secrets never persisted, as a behaviour test", against the
 // real (happy-dom) localStorage / sessionStorage / document.cookie.
 //
 // Task 4: the secrets now live in useSecrets() (in memory only), and the

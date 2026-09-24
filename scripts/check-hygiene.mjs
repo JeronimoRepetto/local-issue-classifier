@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// local-issue-classifier — public-repo hygiene checker (SPEC.md §12.2, Task 15).
+// local-issue-classifier — public-repo hygiene checker (Task 15).
 //
 // Scans the tracked file list for the things that must never reach a public
 // repository: a committed .env, token-like strings, real personal data
@@ -64,14 +64,14 @@ function redact(s) {
 }
 
 // ── Rule: real personal data (e-mail addresses, local machine paths) ─────
-// Scoped to fixtures and docs (SPEC.md §12.2's "fixtures and docs"), since
+// Scoped to fixtures and docs, since
 // that is where synthetic-vs-real data actually matters; application source
 // legitimately contains `git@github.com`-shaped SSH remote examples that are
 // not personal data.
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 const ALLOWED_EMAIL_DOMAINS = /@([a-z0-9-]+\.)*example\.(com|org|net|test)$/i
 // A trailing ellipsis ("C:\Users\…") means the text is *documenting* the
-// pattern (as SPEC.md and docs/release-checklist.md legitimately do), not
+// pattern (as internal docs legitimately do), not
 // naming a real path; a negative lookahead keeps a real "C:\Users\jane\..."
 // failing while sparing that documented form.
 const LOCAL_PATH_PATTERNS = [/C:\\Users\\(?!…)/i, /\/Users\/(?!…)/, /\/home\/(?!…)/]

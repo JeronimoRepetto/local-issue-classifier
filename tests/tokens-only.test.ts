@@ -1,4 +1,4 @@
-// SPEC §12.3 "Tokens only": no hex colors, pixel or millisecond literals in the
+// "Tokens only": no hex colors, pixel or millisecond literals in the
 // kit or global styles outside src/ui/tokens.ts. Generated icons are exempt
 // (their viewBox/size are grid units, checked by tests/icons.test.ts).
 import { describe, expect, it } from 'vitest'
@@ -20,7 +20,7 @@ function files(path: string): string[] {
   return readdirSync(path).flatMap((entry) => files(join(path, entry)))
 }
 
-describe('tokens only (SPEC §12.3)', () => {
+describe('tokens only', () => {
   it('finds no raw colors, px or ms outside tokens.ts', () => {
     const offenders: string[] = []
     for (const file of SCANNED.flatMap(files)) {

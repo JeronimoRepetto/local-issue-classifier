@@ -1,4 +1,4 @@
-// Task 15 — public-repo hygiene checker (SPEC.md §12.2). Exercises the pure
+// Task 15 — public-repo hygiene checker. Exercises the pure
 // rule functions against tiny fake tracked trees first, then runs the real
 // checker against this repository's actual tracked files.
 import { describe, expect, it } from 'vitest'
@@ -122,7 +122,7 @@ describe('findPersonalData', () => {
 
   it('allows a documented placeholder path ending in an ellipsis, in any doc', () => {
     const findings = findPersonalData([
-      { path: 'SPEC.md', content: 'No machine paths such as `C:\\Users\\…`.' },
+      { path: 'docs/architecture.md', content: 'No machine paths such as `C:\\Users\\…`.' },
       { path: 'docs/release-checklist.md', content: 'No machine paths such as `C:\\Users\\…`.' },
     ])
     expect(findings).toEqual([])

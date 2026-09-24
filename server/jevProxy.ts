@@ -1,5 +1,5 @@
 // local-issue-classifier — local Jev proxy for `pnpm dev` and `pnpm preview`
-// (SPEC.md §4.1, §8 "Proxy hardening", §9 mode a). Node-only; imported by
+// Node-only; imported by
 // vite.config.ts alone.
 //
 // The Jev API rejects browser origins, so the browser calls `/jev/v1/...` on

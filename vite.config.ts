@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
   // '' prefix: also read the server-only JEV_UPSTREAM_URL (never bundled into the client).
   const env = loadEnv(mode, process.cwd(), '')
   const prefix = jevProxyPrefix(env.VITE_JEV_BASE_URL)
-  // Jev proxy (SPEC §4.1, §9 mode a): the same allowlisted, header-stripping,
+  // Jev proxy: the same allowlisted, header-stripping,
   // silent proxy serves `pnpm dev` and `pnpm preview`. Bound to localhost only.
   const jevProxy = createJevProxy({ target: env.JEV_UPSTREAM_URL || JEV_UPSTREAM_DEFAULT, prefix })
 
