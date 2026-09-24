@@ -25,6 +25,7 @@ import { detectHardware } from '../../adapters/hardware/detect'
 import { defaultLocalProviderConfig } from '../../domain/provider'
 import type { ProviderProbeResult } from '../../domain/provider'
 import { fitTiers } from '../../domain/hardware'
+import type { TierVerdictKind } from '../../domain/hardware'
 
 const provider = useProvider()
 const prefs = usePreferences()
@@ -80,6 +81,47 @@ function openSettings(): void {
   view.openSettings()
 }
 
+// "Your computer" box (Home, requested after the provider-card approval):
+// makes the same passive fitTiers() verdict HardwareFitPanel shows in
+// Settings visible on Home too, as a compact secondary box — never a second
+// detection run, always the shared useHardwareDetection() cache above.
+const hwDetecting = computed(() => hw.report.value === null)
+
+const hwBoxGpu = computed(() => {
+  const gpu = hw.report.value?.gpu
+  if (!gpu) return ''
+  if (!gpu.model) return 'Unknown GPU — set it in Settings'
+  return gpu.vramGb !== null ? `${gpu.model} · ${gpu.vramGb} GB` : gpu.model
+})
+
+const hwBoxRam = computed(() => {
+  const report = hw.report.value
+  if (!report || report.ramGb === null) return 'RAM: unknown'
+  return `${report.ramIsLowerBound ? '≥ ' : ''}${report.ramGb} GB RAM`
+})
+
+const hwBoxCpu = computed(() => {
+  const threads = hw.report.value?.cpuThreads
+  return threads === null || threads === undefined ? 'CPU: unknown' : `${threads} CPU threads`
+})
+
+// Same short verdict labels as HardwareFitPanel.vue's VERDICT_TEXT; duplicated
+// (rather than imported from there) since HardwareFitPanel belongs to a
+// parallel lane in this worktree.
+const HW_TIER_VERDICT_TEXT: Record<TierVerdictKind, string> = {
+  ok: 'Fits',
+  tight: 'Tight',
+  no: "Won't fit",
+  unknown: 'Unknown',
+}
+
+const hwBoxRecommendation = computed(() => {
+  const f = fit.value
+  if (!f) return ''
+  const name = f.recommendation.tier === 'cloud' ? 'Cloud API' : (f.tiers.find((t) => t.id === f.recommendation.tier)?.label ?? '')
+  return `Recommended: ${name}. ${f.recommendation.reason}`
+})
+
 const checking = ref(false)
 const probeResult = ref<ProviderProbeResult | null>(null)
 
@@ -129,28 +171,79 @@ const SETUP_SUMMARY = [
       <UiButton data-test="dismiss" variant="ghost" size="compact" @click="dismiss">Not now</UiButton>
     </header>
 
-    <div class="provider-onboarding__choices">
-      <button
-        type="button"
-        class="provider-onboarding__choice"
-        :class="{ 'provider-onboarding__choice--active': choice === 'cloud' }"
-        data-test="choice-cloud"
-        @click="chooseCloud"
+    <div class="provider-onboarding__top">
+      <div class="provider-onboarding__choices">
+        <button
+          type="button"
+          class="provider-onboarding__choice"
+          :class="{ 'provider-onboarding__choice--active': choice === 'cloud' }"
+          data-test="choice-cloud"
+          @click="chooseCloud"
+        >
+          <span class="provider-onboarding__choice-title">Cloud (Jev by TypeSafe)</span>
+          <span class="provider-onboarding__choice-desc">Needs an API key. About 3s for 20 issues.</span>
+        </button>
+        <button
+          type="button"
+          class="provider-onboarding__choice"
+          :class="{ 'provider-onboarding__choice--active': choice === 'local' }"
+          data-test="choice-local"
+          @click="chooseLocal"
+        >
+          <span class="provider-onboarding__choice-title">On this computer</span>
+          <span class="provider-onboarding__choice-desc">Free, private. Needs a GPU.</span>
+          <span class="provider-onboarding__fit" data-test="hardware-fit-line">{{ fitLine }}</span>
+        </button>
+      </div>
+
+      <aside
+        class="provider-onboarding__hardware"
+        data-test="hardware-box"
+        aria-labelledby="hardware-box-title"
       >
-        <span class="provider-onboarding__choice-title">Cloud (Jev by TypeSafe)</span>
-        <span class="provider-onboarding__choice-desc">Needs an API key. About 3s for 20 issues.</span>
-      </button>
-      <button
-        type="button"
-        class="provider-onboarding__choice"
-        :class="{ 'provider-onboarding__choice--active': choice === 'local' }"
-        data-test="choice-local"
-        @click="chooseLocal"
-      >
-        <span class="provider-onboarding__choice-title">On this computer</span>
-        <span class="provider-onboarding__choice-desc">Free, private. Needs a GPU.</span>
-        <span class="provider-onboarding__fit" data-test="hardware-fit-line">{{ fitLine }}</span>
-      </button>
+        <h3 id="hardware-box-title" class="provider-onboarding__hardware-title">Your computer</h3>
+        <p v-if="hwDetecting" class="provider-onboarding__muted" data-test="hardware-box-detecting" role="status">
+          Detecting…
+        </p>
+        <template v-else>
+          <dl class="provider-onboarding__hardware-facts">
+            <div>
+              <dt>GPU</dt>
+              <dd data-test="hardware-box-gpu">{{ hwBoxGpu }}</dd>
+            </div>
+            <div>
+              <dt>RAM</dt>
+              <dd data-test="hardware-box-ram">{{ hwBoxRam }}</dd>
+            </div>
+            <div>
+              <dt>CPU</dt>
+              <dd data-test="hardware-box-cpu">{{ hwBoxCpu }}</dd>
+            </div>
+          </dl>
+          <ul class="provider-onboarding__hardware-chips">
+            <li
+              v-for="tier in fit?.tiers ?? []"
+              :key="tier.id"
+              class="provider-onboarding__hardware-chip"
+              :class="`provider-onboarding__hardware-chip--${tier.verdict}`"
+              :data-test="`hardware-box-tier-${tier.id}`"
+            >
+              {{ tier.label }} · {{ HW_TIER_VERDICT_TEXT[tier.verdict] }}
+            </li>
+          </ul>
+          <p class="provider-onboarding__hardware-recommendation" data-test="hardware-box-recommendation">
+            {{ hwBoxRecommendation }}
+          </p>
+        </template>
+        <UiButton
+          data-test="hardware-box-settings-link"
+          variant="ghost"
+          size="compact"
+          @click="openSettings"
+        >
+          Details in Settings
+        </UiButton>
+      </aside>
     </div>
 
     <div v-if="choice === 'cloud'" class="provider-onboarding__panel" data-test="cloud-panel">
@@ -211,10 +304,104 @@ pre {
   font-weight: var(--weight-medium);
 }
 
+.provider-onboarding__top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+/* Third column on >= 1024 px: the two choice cards keep their own auto-fit
+   layout at 2fr, the hardware box sits to the right at 1fr; below this it
+   stacks (box last), per odd/tasks/local-issue-classifier-two-home-ui-additions. */
+@media (min-width: 64em) {
+  .provider-onboarding__top {
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
+
 .provider-onboarding__choices {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-7) * 3), 1fr));
   gap: var(--space-2);
+}
+
+.provider-onboarding__hardware {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-2h);
+  background: var(--color-surface-2);
+  border: var(--line-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.provider-onboarding__hardware-title {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+
+.provider-onboarding__hardware-facts {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.provider-onboarding__hardware-facts dt {
+  display: none;
+}
+
+.provider-onboarding__hardware-facts dd {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  color: var(--color-text);
+}
+
+.provider-onboarding__hardware-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider-onboarding__hardware-chip {
+  padding: 0 var(--space-1);
+  border: var(--line-thin) solid currentColor;
+  border-radius: var(--radius-round);
+  font-size: var(--text-micro-size);
+  line-height: var(--text-caption-line);
+  white-space: nowrap;
+}
+
+.provider-onboarding__hardware-chip--ok {
+  color: var(--color-success);
+}
+
+.provider-onboarding__hardware-chip--tight {
+  color: var(--color-warning);
+}
+
+.provider-onboarding__hardware-chip--no {
+  color: var(--color-danger);
+}
+
+.provider-onboarding__hardware-chip--unknown {
+  color: var(--color-text-muted);
+}
+
+.provider-onboarding__hardware-recommendation {
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  color: var(--color-text-muted);
+}
+
+.provider-onboarding__hardware .ui-button {
+  justify-self: start;
 }
 
 .provider-onboarding__choice {
@@ -281,7 +468,8 @@ pre {
   gap: var(--space-2);
 }
 
-.provider-onboarding__status {
+.provider-onboarding__status,
+.provider-onboarding__muted {
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
   color: var(--color-text-muted);
