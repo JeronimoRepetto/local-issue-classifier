@@ -10,7 +10,7 @@ describe('levelBars / levelLabel', () => {
   })
 })
 
-describe('confidenceLevel (SPEC §10.4)', () => {
+describe('confidenceLevel', () => {
   it.each([
     [1, 'high'],
     [0.8, 'high'],

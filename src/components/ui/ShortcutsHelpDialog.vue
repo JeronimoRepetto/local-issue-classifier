@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Keyboard shortcuts help (SPEC §6.1 analysis view), left out by Task 12 and
+// Keyboard shortcuts help (analysis view), left out by Task 12 and
 // added by the integration task. Presentational: built on the kit UiDialog,
 // opened by "?" in AnalysisViewContainer.vue.
 import UiDialog from '../../ui/UiDialog.vue'

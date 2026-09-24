@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Classify control (SPEC §2.4, §6.2): a scope picker, the primary action
+// The Classify control: a scope picker, the primary action
 // with the count it will send, and the pre-run estimate (§4.7). Disabled
 // without a Jev key, when the scope is empty, or while a run is active.
 import { computed } from 'vue'

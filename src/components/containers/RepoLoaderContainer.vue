@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Drives useRepo() for the New-analysis / refresh flow (SPEC §2.2 / §2.3):
+// Drives useRepo() for the New-analysis / refresh flow:
 // the repo input, the existing-analysis prompt, progress, the huge-repo and
 // comment-cost confirmations, rate-limit / error recovery and the one-time
 // private-repo notice. Rendered once by HomeContainer; a "Refresh" click on

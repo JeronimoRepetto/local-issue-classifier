@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §2.1 step 5: the non-secret preferences form. Presentational:
+// Task 4 — the non-secret preferences form. Presentational:
 // takes the current Preferences as modelValue and emits a partial patch, so
 // usePreferences() owns persistence and this component owns no state.
 import { describe, expect, it } from 'vitest'

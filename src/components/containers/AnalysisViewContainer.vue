@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The analysis view (SPEC §2.4, §2.5, §2.6, §6.1 screen 3), replacing
+// The analysis view (screen 3), replacing
 // AnalysisViewPlaceholder.vue. Mounts ClassifyContainer and IssuesContainer
 // over the current analysis, wires refresh/back/open-settings to
 // useRepo()/useView(), computes the filtered-view issue numbers for "Classify

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Bottom-right toast region. Shows at most 3 toasts, newest last (SPEC §10.4).
+// Bottom-right toast region. Shows at most 3 toasts, newest last.
 import { computed } from 'vue'
 import UiToast from './UiToast.vue'
 import type { ToastKind } from './UiToast.vue'

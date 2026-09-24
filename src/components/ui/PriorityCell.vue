@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Priority cell (SPEC §6.3 column 4, §4.9): 0-100 with a bar, reusing the
+// Priority cell: 0-100 with a bar, reusing the
 // ScoreBar kit component (which already renders "—" for null), plus a
 // tooltip caption explaining the inversion and the ranking-aid, ordinal
 // nature of the score. Presentational: props only.

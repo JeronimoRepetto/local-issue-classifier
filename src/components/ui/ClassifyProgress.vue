@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Run progress (SPEC §2.4 step 4, §10.4, §10.6, §10.7): a determinate bar with
+// Run progress: a determinate bar with
 // done / failed / pending counts and Cancel. Screen readers get a polite live
 // region updated at each quarter of the run, not on every result. Numbers are
 // shown as they are (never counted up); the bar width transition is dropped

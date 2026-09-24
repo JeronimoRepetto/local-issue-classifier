@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4 / §4.5: the classification runner, with a fake client.
+// Task 11 — the classification runner, with a fake client.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runClassification, RATE_LIMITED_MESSAGE } from './runner'
 import type { RunnerOptions } from './runner'

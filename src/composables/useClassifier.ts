@@ -1,4 +1,4 @@
-// The Classify run (SPEC.md §2.4, §4.5, §4.8): a module singleton that wires
+// The Classify run: a module singleton that wires
 // the runner to the in-memory Jev key, the preferences, the run guard and the
 // current analysis. Each result is written through useAnalysis().applyResult
 // as it arrives (coalesced saves) and flushed when the run ends. Resuming after

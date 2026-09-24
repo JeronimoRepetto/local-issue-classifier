@@ -1,4 +1,4 @@
-// Non-secret preferences (SPEC.md §3): a module singleton, persisted through
+// Non-secret preferences: a module singleton, persisted through
 // preferencesStore. It also owns Preferences.lastAnalysisId (§2.2): useAnalysis
 // is configured to read/write it through this same reactive state (rather than
 // its own default, storage-only hook), so a preferences save and a "last

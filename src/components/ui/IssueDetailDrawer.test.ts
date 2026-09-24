@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §6.3: expanding a row shows the stored, trimmed body and
+// Task 12 — expanding a row shows the stored, trimmed body and
 // comments exactly as Jev saw them, as plain text (never v-html / innerHTML).
 // The drawer teleports to <body>, so assertions read the real DOM, matching
 // the pattern in src/ui/UiDialog.test.ts.

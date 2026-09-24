@@ -1,4 +1,4 @@
-// The Jev API key, the GitHub token and a local server's optional key (SPEC.md §8): a module-singleton
+// The Jev API key, the GitHub token and a local server's optional key: a module-singleton
 // reactive store. By DEFAULT the keys are held in memory only: a reload,
 // closing the tab, or clearKeys() loses them.
 //

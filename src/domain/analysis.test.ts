@@ -1,4 +1,4 @@
-// Task 7 — SPEC.md §3.1 / §2.3 / §2.5: pure analysis functions.
+// Task 7 — pure analysis functions.
 import { describe, expect, it } from 'vitest'
 import {
   applyClassification,

@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4 / §4.5 / §4.8: the classifier composable, wired to the
+// Task 11 — the classifier composable, wired to the
 // real useAnalysis / useSecrets / useRunGuard singletons and a fake Jev client.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { applyClassification, createAnalysis, dismiss } from '../domain/analysis'

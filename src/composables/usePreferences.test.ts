@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §3 Preferences, persisted through preferencesStore. Each
+// Task 4 — Preferences, persisted through preferencesStore. Each
 // test re-imports the module after vi.resetModules() so the singleton reloads
 // from a fresh fake Storage, the same pattern useAnalysis.test.ts uses.
 import { beforeEach, describe, expect, it, vi } from 'vitest'

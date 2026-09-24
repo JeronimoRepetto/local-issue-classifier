@@ -13,7 +13,7 @@ import {
   STRIPPED_REQUEST_HEADERS,
 } from '../../server/jevProxy'
 
-describe('jevProxy options factory (SPEC §4.1, §8)', () => {
+describe('jevProxy options factory', () => {
   it('allowlists only /v1/systemone and /v1/models under the prefix', () => {
     const re = new RegExp(jevProxyKey('/jev'))
     expect(re.test('/jev/v1/systemone')).toBe(true)

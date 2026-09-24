@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Toast (SPEC §10.4): auto-dismiss after 5 s except errors, pause on hover or
+// Toast: auto-dismiss after 5 s except errors, pause on hover or
 // focus, role="status" (or role="alert" for errors).
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import UiButton from './UiButton.vue'

@@ -1,4 +1,4 @@
-// local-issue-classifier — builds the Jev `state` for one issue (SPEC.md §4.3). Pure.
+// local-issue-classifier — builds the Jev `state` for one issue (see docs/jev-questions.md). Pure.
 // The project part comes from a ProjectContext built once per repo load
 // (projectContext.ts); the issue part is rebuilt per issue. The clock is injected.
 import { dateBucket, type Clock, type DateBucket } from './dates'

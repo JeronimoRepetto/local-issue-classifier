@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5 item 1, §6.4: filterRows and searchText, pure.
+// Task 12 — filterRows and searchText, pure.
 import { describe, expect, it } from 'vitest'
 import { filterRows, searchText } from './filter'
 import { defaultFilter } from './types'

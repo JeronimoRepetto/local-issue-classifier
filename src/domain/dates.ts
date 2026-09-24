@@ -1,4 +1,4 @@
-// local-issue-classifier — date bucketing for the Jev state (SPEC.md §4.3).
+// local-issue-classifier — date bucketing for the Jev state (see docs/jev-questions.md).
 // The model compares raw dates unreliably, so dates are pre-bucketed here.
 // Pure: the current time is always an injected Clock, never read directly.
 

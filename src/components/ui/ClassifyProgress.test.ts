@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4 / §10.4 / §10.6 / §10.7: run progress.
+// Task 11 — run progress.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ClassifyProgress from './ClassifyProgress.vue'

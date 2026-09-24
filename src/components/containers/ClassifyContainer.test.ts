@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4 / §6.2: ClassifyContainer, mounted standalone over the
+// Task 11 — ClassifyContainer, mounted standalone over the
 // real singletons (fresh module graph per test) and a fake Jev client.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'

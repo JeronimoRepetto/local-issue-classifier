@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// End-of-run summary (SPEC §2.4 step 5): "N classified · F failed ·
+// End-of-run summary: "N classified · F failed ·
 // L low-confidence", plus skipped issues after a cancel or an auth abort.
 // Retry failed re-runs only the failures.
 import { computed } from 'vue'

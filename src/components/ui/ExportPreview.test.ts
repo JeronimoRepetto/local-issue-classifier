@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §2.6: a read-only preview of the export text. Presentational.
+// Task 13 — a read-only preview of the export text. Presentational.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ExportPreview from './ExportPreview.vue'

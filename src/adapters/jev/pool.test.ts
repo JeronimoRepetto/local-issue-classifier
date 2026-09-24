@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §4.5: bounded-concurrency pool and adaptive throttle.
+// Task 11 — bounded-concurrency pool and adaptive throttle.
 import { describe, expect, it } from 'vitest'
 import { createRatePacer, createThrottle, DEFAULT_RATE_LIMITS, runPool } from './pool'
 

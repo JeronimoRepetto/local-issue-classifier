@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §6.3: one row of the issues table.
+// Task 12 — one row of the issues table.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import IssueRow from './IssueRow.vue'

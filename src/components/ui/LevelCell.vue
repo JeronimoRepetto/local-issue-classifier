@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Level cell (SPEC §6.3): a level chip for one dimension (criticality,
+// Level cell: a level chip for one dimension (criticality,
 // complexity or effort), the raw score, confidence and per-level
 // probabilities available on hover/focus via ConfidenceBadge's tooltip.
 // ConfidenceBadge owns its own hide/show rule (user decision 2026-09-24), so

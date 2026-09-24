@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The "Keys required" banner (SPEC §2.1 step 2). Presentational: no store
+// The "Keys required" banner. Presentational: no store
 // access, it just announces the state and offers to dismiss itself. Home and
 // every saved analysis stay fully usable without keys, which the copy below
 // says explicitly.

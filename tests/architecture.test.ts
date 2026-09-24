@@ -1,4 +1,4 @@
-// Enforces the SPEC.md §7.2 dependency-direction rules by scanning source
+// Enforces the dependency-direction rules by scanning source
 // files directly, so a future task cannot introduce a forbidden import
 // without this test turning red.
 import { describe, expect, it } from 'vitest'
@@ -40,7 +40,7 @@ function importSpecifiers(source: string): string[] {
   return specifiers
 }
 
-describe('architecture import rules (SPEC.md §7.2)', () => {
+describe('architecture import rules', () => {
   it('src/components/ui does not import adapters', () => {
     const files = listSourceFiles(join(SRC_ROOT, 'components', 'ui'))
     for (const file of files) {
@@ -52,7 +52,7 @@ describe('architecture import rules (SPEC.md §7.2)', () => {
   })
 
   it('src/domain imports nothing outside itself (no Vue, no adapters, no browser APIs)', () => {
-    // Co-located domain tests (src/domain/*.test.ts, allowed by SPEC.md §7.1)
+    // Co-located domain tests (src/domain/*.test.ts)
     // are the verification harness, not the domain module itself, so they
     // alone may additionally import the test runner. Production domain
     // files, and any other import in a test file, still must be relative.

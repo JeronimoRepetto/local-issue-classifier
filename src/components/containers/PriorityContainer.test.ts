@@ -1,4 +1,4 @@
-// Task 14 — SPEC.md §2.5 item 3, §4.9: the Priority column's Weights
+// Task 14 — the Priority column's Weights
 // popover. Drop this into IssueTable's `priority-header` slot:
 //   <IssueTable><template #priority-header><PriorityContainer /></template></IssueTable>
 // It owns useAnalysis() itself to read/write `working.priorityWeights`

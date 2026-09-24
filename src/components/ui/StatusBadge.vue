@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Status badge (SPEC §6.3 row 12): unclassified / stale / missing / dismissed,
+// Status badge: unclassified / stale / missing / dismissed,
 // plus the remaining classification statuses so every row always shows one.
 import { computed } from 'vue'
 import type { ClassificationStatus } from '../../domain/types'

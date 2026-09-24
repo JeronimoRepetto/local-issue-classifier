@@ -1,4 +1,4 @@
-// GitHub HTTP core (SPEC §5.6): headers, ETag conditional requests, rate-limit state,
+// GitHub HTTP core: headers, ETag conditional requests, rate-limit state,
 // the retry/error policy and a request queue with at most 2 requests in flight.
 // Framework-free: `fetch`, the clock and `sleep` are injected so tests need no network.
 // Nothing here logs; tokens and bodies never leave this module except as the returned body.

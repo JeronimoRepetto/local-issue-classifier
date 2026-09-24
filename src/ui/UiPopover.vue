@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Click-toggled popover (SPEC §10.4) with a focus trap; Esc or an outside click
+// Click-toggled popover with a focus trap; Esc or an outside click
 // closes it and returns focus to the trigger. Opacity plus a 4 px shift.
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { focusFirst, trapTab } from './focusTrap'

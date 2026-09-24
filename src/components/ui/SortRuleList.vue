@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The ordered sort-rule editor (Task 13, SPEC.md §2.5 item 3, §7.1): shared
+// The ordered sort-rule editor (Task 13): shared
 // by the table's Sort popover (editing `working.tableSort`) and the export
 // dialog's order editor (editing `exportOptions.order`) — both just pass
 // `rules` and listen for `update`. Presentational: no composables.

@@ -1,4 +1,4 @@
-// The App shell's view state (SPEC.md §6.1): App.vue has no router, it just
+// The App shell's view state: App.vue has no router, it just
 // switches between Home, the current analysis (AnalysisViewContainer) and
 // Settings (SettingsContainer) based on this.
 import { reactive } from 'vue'

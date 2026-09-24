@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { estimateBatchedRun, estimateRun, estimateStateTokens, JEV_USD_PER_MILLION_INPUT_TOKENS } from './estimate'
 
-describe('estimate (SPEC §4.7)', () => {
+describe('estimate', () => {
   it('estimates state tokens as ceil(chars / 3.5) of the serialized state', () => {
     const state = { issue: { body: 'x'.repeat(100) } }
     expect(estimateStateTokens(state)).toBe(Math.ceil(JSON.stringify(state).length / 3.5))

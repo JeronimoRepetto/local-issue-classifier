@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4 step 5: the end-of-run summary.
+// Task 11 — the end-of-run summary.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RunSummary from './RunSummary.vue'

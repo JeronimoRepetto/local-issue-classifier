@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Icon pipeline (SPEC §10.5, design v2): design/icons/{stroke,pixel}/*.svg →
+// Icon pipeline (design v2): design/icons/{stroke,pixel}/*.svg →
 // one Vue SFC per icon in src/assets/icons/Icon<Name>.vue, plus an index of
 // named re-exports. `stroke` icons are 24-grid line icons rendered at 16 px
 // with a 1.5 stroke; `pixel` art (logo, empty-state art) keeps crisp edges.

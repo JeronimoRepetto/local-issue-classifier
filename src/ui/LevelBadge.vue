@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Level chip (SPEC §10.2 / §10.4, design v2): a tinted chip with a mono text
+// Level chip (design v2): a tinted chip with a mono text
 // label and a three-bar meter, so meaning never relies on color alone.
 import { computed } from 'vue'
 import { levelBars, levelLabel } from './levels'

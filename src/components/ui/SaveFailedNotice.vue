@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// SPEC §2.3 "Storage full": a blocking notice with a Retry save button. `quota`
+// "Storage full": a blocking notice with a Retry save button. `quota`
 // means the disk quota was hit; `unavailable` covers a blocked/disabled storage.
 import { computed } from 'vue'
 import UiButton from '../../ui/UiButton.vue'

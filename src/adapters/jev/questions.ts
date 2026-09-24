@@ -1,4 +1,4 @@
-// local-issue-classifier — the Jev questions, single source of truth (SPEC.md §4.2).
+// local-issue-classifier — the Jev questions, single source of truth (see docs/jev-questions.md).
 // Every request asks these five questions about one issue state (§4.3).
 // docs/jev-questions.md explains each question for readers of the repo.
 //

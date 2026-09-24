@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A read-only preview of the export text (Task 13, SPEC.md §2.6). Presentational.
+// A read-only preview of the export text (Task 13; see docs/export-format.md). Presentational.
 defineProps<{ text: string }>()
 </script>
 

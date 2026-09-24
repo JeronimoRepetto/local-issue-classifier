@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Visual check page (SPEC §10.4), dev only: App.vue loads it through a dynamic
+// Visual check page, dev only: App.vue loads it through a dynamic
 // import guarded by import.meta.env.DEV when the URL has `?kit`. It shows every
 // component in both themes side by side, with a switch to force reduced motion.
 import { onBeforeUnmount, onMounted, ref } from 'vue'

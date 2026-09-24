@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One Home list entry (SPEC §2.2 / §6.2 / §10.4): open (whole-card primary
+// One Home list entry: open (whole-card primary
 // action), inline rename, refresh, delete (with confirmation), and the
 // read-only "unreadable" state for a corrupt entry.
 import { computed, nextTick, ref } from 'vue'
@@ -61,7 +61,7 @@ async function startRename() {
 function commitRename() {
   const name = draftName.value
   renaming.value = false
-  // An empty/unchanged name is left for the domain's own default fallback (SPEC §2.2);
+  // An empty/unchanged name is left for the domain's own default fallback;
   // only skip the emit when nothing actually changed.
   if (summary.value && name !== summary.value.name) emit('rename', id.value, name)
 }

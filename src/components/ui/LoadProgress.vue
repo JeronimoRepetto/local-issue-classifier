@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The New-analysis / refresh progress line (SPEC §2.3 step 3): "Issues: 300 / ~420 · Comments: 120 / 260".
+// The New-analysis / refresh progress line: "Issues: 300 / ~420 · Comments: 120 / 260".
 import { computed } from 'vue'
 import UiSpinner from '../../ui/UiSpinner.vue'
 

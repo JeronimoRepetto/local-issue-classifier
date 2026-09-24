@@ -1,4 +1,4 @@
-// Minimal focus-trap helpers shared by UiDialog and UiPopover (SPEC §10.7).
+// Minimal focus-trap helpers shared by UiDialog and UiPopover.
 
 const FOCUSABLE = [
   'a[href]',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Empty and error states (SPEC §10.1 / §10.4, design v2): a small monochrome
+// Empty and error states (design v2): a small monochrome
 // pixel illustration (one of the three pixel accents), a sans title, one plain
 // sentence and at most one action. No frame.
 import IconEmptyBox from '../assets/icons/IconEmptyBox.vue'

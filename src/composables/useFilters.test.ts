@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5: filter/sort/search state, persisted into the current
+// Task 12 — filter/sort/search state, persisted into the current
 // analysis working state through useAnalysis().updateWorking, restored on reopen.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAnalysis } from '../domain/analysis'
@@ -117,7 +117,7 @@ describe('useFilters — tableSort exposes the full multi-key order (Task 13)', 
   it('reflects the analysis working state, and sort is its first rule', () => {
     analysisMod.useAnalysis().setCurrent(analysis())
     const { tableSort, sort } = filtersMod.useFilters()
-    // defaultTableSort() (SPEC.md §2.6 default order): Criticality desc → Relevance desc → Effort asc.
+    // defaultTableSort() (default order): Criticality desc → Relevance desc → Effort asc.
     expect(tableSort.value).toEqual([
       { key: 'criticality', direction: 'desc' },
       { key: 'relevance', direction: 'desc' },

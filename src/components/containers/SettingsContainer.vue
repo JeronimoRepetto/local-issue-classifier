@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Settings screen (SPEC §2.1, §6.1, §6.2): wires the in-memory secrets and
+// The Settings screen: wires the in-memory secrets and
 // the persisted preferences to the presentational pieces below it. It is also
 // "a full view while in the 'Keys required' state" (§6.1), so it owns the
 // banner, both key fields, the preferences form, the danger-zone actions and

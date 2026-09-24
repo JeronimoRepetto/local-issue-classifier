@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §2.1 "Reload during a run": the browser's native
+// Task 4 — "Reload during a run": the browser's native
 // beforeunload prompt is registered only while a run (loading or
 // classifying) is active. Task 11's classification runner calls
 // setRunActive(); Task 8's loader can too.

@@ -1,4 +1,4 @@
-// The saved-analyses list behind Home (SPEC.md §2.2): a module singleton over
+// The saved-analyses list behind Home: a module singleton over
 // the analysis index in IndexedDB (adapters/storage/analysisDb.ts). It refreshes
 // itself after every save of the current analysis, and asks the browser once,
 // on the first successful save, to keep the data persistent.

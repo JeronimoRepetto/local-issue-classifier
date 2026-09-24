@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §3 / §4.8 pattern applied to Preferences: pure load/save
+// Task 4 — the shared storage-adapter pattern applied to Preferences: pure load/save
 // over an injected Storage-like. Corrupt or unreadable data falls back to
 // defaultPreferences(); a write failure is typed, never thrown.
 import { describe, expect, it } from 'vitest'

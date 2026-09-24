@@ -1,4 +1,4 @@
-// Anchor-based download helper (SPEC.md §6.5), ported from the AI-Tools
+// Anchor-based download helper, ported from the AI-Tools
 // house style (qr-tool/design-studio's downloadBlob/downloadText): Blob URL
 // → <a download> click → revoke on the next tick, so the click has already
 // fired before the URL is invalidated.

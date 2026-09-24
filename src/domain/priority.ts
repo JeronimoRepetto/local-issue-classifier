@@ -1,5 +1,5 @@
-// Pure priority score (SPEC.md §4.9). No Vue, no fetch, no storage: only
-// imports other domain modules, per SPEC.md §7.2. It is a composite score in
+// Pure priority score. No Vue, no fetch, no storage: only
+// imports other domain modules (see docs/architecture.md). It is a composite score in
 // the sense of `patterns/composite-scoring.md`: each dimension is normalized
 // to 0..1, weighted, and combined. It is computed on the fly from the stored
 // classification and the analysis's weights — never stored per row, so
@@ -8,7 +8,7 @@ import type { Classification, PriorityWeights } from './types'
 
 /**
  * A row's 0..100 priority score, or `null` when there is nothing to rank:
- * no classification, or every weight is 0 (SPEC.md §4.9).
+ * no classification, or every weight is 0.
  *
  * Uses the continuous `score` values, not the rounded levels, so ranking
  * stays fine-grained. Complexity and effort are inverted: a simpler,
@@ -29,7 +29,7 @@ export function priorityOf(c: Classification | null | undefined, w: PriorityWeig
 
 /**
  * Rounds each weight to the nearest multiple of 5, clamped to 0..100
- * (SPEC.md §4.9). Applied on load and on every edit from the Weights popover.
+ * Applied on load and on every edit from the Weights popover.
  */
 export function clampWeights(w: PriorityWeights): PriorityWeights {
   const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n / 5) * 5))

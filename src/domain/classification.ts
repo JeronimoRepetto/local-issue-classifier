@@ -1,5 +1,5 @@
 // local-issue-classifier — maps a Jev `/v1/systemone` response to a Classification
-// (SPEC.md §4.4). Pure. Validates the untrusted response shape: any missing or
+// (see docs/jev-questions.md). Pure. Validates the untrusted response shape: any missing or
 // malformed answer fails the whole classification, so partial answers are never
 // stored. A batched response is split per issue first (toBatchClassifications),
 // so there the unit of failure is one issue. Tolerant where compatible

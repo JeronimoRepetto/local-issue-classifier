@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Score pill (SPEC §10.4, design v2): a 0–100 mono number colored with the
+// Score pill (design v2): a 0–100 mono number colored with the
 // `scale-1..5` heat ramp, a quiet "/100", and an optional 3 px bar. The
 // number is always shown, so color is never the only signal.
 import { computed } from 'vue'

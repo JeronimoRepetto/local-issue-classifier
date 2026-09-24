@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// A thin ConfirmDialog over the kit's UiDialog (SPEC §6.2 / §10.4): a plain
+// A thin ConfirmDialog over the kit's UiDialog: a plain
 // "are you sure?" confirm, or — when `confirmPhrase` is set — the typed
-// confirmation variant used for Clear all local data (SPEC §8).
+// confirmation variant used for Clear all local data.
 import UiButton from '../../ui/UiButton.vue'
 import UiDialog from '../../ui/UiDialog.vue'
 

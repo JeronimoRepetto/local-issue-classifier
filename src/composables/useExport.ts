@@ -1,4 +1,4 @@
-// Export options for the current analysis (SPEC.md §2.6). Like useFilters,
+// Export options for the current analysis (see docs/export-format.md). Like useFilters,
 // everything lives in `AnalysisWorkingState.exportOptions`, so it goes
 // through `useAnalysis().updateWorking` and is restored automatically
 // whenever the analysis is reopened (Task 7's debounced, coalesced save).

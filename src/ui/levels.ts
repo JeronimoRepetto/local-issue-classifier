@@ -16,7 +16,7 @@ export function levelLabel(level: Level): string {
 }
 
 /**
- * SPEC §10.4: high ≥ 0.8, medium 0.5–0.8, low < 0.5. Used by the min-confidence
+ * high ≥ 0.8, medium 0.5–0.8, low < 0.5. Used by the min-confidence
  * filter and by export (`includeConfidence`), which both band a numeric score
  * into these three levels. `ConfidenceBadge` no longer uses this: since the
  * user decision of 2026-09-24 it renders on a continuous 0–0.50 scale (a

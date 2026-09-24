@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §2.1 step 2: the "Keys required" banner. Presentational:
+// Task 4 — the "Keys required" banner. Presentational:
 // props/emits only, no store access.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'

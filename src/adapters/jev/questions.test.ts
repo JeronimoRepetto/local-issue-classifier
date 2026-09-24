@@ -10,7 +10,7 @@ import { batchQuestionsFor } from './batchQuestions'
  * Version guard. Each QUESTIONS_VERSION maps to the SHA-256 of the serialized
  * QUESTIONS it shipped with. Editing any question text without bumping the
  * version fails here. After a bump, add the new version's hash below and never
- * edit an old entry. A bump marks stored classifications stale (SPEC §4.8).
+ * edit an old entry. A bump marks stored classifications stale.
  */
 const QUESTIONS_HASHES: Record<number, string> = {
   1: '16bd2149f518fb3218c03dfd085e0dee49c491df8e3fb9520c9c12c753397a69',
@@ -23,7 +23,7 @@ const versioned = () => ({ questions: QUESTIONS, batched: batchQuestionsFor(0, 1
 
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 
-describe('QUESTIONS (SPEC §4.2)', () => {
+describe('QUESTIONS', () => {
   it('is pinned to its version: a text change needs a QUESTIONS_VERSION bump', () => {
     expect(QUESTIONS_VERSION).toBe(2)
     expect(hash(versioned()), 'questions changed: bump QUESTIONS_VERSION').toBe(

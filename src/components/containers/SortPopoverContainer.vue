@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The table's "Sort" popover (Task 13, SPEC.md §2.5 item 3): "A 'Sort'
+// The table's "Sort" popover (Task 13): "A 'Sort'
 // popover reuses SortRuleList to edit the full ordered key list." Drop this
 // into IssuesContainer's `sort-popover` slot:
 //   <IssuesContainer><template #sort-popover><SortPopoverContainer /></template></IssuesContainer>

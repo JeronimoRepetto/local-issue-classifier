@@ -1,4 +1,4 @@
-// Preferences persistence (SPEC.md §3, following the §4.8 store pattern): pure
+// Preferences persistence, following the same store pattern as the other storage adapters: pure
 // load/save over an injected Storage-like. Corrupt JSON, a non-object value,
 // or an unreadable storage all fall back to defaultPreferences() rather than
 // throwing. A write failure is typed, never thrown, and nothing is evicted.

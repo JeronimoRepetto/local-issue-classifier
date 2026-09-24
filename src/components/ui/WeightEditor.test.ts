@@ -1,4 +1,4 @@
-// Task 14 — SPEC.md §2.5 item 3, §4.9: the Weights popover content. Four
+// Task 14 — the Weights popover content. Four
 // sliders (step 5) with a paired numeric input each, a live preview emitted
 // 150 ms after the last change, Reset to 40/30/15/15, an all-zero warning,
 // and keyboard operation via the always-focusable numeric input.
@@ -9,7 +9,7 @@ import WeightEditor from './WeightEditor.vue'
 import { defaultPriorityWeights } from '../../domain/types'
 import { fakeClassification } from '../../../tests/fakes/domainFixtures'
 
-/** Same scores as SPEC.md §4.9's worked example (`priority.test.ts`): 83/100 with the default weights. */
+/** Same scores as `priority.test.ts`'s worked example: 83/100 with the default weights. */
 function workedExampleClassification() {
   return fakeClassification({
     criticality: { level: 'high', score: 1.8, confidence: 0.9, probabilities: [0, 0.1, 0.9] },
@@ -101,7 +101,7 @@ describe('WeightEditor', () => {
     expect(wrapper.emitted('update')![0][0]).toMatchObject({ relevance: 55 })
   })
 
-  it('clamps an out-of-range or off-step incoming weights prop (SPEC.md §4.9 "applied on load")', () => {
+  it('clamps an out-of-range or off-step incoming weights prop ("applied on load")', () => {
     const wrapper = mount(WeightEditor, {
       props: { weights: { criticality: 103, relevance: -5, complexity: 42, effort: 15 } },
     })
@@ -155,7 +155,7 @@ describe('WeightEditor', () => {
       expect(wrapper.get('[data-test="weight-example"]').text()).toBe('#89 → 83/100')
     })
 
-    it('falls back to the SPEC.md worked example when no row is provided', () => {
+    it('falls back to the worked example when no row is provided', () => {
       const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
       expect(wrapper.get('[data-test="weight-example"]').text()).toBe('Example → 83/100')
     })
@@ -180,7 +180,7 @@ describe('WeightEditor', () => {
     expect(wrapper.get('[data-test="weight-reset"]').text()).toBe('Reset to defaults (40/30/15/15)')
   })
 
-  describe('layout — everything stays inside the popover (SPEC.md §10.4)', () => {
+  describe('layout — everything stays inside the popover', () => {
     it('wraps each slider in a row that pairs it with min-width:0 so the range input cannot force the row wider', () => {
       const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
       const rows = wrapper.findAll('.weight-editor__row')

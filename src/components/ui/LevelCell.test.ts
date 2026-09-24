@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §6.3: a level chip per dimension, with raw score, confidence
+// Task 12 — a level chip per dimension, with raw score, confidence
 // and probabilities on hover/focus (via ConfidenceBadge's tooltip).
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'

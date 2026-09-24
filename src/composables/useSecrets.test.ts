@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §8: secrets live in the reactive useSecrets() module state
+// Task 4 — secrets live in the reactive useSecrets() module state
 // only. No storage import is allowed here (enforced by tests/architecture.test.ts).
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useSecrets } from './useSecrets'

@@ -1,4 +1,4 @@
-// Task INT — keyboard shortcuts help, left out by Task 12 (SPEC §6.1 analysis
+// Task INT — keyboard shortcuts help, left out by Task 12 (analysis
 // view). Presentational: built on the kit UiDialog, props/emits only.
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'

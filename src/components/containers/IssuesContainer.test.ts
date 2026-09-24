@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5, §6.1 screen 3: the Issues screen container. Wires
+// Task 12 — screen 3: the Issues screen container. Wires
 // useAnalysis()/useFilters() to FilterBar, DismissToggle, IssueTable and the
 // detail drawer; owns bulk dismiss/undo, Show dismissed, Remove missing and
 // the "/" shortcut (D/Enter/arrows are IssueTable's own, tested there).

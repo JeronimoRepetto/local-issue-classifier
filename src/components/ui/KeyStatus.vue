@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Key status indicator (SPEC §6.1 top bar / §10.4): "Jev key: in memory /
+// Key status indicator: "Jev key: in memory /
 // missing", "GitHub: token / anonymous". Booleans only — it never receives or
 // renders the secret value itself.
 import IconKey from '../../assets/icons/IconKey.vue'

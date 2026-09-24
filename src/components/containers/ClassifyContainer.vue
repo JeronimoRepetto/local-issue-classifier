@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Classify controls for the current analysis (SPEC §2.4, §6.2). Standalone:
+// Classify controls for the current analysis. Standalone:
 // it reads only composables, takes the filtered view as an optional prop, and
 // asks its parent to open Settings through an event. The analysis view mounts
 // it (integration task); it owns its own toasts.

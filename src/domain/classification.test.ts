@@ -48,7 +48,7 @@ function response(overrides: Record<string, unknown> = {}, top: Record<string, u
   }
 }
 
-describe('levelOf / relevanceValue (SPEC §4.4)', () => {
+describe('levelOf / relevanceValue', () => {
   it.each([
     [0, 'low'],
     [0.49, 'low'],
@@ -167,7 +167,7 @@ describe('toClassification: malformed responses fail as a whole', () => {
   })
 })
 
-describe('isClassificationCurrent (SPEC §4.8 validity)', () => {
+describe('isClassificationCurrent — validity', () => {
   const c = toClassification(response(), meta)
   it('is current only for the same issue update and questions version', () => {
     expect(isClassificationCurrent(c, meta.issueUpdatedAt, 1)).toBe(true)

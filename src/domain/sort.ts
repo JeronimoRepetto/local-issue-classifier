@@ -1,4 +1,4 @@
-// Pure row sort (SPEC.md §2.5 item 3, §6.4). `sortRows` is the single-key
+// Pure row sort. `sortRows` is the single-key
 // building block kept for callers that only need one key; `sortRowsBy` is
 // Task 13's full multi-key sort ("reorder"): it chains `compareBy` once per
 // rule, in order, before falling back to the same final number tie-break.
@@ -71,9 +71,9 @@ function secondaryValue(row: IssueRow, key: SortKey): number {
 }
 
 /**
- * An ascending comparator for one `SortKey` (SPEC.md §3.1 `Pure functions in
- * domain/analysis.ts` list `sortRows`; this is its single-rule building
- * block). Task 13 composes several of these, one per `SortRule`, in order.
+ * An ascending comparator for one `SortKey` (the single-rule building block
+ * behind `sortRows`). Task 13 composes several of these, one per `SortRule`,
+ * in order.
  * `weights` only matters for the `priority` key (§4.9); every other key
  * ignores it, so callers that never sort by priority may omit it.
  */
@@ -107,14 +107,14 @@ export function sortRows(rows: IssueRow[], key: SortKey, direction: SortDirectio
 }
 
 /**
- * Stable multi-key sort (Task 13, SPEC.md §2.5 item 3, §6.4): each `SortRule`
+ * Stable multi-key sort (Task 13): each `SortRule`
  * is applied in order — the first rule decides, later rules only break ties
  * left by earlier ones. For every rule, a row without a value for that key
  * (unclassified, or `minConfidence`/priority missing) sorts after one that
  * has a value, regardless of direction. The final tie-break is always issue
  * number ascending. Never mutates `rows`.
  *
- * `weights` feeds the `priority` key (Task 14, SPEC.md §6.4: "priority
+ * `weights` feeds the `priority` key (Task 14: "priority
  * compares by `priorityOf(classification, working.priorityWeights)`"). It
  * defaults to `defaultPriorityWeights()` when omitted, so callers that never
  * sort by priority need not pass it.

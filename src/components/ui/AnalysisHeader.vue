@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Issues screen header (SPEC §6.1 screen 3, §2.5 items 2 and 4). Presentational
+// Issues screen header (screen 3). Presentational
 // only: refresh/back are props/emits, never a useRepo import — App-level
 // wiring (Task 8/INT) passes handlers in.
 import { computed } from 'vue'

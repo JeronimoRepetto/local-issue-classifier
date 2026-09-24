@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5 item 2/4, §6.1 screen 3: name, repo, fetched-at,
+// Task 12 — screen 3: name, repo, fetched-at,
 // "K of N issues" / "K of N issues (D dismissed)", Refresh and back as
 // props/emits only (no useRepo import — enforced structurally by not
 // importing any composable here).

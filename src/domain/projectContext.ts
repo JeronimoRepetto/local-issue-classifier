@@ -1,4 +1,4 @@
-// local-issue-classifier — project context builder (SPEC.md §4.3, §5.5 step 2). Pure.
+// local-issue-classifier — project context builder (see docs/jev-questions.md). Pure.
 // The GitHub loader fetches the raw sources (each 404 becomes `null`) and this
 // module turns them into the budgeted `ProjectContext` sent to Jev once per load.
 // Lives here instead of `jevState.ts` so the loader lane does not share a file

@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §2.5 item 3, §7.1: the ordered sort-rule editor shared by
+// Task 13 — the ordered sort-rule editor shared by
 // the table's Sort popover and the export dialog's order editor. Presentational:
 // props/emits only, no composables.
 import { describe, expect, it } from 'vitest'
@@ -93,7 +93,7 @@ describe('SortRuleList — add a key', () => {
   })
 })
 
-describe('SortRuleList — keyboard reorder, Alt+ArrowUp/Down (SPEC.md §11 row 13)', () => {
+describe('SortRuleList — keyboard reorder, Alt+ArrowUp/Down', () => {
   it('Alt+ArrowDown moves a rule one position later', async () => {
     const wrapper = mountList([
       { key: 'criticality', direction: 'desc' },

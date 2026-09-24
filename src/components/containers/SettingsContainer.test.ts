@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §2.1 / §6.1 Settings screen. Each test reloads the module
+// Task 4 — Settings screen. Each test reloads the module
 // graph over a fresh fake Storage (the useAnalysis.test.ts pattern), because
 // useSecrets, usePreferences, useAnalyses and useAnalysis are module singletons
 // wired together by SettingsContainer.vue.

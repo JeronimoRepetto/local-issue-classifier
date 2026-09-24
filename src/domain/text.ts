@@ -1,5 +1,5 @@
 // local-issue-classifier — text trimming helpers for the Jev state and stored
-// issue bodies (SPEC.md §3 / §4.3). Pure string manipulation only.
+// issue bodies (see docs/jev-questions.md). Pure string manipulation only.
 
 /**
  * Keeps the first `head` and last `tail` characters of `text`, replacing the

@@ -1,5 +1,5 @@
 // local-issue-classifier — typed domain model + defaultX() factories + STORAGE_KEYS.
-// SPEC.md §3. Plain serializable interfaces, no Vue, no fetch, no storage,
+// Plain serializable interfaces, no Vue, no fetch, no storage,
 // no browser APIs: the clock and randomness are always injected by the caller.
 import type { HardwareOverride } from './hardware'
 

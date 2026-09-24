@@ -1,4 +1,4 @@
-// Pure Analysis functions (SPEC.md §3.1, §2.3, §2.5). Every function returns a
+// Pure Analysis functions. Every function returns a
 // new object and never mutates its input; the clock is always injected as `now`.
 import { defaultAnalysis } from './types'
 import type {

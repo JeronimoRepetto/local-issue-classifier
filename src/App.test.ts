@@ -1,4 +1,4 @@
-// App shell (SPEC §6.1): a tiny view state (home | analysis | settings), the
+// App shell: a tiny view state (home | analysis | settings), the
 // top bar, and the integration wiring (Task INT): usePreferences before any
 // restore, configureRepo(secrets), the keys-required banner and restoring the
 // last-opened analysis on boot. Each test reloads the module graph over a

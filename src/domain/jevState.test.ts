@@ -68,7 +68,7 @@ function okState(issue: Issue, ctx: ProjectContext, o: Partial<BuildIssueStateOp
   return result
 }
 
-describe('buildIssueState: shape (SPEC §4.3 / §4.6)', () => {
+describe('buildIssueState: shape', () => {
   it('produces exactly the §4.3 project and issue fields', () => {
     const { state } = okState(makeIssue(), makeContext())
     expect(state).toEqual({

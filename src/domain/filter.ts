@@ -1,4 +1,4 @@
-// Pure row filtering (SPEC.md §2.5 item 1, §6.4). Every dimension combines
+// Pure row filtering. Every dimension combines
 // with AND; each individual dimension is empty/full-range = "no filter".
 // A row without a classification fails a non-empty classification-derived
 // filter (level, kind, relevance, minimum confidence): it has no value to

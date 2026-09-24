@@ -1,4 +1,4 @@
-// Task 7 — SPEC.md §2.2 / §4.8: the saved-analyses list behind Home, over the
+// Task 7 — the saved-analyses list behind Home, over the
 // async IndexedDB store (FB IndexedDB lane; tests/setup/indexedDb.ts installs a
 // fresh fake database per test).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

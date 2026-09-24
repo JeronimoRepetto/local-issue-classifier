@@ -1,4 +1,4 @@
-// The current analysis (SPEC.md §3.1, §4.8): a module singleton. Every change
+// The current analysis: a module singleton. Every change
 // goes through a pure domain function, then a save is scheduled:
 //   - working state (filter, sort, dismiss, export, weights): debounced 500 ms;
 //   - classification results: coalesced to at most one save per second, plus
