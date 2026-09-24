@@ -201,3 +201,56 @@ describe('useExport — download', () => {
     expect(downloadMod.downloadText).not.toHaveBeenCalled()
   })
 })
+
+describe('useExport — format: markdown/html previews and downloads (see docs/export-format.md)', () => {
+  it('previewText renders Markdown (H1 + metadata list) when format is "markdown"', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { options, setOptions, previewText } = exportMod.useExport()
+    setOptions({ format: 'markdown' })
+    expect(options.value.format).toBe('markdown')
+    expect(previewText.value.startsWith('# local-issue-classifier report')).toBe(true)
+    expect(previewText.value).toContain('- **Repository:**')
+  })
+
+  it('previewText renders a self-contained HTML document when format is "html"', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { setOptions, previewText } = exportMod.useExport()
+    setOptions({ format: 'html' })
+    expect(previewText.value.startsWith('<!doctype html>')).toBe(true)
+    expect(previewText.value).toContain('<style>')
+    expect(previewText.value).not.toContain('<script')
+  })
+
+  it('download() uses a .md filename and text/markdown MIME for format "markdown"', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { setOptions, download, previewText } = exportMod.useExport()
+    setOptions({ format: 'markdown' })
+    download()
+    expect(downloadMod.downloadText).toHaveBeenCalledWith(
+      previewText.value,
+      'acme-widgets-issues-20260923-1405.md',
+      'text/markdown;charset=utf-8',
+    )
+  })
+
+  it('download() uses a .html filename and text/html MIME for format "html"', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { setOptions, download, previewText } = exportMod.useExport()
+    setOptions({ format: 'html' })
+    download()
+    expect(downloadMod.downloadText).toHaveBeenCalledWith(
+      previewText.value,
+      'acme-widgets-issues-20260923-1405.html',
+      'text/html;charset=utf-8',
+    )
+  })
+
+  it('download() for format "text" still calls downloadText with exactly two arguments (unchanged)', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { download, previewText } = exportMod.useExport()
+    download()
+    expect(downloadMod.downloadText).toHaveBeenCalledWith(previewText.value, 'acme-widgets-issues-20260923-1405.txt')
+    expect(downloadMod.downloadText).toHaveBeenCalledTimes(1)
+    expect((downloadMod.downloadText as ReturnType<typeof vi.fn>).mock.calls[0]).toHaveLength(2)
+  })
+})
