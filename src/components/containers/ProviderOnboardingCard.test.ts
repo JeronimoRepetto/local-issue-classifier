@@ -93,35 +93,69 @@ describe('ProviderOnboardingCard', () => {
     expect(wrapper.get('[data-test="probe-status"]').text()).toMatch(/connected/i)
   })
 
-  it('"Not now" persists the dismissal and hides the card once the provider is already ready', async () => {
+  // Layout change (user decisions 2026-09-24): the card is not dismissible
+  // any more — it is the one place to choose/see the provider, so it stays
+  // on Home always, including once the provider is ready.
+  it('never renders a dismiss/"Not now" button', async () => {
+    const wrapper = await mountCard()
+    expect(wrapper.find('[data-test="dismiss"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Not now')
+  })
+
+  it('stays visible once the provider is ready (a Jev key is set)', async () => {
     const { useSecrets } = await import('../../composables/useSecrets')
     useSecrets().setJevKey('sk-test')
 
     const wrapper = await mountCard()
-    await wrapper.get('[data-test="dismiss"]').trigger('click')
-
-    const { usePreferences } = await import('../../composables/usePreferences')
-    expect(usePreferences().state.homeProviderCardDismissed).toBe(true)
-    expect(wrapper.find('[data-test="provider-onboarding-card"]').exists()).toBe(false)
-  })
-
-  it('dismissing alone, while the provider is not ready, keeps the card visible', async () => {
-    const wrapper = await mountCard()
-    await wrapper.get('[data-test="dismiss"]').trigger('click')
-
-    const { usePreferences } = await import('../../composables/usePreferences')
-    expect(usePreferences().state.homeProviderCardDismissed).toBe(true)
     expect(wrapper.find('[data-test="provider-onboarding-card"]').exists()).toBe(true)
   })
 
-  it('is hidden on mount when the provider is already ready and was already dismissed', async () => {
+  it('stays visible even when a stored homeProviderCardDismissed=true preference is tolerated from old data', async () => {
     const { useSecrets } = await import('../../composables/useSecrets')
     useSecrets().setJevKey('sk-test')
     const { usePreferences } = await import('../../composables/usePreferences')
     usePreferences().update({ homeProviderCardDismissed: true })
 
     const wrapper = await mountCard()
-    expect(wrapper.find('[data-test="provider-onboarding-card"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="provider-onboarding-card"]').exists()).toBe(true)
+  })
+
+  it('reflects an already-configured local provider as the active choice on mount', async () => {
+    const { usePreferences } = await import('../../composables/usePreferences')
+    usePreferences().update({ provider: defaultLocalProviderConfig() })
+
+    const wrapper = await mountCard()
+    expect(wrapper.get('[data-test="choice-local"]').classes()).toContain('provider-onboarding__choice--active')
+    expect(wrapper.get('[data-test="choice-cloud"]').classes()).not.toContain('provider-onboarding__choice--active')
+  })
+
+  it('reflects an already-configured cloud provider (Jev key set) as the active choice on mount', async () => {
+    const { useSecrets } = await import('../../composables/useSecrets')
+    useSecrets().setJevKey('sk-test')
+
+    const wrapper = await mountCard()
+    expect(wrapper.get('[data-test="choice-cloud"]').classes()).toContain('provider-onboarding__choice--active')
+    expect(wrapper.get('[data-test="choice-local"]').classes()).not.toContain('provider-onboarding__choice--active')
+  })
+
+  it('neither choice is active on a fresh, never-configured install', async () => {
+    const wrapper = await mountCard()
+    expect(wrapper.get('[data-test="choice-cloud"]').classes()).not.toContain('provider-onboarding__choice--active')
+    expect(wrapper.get('[data-test="choice-local"]').classes()).not.toContain('provider-onboarding__choice--active')
+  })
+
+  it('the two choice cards share the same base classes and an equal-columns grid (equal width/height)', async () => {
+    const wrapper = await mountCard()
+    const cloud = wrapper.get('[data-test="choice-cloud"]')
+    const local = wrapper.get('[data-test="choice-local"]')
+    const base = (el: { classes(): string[] }) => el.classes().filter((c) => c !== 'provider-onboarding__choice--active')
+    expect(base(cloud)).toEqual(base(local))
+
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const source = readFileSync(join(__dirname, 'ProviderOnboardingCard.vue'), 'utf8')
+    expect(source).toMatch(/\.provider-onboarding__choices\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+    expect(source).toMatch(/\.provider-onboarding__choices\s*\{[^}]*align-items:\s*stretch/)
   })
 
   it('never renders a primary-variant button (RepoInput stays Home\'s one primary action)', async () => {
@@ -131,60 +165,12 @@ describe('ProviderOnboardingCard', () => {
     expect(wrapper.find('.ui-button--primary').exists()).toBe(false)
   })
 
-  describe('"Your computer" hardware box', () => {
-    it('shows Detecting… until the shared hardware report resolves, then the facts and a Settings link', async () => {
-      const { useHardwareDetection } = await import('../../composables/useHardwareDetection')
-      let resolveDetect: ((report: HardwareReport) => void) | undefined
-      const pending = new Promise<HardwareReport>((resolve) => {
-        resolveDetect = resolve
-      })
-      const detectionDone = useHardwareDetection().run(() => pending)
-
-      const { default: ProviderOnboardingCard } = await import('./ProviderOnboardingCard.vue')
-      const wrapper = mount(ProviderOnboardingCard)
-
-      expect(wrapper.find('[data-test="hardware-box"]').exists()).toBe(true)
-      expect(wrapper.get('[data-test="hardware-box-detecting"]').text()).toContain('Detecting')
-      expect(wrapper.find('[data-test="hardware-box-gpu"]').exists()).toBe(false)
-
-      resolveDetect?.(RTX_5070)
-      await detectionDone
-      await flushPromises()
-
-      expect(wrapper.find('[data-test="hardware-box-detecting"]').exists()).toBe(false)
-      expect(wrapper.get('[data-test="hardware-box-gpu"]').text()).toContain('RTX 5070')
-      expect(wrapper.find('[data-test="hardware-box-settings-link"]').exists()).toBe(true)
-    })
-
-    it('shows GPU + VRAM, the "≥ 8 GB" lower-bound RAM wording, CPU threads and tier chips for a detected report', async () => {
-      const wrapper = await mountCard(RTX_5070)
-
-      expect(wrapper.get('[data-test="hardware-box-gpu"]').text()).toBe('NVIDIA GeForce RTX 5070 · 12 GB')
-      expect(wrapper.get('[data-test="hardware-box-ram"]').text()).toContain('≥ 8 GB')
-      expect(wrapper.get('[data-test="hardware-box-cpu"]').text()).toContain('16')
-
-      expect(wrapper.get('[data-test="hardware-box-tier-kev-0.8b"]').text()).toContain('Fits')
-      expect(wrapper.get('[data-test="hardware-box-tier-kev-4b"]').text()).toContain('Fits')
-      expect(wrapper.get('[data-test="hardware-box-tier-jevk5"]').text()).toContain('Fits')
-      expect(wrapper.get('[data-test="hardware-box-tier-kev-9b"]').text()).toContain("Won't fit")
-      expect(wrapper.get('[data-test="hardware-box-recommendation"]').text()).toContain('JevK5')
-    })
-
-    it('shows "Unknown GPU — set it in Settings" and unknown chips when nothing was detected', async () => {
-      const wrapper = await mountCard(unknownHardwareReport())
-
-      expect(wrapper.get('[data-test="hardware-box-gpu"]').text()).toContain('Unknown GPU — set it in Settings')
-      expect(wrapper.get('[data-test="hardware-box-ram"]').text().toLowerCase()).toContain('unknown')
-      expect(wrapper.get('[data-test="hardware-box-cpu"]').text().toLowerCase()).toContain('unknown')
-      expect(wrapper.get('[data-test="hardware-box-tier-kev-0.8b"]').text()).toContain('Unknown')
-      expect(wrapper.get('[data-test="hardware-box-recommendation"]').text().toLowerCase()).toContain('cloud')
-    })
-
-    it('the "Details in Settings" link is a secondary/ghost action, never primary', async () => {
-      const wrapper = await mountCard()
-      expect(
-        wrapper.get('[data-test="hardware-box-settings-link"]').classes(),
-      ).not.toContain('ui-button--primary')
-    })
+  // The "Your computer" hardware box moved out of this card into its own
+  // sibling component: see HardwareSummaryPanel.vue / .test.ts (layout
+  // change, user decisions 2026-09-24). This card no longer renders it.
+  it('no longer renders the "Your computer" hardware box (moved to a sibling panel)', async () => {
+    const wrapper = await mountCard()
+    expect(wrapper.find('[data-test="hardware-box"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="hardware-summary-panel"]').exists()).toBe(false)
   })
 })

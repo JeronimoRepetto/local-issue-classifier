@@ -5,21 +5,26 @@
 // analysis, inside RepoLoaderContainer's RepoInput.
 //
 // The first-run checklist is now derived from live state instead of persisted
-// flags (see fb-checklist branch): keys come from useProvider().ready, repo
-// from saved/current analyses, and classify from actual classified issues.
-// The onboarding preference and completeOnboardingStep() remain (unused) for
-// backward compatibility with stored data; the checklist never persists state.
+// flags (see fb-checklist branch): keys come from the provider actually being
+// usable (see onboarding's own comment below), repo from saved/current
+// analyses, and classify from actual classified issues. The onboarding
+// preference and completeOnboardingStep() remain (unused) for backward
+// compatibility with stored data; the checklist never persists state.
 import { computed, onMounted, ref } from 'vue'
 import { useRepo } from '../../composables/useRepo'
 import { useAnalyses } from '../../composables/useAnalyses'
 import { useAnalysis } from '../../composables/useAnalysis'
 import { useView } from '../../composables/useView'
 import { useProvider } from '../../composables/useProvider'
+import { useSecrets } from '../../composables/useSecrets'
+import { useHardwareDetection } from '../../composables/useHardwareDetection'
+import { detectHardware } from '../../adapters/hardware/detect'
 import UiButton from '../../ui/UiButton.vue'
 import AnalysisList from '../ui/AnalysisList.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import OnboardingChecklist from '../ui/OnboardingChecklist.vue'
 import type { OnboardingSteps } from '../ui/OnboardingChecklist.vue'
+import HardwareSummaryPanel from '../ui/HardwareSummaryPanel.vue'
 import ProviderOnboardingCard from './ProviderOnboardingCard.vue'
 import RepoLoaderContainer from './RepoLoaderContainer.vue'
 import SaveFailedNotice from '../ui/SaveFailedNotice.vue'
@@ -33,17 +38,36 @@ const analysis = useAnalysis()
 const repo = useRepo()
 const view = useView()
 const provider = useProvider()
+const secrets = useSecrets()
+
+// "Your computer" sibling panel (layout change, user decisions 2026-09-24):
+// this container owns the passive, cached detection trigger and passes the
+// shared report down to HardwareSummaryPanel. ProviderOnboardingCard reads
+// the very same module-scope cache for its own fit line, so mount order
+// never causes a second independent scan (see useHardwareDetection.ts).
+const hw = useHardwareDetection()
+onMounted(() => {
+  if (!hw.hasStarted()) void hw.run(() => detectHardware())
+})
 
 const clearingAll = ref(false)
 
 /** Derive the onboarding checklist from live state:
- * - keys: provider is ready (Jev key set or local base URL configured)
+ * - keys: cloud (TypeSafe) is done only once a Jev key is actually present;
+ *   local is done only once the provider probe has actually succeeded
+ *   (status 'direct'/'proxied'), not merely once a base URL is configured —
+ *   a configured-but-unprobed local server is not yet "ready" (user report,
+ *   2026-09-24: this used to read provider.ready, which only checks the
+ *   base URL's shape).
  * - repo: at least one saved analysis exists OR a current analysis is loaded
  * - classify: at least one saved analysis has classified issues OR current has a classification
  */
 const onboarding = computed<OnboardingSteps>(() => {
-  // Keys: check if the provider is ready
-  const keys = provider.ready.value
+  const providerConfig = provider.config.value
+  const keys =
+    providerConfig.kind === 'typesafe'
+      ? secrets.hasJevKey.value
+      : provider.status.value === 'direct' || provider.status.value === 'proxied'
 
   // Repo: check for saved analyses or current analysis
   const repo = analyses.state.entries.length > 0 || analysis.current.value !== null
@@ -120,7 +144,10 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
       </template>
     </SaveFailedNotice>
 
-    <ProviderOnboardingCard />
+    <div class="home__provider-row">
+      <ProviderOnboardingCard />
+      <HardwareSummaryPanel :report="hw.report.value" @open-settings="view.openSettings()" />
+    </div>
 
     <RepoLoaderContainer />
 
@@ -175,6 +202,24 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
   margin: 0;
   font-size: var(--text-h1-size);
   line-height: var(--text-h1-line);
+}
+
+/* Home row (layout change, user decisions 2026-09-24): "Your computer" is a
+   sibling of the provider card, not nested inside it — a wider 2fr column
+   for the card, 1fr for the hardware panel, at >= 1024 px; stacked below
+   (card first) on narrower widths. Both start-aligned so neither stretches
+   to match a taller neighbor. */
+.home__provider-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+@media (min-width: 64em) {
+  .home__provider-row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
 }
 
 .home__lede {
