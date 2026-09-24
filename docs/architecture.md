@@ -46,14 +46,16 @@ import turns the test suite red instead of relying on code review:
   `*.test.ts` file, `vitest` itself. No Vue, no adapters, no composables.
 - `src/ui/**` (the design system) may not import `adapters`, `composables` or `domain`.
 - `src/components/ui/**` may not import `adapters`.
-- `src/composables/useSecrets.ts` may not import a storage adapter, and no file under `src/`
-  may reference `sessionStorage`, `indexedDB` or `document.cookie`.
+- `src/composables/useSecrets.ts` may import only the dedicated `adapters/storage/secretsStore.ts`
+  (no other storage adapter, no web-storage API), and only `useSecrets.ts` may import that store.
+- `sessionStorage` may be referenced only by `src/adapters/storage/secretsStore.ts` (an exact
+  allowlist); no file under `src/` may reference `indexedDB` or `document.cookie`.
 
 ## Key composables
 
 | Composable | Role |
 |---|---|
-| `useSecrets` | In-memory-only store for the Jev API key and GitHub token (§8). No storage import. |
+| `useSecrets` | Store for the Jev API key, GitHub token and local key (§8): in memory by default, opt-in tab/device persistence through `secretsStore.ts` only. |
 | `usePreferences` | Loads/saves `Preferences` through `adapters/storage/preferencesStore.ts`. |
 | `useAnalyses` | The analysis index: list, create, delete, `clearAll`. |
 | `useAnalysis` | The current analysis: load, debounced/coalesced save, `updateWorking`. |
@@ -86,13 +88,37 @@ trailing colon (see the "not our prefix" case in `analysisStore.test.ts`).
 
 ## Secrets policy
 
-The Jev API key and the GitHub token live **only** in `useSecrets()`'s reactive module state —
-there is no `STORAGE_KEYS` entry for them, and `useSecrets.ts` is architecturally forbidden from
-importing a storage adapter or a web-storage API (enforced above). A reload, closing the tab, or
-**Clear keys** loses them; a 401 from either service clears the affected key. Every persisted key
-(preferences and every saved analysis) is scanned for both secret values by
-`tests/secretsNeverPersisted.test.ts`. Secrets live in memory by default; nothing secret is
-persisted, and the guard test enforces it.
+The Jev API key, the GitHub token and a local server's key live in `useSecrets()`'s reactive
+module state. By **default** (`Preferences.secretsPersistence: 'memory'`) that is the only place
+they exist: a reload, closing the tab, or **Forget keys** loses them, and nothing is written to the
+browser.
+
+Since FB-2 (2026-09-24) the user may opt in, in Settings (`SecretsPersistenceToggle`), to one of two
+persistence levels:
+
+| Level | Storage | Lifetime |
+|---|---|---|
+| `memory` (default) | none | until reload or tab close |
+| `tab` | `sessionStorage` | survives a reload, deleted when the tab closes |
+| `device` | `localStorage` | stays on this device until forgotten |
+
+- Only the **choice** is stored in preferences. The keys themselves are stored by
+  `adapters/storage/secretsStore.ts` under one dedicated key, `local-issue-classifier:secrets:v1`,
+  in the chosen storage only — never in preferences or analyses, and never in both storages.
+- Every key change is written through; an empty key (for example one dropped after a 401) is
+  removed from storage too, and an all-empty value removes the entry.
+- Switching level migrates the keys and wipes the previous location. On load, the keys are
+  restored from the chosen level's storage and any copy elsewhere is wiped; an unknown stored level
+  counts as `memory`. A corrupt entry is removed, not trusted.
+- **Forget keys** (`clearKeys()`) wipes memory and both storages whatever the level. The
+  `device` entry shares `STORAGE_PREFIX`, so **Clear all local data** removes it as well.
+
+The risk is stated in the UI: keys stored in the browser can be read by anyone with access to this
+Windows user profile or by malware; the app runs on localhost only. `useSecrets.ts` is
+architecturally forbidden from touching a web-storage API or any other storage adapter (enforced
+above). `tests/secretsNeverPersisted.test.ts` proves the default guarantee (nothing persisted,
+reload empties keys) and each opt-in level (dedicated key only, reload restore, migration,
+wipe, no secret in preferences or analyses in any mode).
 
 ## The Jev proxy
 

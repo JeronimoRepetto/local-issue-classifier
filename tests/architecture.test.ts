@@ -80,29 +80,61 @@ describe('architecture import rules (SPEC.md §7.2)', () => {
     }
   })
 
-  it('useSecrets.ts imports no storage adapter and no web-storage API', () => {
+  // FB-2 (opt-in persistence, 2026-09-24): useSecrets may reach storage ONLY
+  // through the dedicated secrets adapter, and never touches a web-storage API
+  // itself. Every other storage adapter stays forbidden here.
+  it('useSecrets.ts imports only the dedicated secrets store and no web-storage API', () => {
     const file = join(SRC_ROOT, 'composables', 'useSecrets.ts')
-    let source: string
-    try {
-      source = readFileSync(file, 'utf8')
-    } catch {
-      return // not created until Task 4
-    }
+    const source = readFileSync(file, 'utf8')
     for (const spec of importSpecifiers(source)) {
-      expect(spec).not.toMatch(/adapters\/storage/)
+      if (!/adapters/.test(spec)) continue
+      expect(spec, `useSecrets.ts imports "${spec}"`).toBe('../adapters/storage/secretsStore')
     }
-    expect(source).not.toMatch(/sessionStorage|indexedDB|document\.cookie/)
+    expect(source).not.toMatch(/localStorage|sessionStorage|indexedDB|document\.cookie/)
   })
 
-  it('no file under src/ references sessionStorage, indexedDB or document.cookie', () => {
+  it('only useSecrets.ts and the store test import the secrets store', () => {
+    const ALLOWED = new Set([
+      join('composables', 'useSecrets.ts'),
+      join('adapters', 'storage', 'secretsStore.test.ts'),
+    ])
     const offenders: string[] = []
     for (const file of listSourceFiles(SRC_ROOT)) {
-      if (file.endsWith('architecture.test.ts')) continue
-      const source = readFileSync(file, 'utf8')
-      if (/sessionStorage|indexedDB|document\.cookie/.test(source)) {
+      const rel = relative(SRC_ROOT, file)
+      if (ALLOWED.has(rel)) continue
+      if (importSpecifiers(readFileSync(file, 'utf8')).some((spec) => /secretsStore/.test(spec))) {
+        offenders.push(rel)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  // Exact allowlist: sessionStorage exists only for the opt-in "this tab"
+  // secrets level, in the one adapter that owns it. indexedDB and cookies
+  // stay forbidden everywhere, with no exception.
+  const SESSION_STORAGE_ALLOWLIST = new Set([join('adapters', 'storage', 'secretsStore.ts')])
+
+  it('no file under src/ references indexedDB or document.cookie', () => {
+    const offenders: string[] = []
+    for (const file of listSourceFiles(SRC_ROOT)) {
+      if (/indexedDB|document\.cookie/.test(readFileSync(file, 'utf8'))) {
         offenders.push(relative(SRC_ROOT, file))
       }
     }
     expect(offenders).toEqual([])
+  })
+
+  it('sessionStorage is referenced only by the allowlisted secrets store', () => {
+    const offenders: string[] = []
+    const users: string[] = []
+    for (const file of listSourceFiles(SRC_ROOT)) {
+      const rel = relative(SRC_ROOT, file)
+      if (!/sessionStorage/.test(readFileSync(file, 'utf8'))) continue
+      if (SESSION_STORAGE_ALLOWLIST.has(rel)) users.push(rel)
+      else offenders.push(rel)
+    }
+    expect(offenders).toEqual([])
+    // The allowlist is exact: the store really is the (only) user.
+    expect(users).toEqual([...SESSION_STORAGE_ALLOWLIST])
   })
 })

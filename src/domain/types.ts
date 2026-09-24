@@ -165,6 +165,14 @@ export interface Secrets {
   githubToken: string // fine-grained or classic PAT; '' = anonymous
 }
 
+/**
+ * FB-2: where secrets are kept, chosen by the user (default 'memory').
+ * 'tab' = the tab's session storage (survives a reload, dies with the tab);
+ * 'device' = this browser's local storage. Only the CHOICE lives in Preferences.
+ */
+export type SecretsPersistence = 'memory' | 'tab' | 'device'
+export const SECRETS_PERSISTENCE_LEVELS: readonly SecretsPersistence[] = ['memory', 'tab', 'device']
+
 // ── Batched classification (docs/batching.md) ────────────────────────
 /** One request per issue, or every selected issue in as few requests as fit. */
 export type ClassifyMode = 'batched' | 'per-issue'
@@ -192,6 +200,7 @@ export interface Preferences {
   /** Manual GPU/VRAM correction for the hardware-fit panel (docs/hardware-fit.md). Detected values are never persisted. */
   hardwareOverride?: HardwareOverride | null // default null
   provider: ProviderConfig // T16: TypeSafe cloud (default) or a local Jev-compatible server; never a key
+  secretsPersistence: SecretsPersistence // FB-2: default 'memory'; the level only, never a secret
 }
 
 // ── Filters, sorting, export ─────────────────────────────────────────
@@ -346,6 +355,7 @@ export function defaultPreferences(): Preferences {
     keysBannerDismissed: false,
     hardwareOverride: null,
     provider: defaultProviderConfig(),
+    secretsPersistence: 'memory',
   }
 }
 

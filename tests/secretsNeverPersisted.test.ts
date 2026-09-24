@@ -4,6 +4,11 @@
 // Task 4: the secrets now live in useSecrets() (in memory only), and the
 // classification still arrives through useAnalysis().applyResult, which is
 // exactly where the Task 10/11 Jev runner will write.
+//
+// FB-2 (2026-09-24): the default ('memory') stays the guarantee above. The
+// user may opt in to 'tab' (sessionStorage) or 'device' (localStorage); the
+// secrets then live under ONE dedicated key in that one storage, and never in
+// preferences, analyses or the other storage.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAnalysis } from '../src/domain/analysis'
 import { defaultPreferences, defaultProjectContext } from '../src/domain/types'
@@ -32,6 +37,7 @@ beforeEach(() => {
 
 afterEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
 })
 
 describe('secrets are never persisted (§7.3)', () => {
@@ -90,5 +96,223 @@ describe('secrets are never persisted (§7.3)', () => {
     expect(restored?.rows[0]).toMatchObject({ status: 'done', classification: fakeClassification() })
     expect(restored?.working.dismissed).toEqual([2])
     expect(restored?.working.priorityWeights).toEqual({ criticality: 50, relevance: 50, complexity: 0, effort: 0 })
+  })
+})
+
+const LOCAL_KEY = 'local-provider-secret-9e1f'
+const SECRETS_KEY = 'local-issue-classifier:secrets:v1'
+const PREFERENCES_KEY = 'local-issue-classifier:preferences:v1'
+const NO_KEYS = { jevApiKey: '', githubToken: '', localApiKey: '' }
+const ALL_KEYS = { jevApiKey: JEV_KEY, githubToken: GITHUB_TOKEN, localApiKey: LOCAL_KEY }
+
+type Level = 'memory' | 'tab' | 'device'
+
+/** Every persisted key/value EXCEPT the dedicated secrets entry. */
+function everyNonSecretValue(): string[] {
+  const values: string[] = []
+  for (const store of [localStorage, sessionStorage]) {
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i) as string
+      if (key === SECRETS_KEY) continue
+      values.push(key, store.getItem(key) ?? '')
+    }
+  }
+  values.push(document.cookie)
+  return values
+}
+
+function expectNoSecretIn(values: string[]): void {
+  for (const value of values) {
+    expect(value).not.toContain(JEV_KEY)
+    expect(value).not.toContain(GITHUB_TOKEN)
+    expect(value).not.toContain(LOCAL_KEY)
+  }
+}
+
+async function freshSecrets() {
+  const { useSecrets } = await import('../src/composables/useSecrets')
+  return useSecrets()
+}
+
+async function withAllKeys(level: Level) {
+  const secrets = await freshSecrets()
+  secrets.setPersistence(level)
+  secrets.setJevKey(JEV_KEY)
+  secrets.setGitHubToken(GITHUB_TOKEN)
+  secrets.setLocalApiKey(LOCAL_KEY)
+  return secrets
+}
+
+function storedSecrets(store: Storage): Record<string, unknown> | null {
+  const raw = store.getItem(SECRETS_KEY)
+  return raw === null ? null : (JSON.parse(raw) as Record<string, unknown>)
+}
+
+describe('opt-in secrets persistence (FB-2)', () => {
+  it("defaults to 'memory': nothing is written anywhere and a reload empties every key", async () => {
+    const secrets = await freshSecrets()
+    expect(secrets.persistence.value).toBe('memory')
+    secrets.setJevKey(JEV_KEY)
+    secrets.setGitHubToken(GITHUB_TOKEN)
+    secrets.setLocalApiKey(LOCAL_KEY)
+    expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
+    expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
+    expectNoSecretIn(everyPersistedValue())
+
+    vi.resetModules()
+    expect((await freshSecrets()).state).toEqual(NO_KEYS)
+  })
+
+  it("'tab' writes only to sessionStorage under the dedicated key and restores after a reload", async () => {
+    await withAllKeys('tab')
+    expect(storedSecrets(sessionStorage)).toEqual(ALL_KEYS)
+    expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
+    expectNoSecretIn(everyNonSecretValue())
+
+    vi.resetModules()
+    const reloaded = await freshSecrets()
+    expect(reloaded.persistence.value).toBe('tab')
+    expect(reloaded.state).toEqual(ALL_KEYS)
+  })
+
+  it("'tab' keys die with the tab: a new tab (empty sessionStorage) starts with no keys", async () => {
+    await withAllKeys('tab')
+    sessionStorage.clear() // closing the tab
+    vi.resetModules()
+    const reopened = await freshSecrets()
+    expect(reopened.persistence.value).toBe('tab')
+    expect(reopened.state).toEqual(NO_KEYS)
+  })
+
+  it("'device' writes only to localStorage under the dedicated key and restores after a reload", async () => {
+    await withAllKeys('device')
+    expect(storedSecrets(localStorage)).toEqual(ALL_KEYS)
+    expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
+    expectNoSecretIn(everyNonSecretValue())
+
+    vi.resetModules()
+    const reloaded = await freshSecrets()
+    expect(reloaded.persistence.value).toBe('device')
+    expect(reloaded.state).toEqual(ALL_KEYS)
+  })
+
+  it('switching levels migrates the keys and wipes the previous location', async () => {
+    const secrets = await withAllKeys('tab')
+    secrets.setPersistence('device')
+    expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
+    expect(storedSecrets(localStorage)).toEqual(ALL_KEYS)
+
+    secrets.setPersistence('tab')
+    expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
+    expect(storedSecrets(sessionStorage)).toEqual(ALL_KEYS)
+    expect(secrets.state).toEqual(ALL_KEYS) // the in-memory copy is kept
+  })
+
+  it("'memory' after 'device' leaves no residue in any storage, even after a reload", async () => {
+    const secrets = await withAllKeys('device')
+    secrets.setPersistence('memory')
+    expect(secrets.state).toEqual(ALL_KEYS) // still usable this session
+    expectNoSecretIn(everyPersistedValue())
+
+    vi.resetModules()
+    const reloaded = await freshSecrets()
+    expect(reloaded.persistence.value).toBe('memory')
+    expect(reloaded.state).toEqual(NO_KEYS)
+    expectNoSecretIn(everyPersistedValue())
+  })
+
+  it('a stale copy in a storage the chosen level does not use is wiped on load', async () => {
+    await withAllKeys('device')
+    sessionStorage.setItem(SECRETS_KEY, localStorage.getItem(SECRETS_KEY) as string) // e.g. an interrupted migration
+    vi.resetModules()
+    await freshSecrets()
+    expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
+  })
+
+  it('an unknown stored level falls back to memory and wipes both storages', async () => {
+    await withAllKeys('device')
+    const prefs = JSON.parse(localStorage.getItem(PREFERENCES_KEY) as string) as Record<string, unknown>
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ ...prefs, secretsPersistence: 'cloud' }))
+    vi.resetModules()
+    const reloaded = await freshSecrets()
+    expect(reloaded.persistence.value).toBe('memory')
+    expect(reloaded.state).toEqual(NO_KEYS)
+    expectNoSecretIn(everyPersistedValue())
+  })
+
+  it.each<Level>(['tab', 'device'])('clearKeys ("Forget keys") wipes memory and both storages (%s)', async (level) => {
+    const secrets = await withAllKeys(level)
+    sessionStorage.setItem(SECRETS_KEY, '{}')
+    localStorage.setItem(SECRETS_KEY, '{}')
+    secrets.clearKeys()
+    expect(secrets.state).toEqual(NO_KEYS)
+    expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
+    expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
+    expectNoSecretIn(everyPersistedValue())
+  })
+
+  it.each<Level>(['tab', 'device'])('a key dropped after a 401 is dropped from storage too (%s)', async (level) => {
+    const secrets = await withAllKeys(level)
+    secrets.setJevKey('') // what useProvider does on a Jev 401
+    secrets.setGitHubToken('') // what App.vue does on a GitHub 401
+    const store = level === 'tab' ? sessionStorage : localStorage
+    expect(storedSecrets(store)).toEqual({ jevApiKey: '', githubToken: '', localApiKey: LOCAL_KEY })
+    secrets.setLocalApiKey('')
+    expect(store.getItem(SECRETS_KEY)).toBeNull() // nothing left to keep
+  })
+
+  it('a corrupt or non-string stored entry is ignored and removed', async () => {
+    await withAllKeys('device')
+    localStorage.setItem(SECRETS_KEY, JSON.stringify({ jevApiKey: 42, githubToken: ['x'] }))
+    vi.resetModules()
+    expect((await freshSecrets()).state).toEqual(NO_KEYS)
+    expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
+  })
+
+  it.each<Level>(['memory', 'tab', 'device'])('preferences and analyses never contain a secret (%s)', async (level) => {
+    const secrets = await withAllKeys(level)
+    const { useAnalysis } = await import('../src/composables/useAnalysis')
+    const { usePreferences } = await import('../src/composables/usePreferences')
+    const store = useAnalysis()
+    store.setCurrent(
+      createAnalysis({
+        id: `a-${level}`,
+        repo: fakeRepo(),
+        stateFilter: 'open',
+        now: '2026-03-01T10:00:00Z',
+        prefs: defaultPreferences(),
+        projectContext: defaultProjectContext('acme/widgets'),
+        issues: [fakeIssue(1)],
+        commentsFetched: secrets.hasGitHubToken.value,
+      }),
+    )
+    store.applyResult(1, { ok: true, classification: fakeClassification() })
+    store.flush()
+    usePreferences().update({ lastRepo: 'acme/widgets' })
+
+    const prefs = JSON.parse(localStorage.getItem(PREFERENCES_KEY) as string) as Record<string, unknown>
+    expect(prefs.secretsPersistence).toBe(level)
+    const nonSecret = everyNonSecretValue()
+    expect(nonSecret.length).toBeGreaterThan(2)
+    expectNoSecretIn(nonSecret)
+  })
+})
+
+describe('useSecretsPersistence (FB-2 Settings wiring helper)', () => {
+  it('a v-model-ready level that migrates on write, and forget() wipes everything', async () => {
+    const { useSecrets, useSecretsPersistence } = await import('../src/composables/useSecrets')
+    const secrets = useSecrets()
+    const { level, forget } = useSecretsPersistence()
+    expect(level.value).toBe('memory')
+    secrets.setJevKey(JEV_KEY)
+
+    level.value = 'device'
+    expect(secrets.persistence.value).toBe('device')
+    expect(storedSecrets(localStorage)?.jevApiKey).toBe(JEV_KEY)
+
+    forget()
+    expect(secrets.state.jevApiKey).toBe('')
+    expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
+    expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
   })
 })
