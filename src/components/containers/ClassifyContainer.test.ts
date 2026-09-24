@@ -18,7 +18,10 @@ async function setup(handler: Handler, withKey = true, provider?: ProviderConfig
   const { useSecrets } = await import('../../composables/useSecrets')
   const { usePreferences } = await import('../../composables/usePreferences')
   const { configureClassifier } = await import('../../composables/useClassifier')
+  const { configureProvider, useProvider } = await import('../../composables/useProvider')
   configureClassifier({ createClient: () => scriptedClient(handler), sleep: async () => undefined })
+  // Every candidate probe goes through this fake fetch too; nothing real is contacted.
+  configureProvider({ fetch: async () => new Response(JSON.stringify({ models: [] }), { status: 404 }) })
   if (provider) usePreferences().update({ provider })
   useAnalysis().setCurrent(
     createAnalysis({
@@ -34,7 +37,7 @@ async function setup(handler: Handler, withKey = true, provider?: ProviderConfig
   )
   if (withKey) useSecrets().setJevKey('jev-test')
   const { default: ClassifyContainer } = await import('./ClassifyContainer.vue')
-  return { wrapper: mount(ClassifyContainer, { attachTo: document.body }), useSecrets }
+  return { wrapper: mount(ClassifyContainer, { attachTo: document.body }), useSecrets, useProvider }
 }
 
 beforeEach(() => {
@@ -102,6 +105,39 @@ describe('ClassifyContainer', () => {
     await wrapper.get('[data-test="classify-start"]').trigger('click')
     await flushPromises()
     expect(calls).toEqual([2])
+    wrapper.unmount()
+  })
+})
+
+describe('ClassifyContainer: provider switcher', () => {
+  it('mounts the provider switch and probes candidates on mount', async () => {
+    const { wrapper } = await setup(() => ok())
+    await flushPromises()
+    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(true)
+    expect(wrapper.get('[data-test="provider-option-typesafe"]').attributes('aria-checked')).toBe('true')
+  })
+
+  it('selecting another candidate replaces the active provider', async () => {
+    const { wrapper, useProvider } = await setup(() => ok())
+    await flushPromises()
+    await wrapper.get('[data-test="provider-option-local:kev"]').trigger('click')
+    expect(useProvider().config.value).toEqual({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' })
+    wrapper.unmount()
+  })
+
+  it('disables the switch while a run is active', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const { wrapper } = await setup(async () => {
+      await gate
+      return ok()
+    })
+    await flushPromises()
+    await wrapper.get('[data-test="classify-start"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="provider-option-local:kev"]').attributes('disabled')).toBeDefined()
+    release()
+    await flushPromises()
     wrapper.unmount()
   })
 })

@@ -3,17 +3,19 @@
 // it reads only composables, takes the filtered view as an optional prop, and
 // asks its parent to open Settings through an event. The analysis view mounts
 // it (integration task); it owns its own toasts.
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import UiToastStack from '../../ui/UiToastStack.vue'
 import type { ToastItem } from '../../ui/UiToastStack.vue'
 import { useReducedMotion } from '../../ui/motion'
 import ClassifyButton from '../ui/ClassifyButton.vue'
 import type { ClassifyButtonScope } from '../ui/ClassifyButton.vue'
 import ClassifyProgress from '../ui/ClassifyProgress.vue'
+import ProviderSwitch from '../ui/ProviderSwitch.vue'
 import RunSummary from '../ui/RunSummary.vue'
 import { useClassifier } from '../../composables/useClassifier'
 import type { ClassifyRequest } from '../../composables/useClassifier'
 import { useProvider } from '../../composables/useProvider'
+import { candidateIdFor } from '../../domain/provider'
 import type { RunSummary as Summary } from '../../domain/classifyRun'
 
 export type OpenSettingsReason = 'jev-key-missing' | 'jev-key-rejected'
@@ -35,6 +37,14 @@ const toasts = ref<ToastItem[]>([])
 let toastId = 0
 
 const running = computed(() => classifier.state.phase === 'running')
+
+// Provider switcher (T-provider-switch, docs/local-providers.md, docs/browser-inference.md):
+// probe every local preset and check WebGPU once, when this bar mounts with the analysis view.
+onMounted(() => {
+  void provider.probeAll()
+})
+
+const selectedProviderId = computed(() => candidateIdFor(provider.config.value))
 
 watch(
   () => props.filteredNumbers,
@@ -91,15 +101,25 @@ function cancel(): void {
 
 <template>
   <div class="classify-container">
-    <ClassifyButton
-      v-model:scope="scope"
-      :has-key="provider.ready.value"
-      :counts="counts"
-      :estimate="estimate"
-      :running="running"
-      @start="start"
-      @open-settings="emit('open-settings', 'jev-key-missing')"
-    />
+    <div class="classify-container__bar">
+      <ClassifyButton
+        v-model:scope="scope"
+        :has-key="provider.ready.value"
+        :counts="counts"
+        :estimate="estimate"
+        :running="running"
+        @start="start"
+        @open-settings="emit('open-settings', 'jev-key-missing')"
+      />
+
+      <ProviderSwitch
+        class="classify-container__provider"
+        :candidates="provider.candidates.value"
+        :model-value="selectedProviderId"
+        :disabled="running"
+        @update:model-value="provider.selectProvider"
+      />
+    </div>
 
     <ClassifyProgress
       v-if="running && classifier.state.progress"
@@ -128,5 +148,17 @@ function cancel(): void {
   background: var(--color-surface);
   border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-md);
+}
+
+.classify-container__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.classify-container__provider {
+  align-self: flex-end;
 }
 </style>
