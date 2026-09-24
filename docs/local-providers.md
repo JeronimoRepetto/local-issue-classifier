@@ -251,6 +251,12 @@ The page's CSP allows direct calls only to `localhost`, `127.0.0.1` and `[::1]` 
 address or an `https` local server therefore always goes through the proxy. See
 [deployment.md](deployment.md) for what the proxy does.
 
+**Hosted pages.** A hosted build has no `/jev-local` proxy, so it reaches `http://localhost` directly
+from your browser. That works with Kev, which answers with CORS `*`; JevK5 sends no CORS headers,
+so it is not supported from a hosted page (run the app locally for it). There, Home hides the
+**On this computer** card and Settings labels the option "Advanced: a Kev/JevK5 server on your
+machine".
+
 Local calls time out after 180 s instead of the cloud's 20 s, because a 4B model on a consumer GPU
 is much slower than the TypeSafe API.
 

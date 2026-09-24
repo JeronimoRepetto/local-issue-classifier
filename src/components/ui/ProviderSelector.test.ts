@@ -161,6 +161,25 @@ describe('ProviderSelector', () => {
     expect(wrapper.get('[data-test="device-callout-cuda-fix"] [data-test="command-cuda-fix"]').text()).toBe('uv pip install x')
   })
 
+  it('labels the local option as advanced on a hosted page, and plainly when running locally', () => {
+    const label = (hosted?: boolean) =>
+      mount(ProviderSelector, {
+        props: {
+          modelValue: { kind: 'typesafe' },
+          apiKey: '',
+          classifyMode: 'batched',
+          trimmingFloor: 'minimal',
+          probe: async () => ({ status: 'direct', models: null }),
+          hosted,
+        },
+      })
+        .get('[data-test="kind-local-label"]')
+        .text()
+    expect(label(true)).toBe('Advanced: a Kev/JevK5 server on your machine')
+    expect(label(false)).toBe('Local server (Kev, JevK5)')
+    expect(label()).toBe('Local server (Kev, JevK5)')
+  })
+
   // FB-4 — the local setup guide, and a hint pointing to it when unreachable.
   it('mounts the local setup guide only for a local provider', () => {
     expect(mountSelector().find('[data-test="local-setup-guide"]').exists()).toBe(false)

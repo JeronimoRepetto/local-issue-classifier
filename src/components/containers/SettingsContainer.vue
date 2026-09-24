@@ -26,6 +26,7 @@ import { sanitizeLocalMaxStateTokens } from '../../domain/providerBatching'
 import { localDeviceAdvice } from '../../domain/localDevice'
 import { detectOs } from '../../domain/localCommands'
 import { useHardwareDetection } from '../../composables/useHardwareDetection'
+import { useRuntime } from '../../composables/useRuntime'
 import type { ProviderConfig } from '../../domain/provider'
 
 const ABOUT_TEXT =
@@ -75,6 +76,9 @@ const persistenceText = computed(() => PERSISTENCE_TEXT[analyses.state.persisten
 
 // T16, WIRE-2: which server classifies, and, for a local one, its live status
 // (useProvider().localStatus, checked automatically; docs/local-providers.md).
+
+/** On a hosted page the local option is an advanced one (docs/local-providers.md "Hosted pages"). */
+const runtime = useRuntime()
 
 /** GPU vs CPU readout for the local server, from its last probe and the shared (passive) hardware detection. */
 const hardware = useHardwareDetection()
@@ -206,6 +210,7 @@ onBeforeUnmount(() => stopTheme?.())
           :probe="provider.probe"
           :live-status="provider.localStatus.value.text"
           :device-advice="deviceAdvice"
+          :hosted="!runtime.isLocal.value"
           :browser="provider.browserStatus"
           @update:model-value="onProviderChange"
           @download-model="provider.downloadBrowserModel()"

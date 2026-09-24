@@ -44,6 +44,8 @@ const props = defineProps<{
   liveStatus?: string
   /** GPU vs CPU callouts for the local server (domain/localDevice.ts's localDeviceAdvice). */
   deviceAdvice?: readonly DeviceAdvice[]
+  /** A hosted page (not this repo's own server): the local option is labelled as advanced (docs/local-providers.md). */
+  hosted?: boolean
   /** The in-browser model's state (useProvider().browserStatus); only read for the browser kind. */
   browser?: BrowserPanelState
 }>()
@@ -184,7 +186,9 @@ async function testConnection(): Promise<void> {
           :checked="modelValue.kind === 'local'"
           @change="selectKind('local')"
         />
-        Local server (Kev, JevK5)
+        <span data-test="kind-local-label">{{
+          hosted ? 'Advanced: a Kev/JevK5 server on your machine' : 'Local server (Kev, JevK5)'
+        }}</span>
       </label>
       <label class="provider-selector__radio">
         <input
