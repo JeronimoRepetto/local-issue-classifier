@@ -3,18 +3,20 @@
 // checker against this repository's actual tracked files.
 import { describe, expect, it } from 'vitest'
 import {
+  findNonNoreplyAuthorCommits,
   findPersonalData,
   findStrayStreamlineAssets,
   findTokenLikeStrings,
   findTrackedEnvFiles,
+  parseCommitLog,
   runHygieneChecks,
 } from '../scripts/check-hygiene.mjs'
 
-// `loadTrackedFiles`/`main` shell out to `git ls-files` and are exercised
-// directly with `pnpm hygiene` against the real repository (see
-// docs/release-checklist.md and the Task 15 report) rather than from inside
-// this suite: spawning a subprocess from a test worker is exactly the kind
-// of environment-dependent behaviour these tests are meant to avoid.
+// `loadTrackedFiles`/`loadAuthorCommitLog`/`main` shell out to `git` and are
+// exercised directly with `pnpm hygiene` against the real repository rather
+// than from inside this suite: spawning a subprocess from a test worker is
+// exactly the kind of environment-dependent behaviour these tests are meant
+// to avoid.
 
 describe('findTrackedEnvFiles', () => {
   it('fails on a tracked .env', () => {
@@ -143,6 +145,85 @@ describe('findStrayStreamlineAssets', () => {
     const findings = findStrayStreamlineAssets(['design/icons/streamline-pixel/bug.svg'])
     expect(findings).toHaveLength(1)
     expect(findings[0]).toMatchObject({ rule: 'stray-streamline-asset' })
+  })
+})
+
+describe('parseCommitLog', () => {
+  it('parses one record per line into hash/shortHash/author/committer fields', () => {
+    const raw =
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1faaaaaaa\x1fjane@users.noreply.github.com\x1fjane@users.noreply.github.com'
+    expect(parseCommitLog(raw)).toEqual([
+      {
+        hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        shortHash: 'aaaaaaa',
+        authorEmail: 'jane@users.noreply.github.com',
+        committerEmail: 'jane@users.noreply.github.com',
+      },
+    ])
+  })
+
+  it('parses multiple records, one per line', () => {
+    const raw = [
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1faaaaaaa\x1fa@users.noreply.github.com\x1fa@users.noreply.github.com',
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\x1fbbbbbbb\x1fb@example.com\x1fb@example.com',
+    ].join('\n')
+    expect(parseCommitLog(raw)).toHaveLength(2)
+  })
+
+  it('ignores blank lines (e.g. the trailing newline in git log output)', () => {
+    const raw =
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1faaaaaaa\x1fa@users.noreply.github.com\x1fa@users.noreply.github.com\n\n'
+    expect(parseCommitLog(raw)).toHaveLength(1)
+  })
+
+  it('returns an empty array for empty input', () => {
+    expect(parseCommitLog('')).toEqual([])
+  })
+})
+
+describe('findNonNoreplyAuthorCommits', () => {
+  const commit = (shortHash: string, authorEmail: string, committerEmail: string = authorEmail) => ({
+    hash: shortHash.padEnd(40, '0'),
+    shortHash,
+    authorEmail,
+    committerEmail,
+  })
+
+  it('passes when every author and committer e-mail ends with @users.noreply.github.com', () => {
+    const commits = [
+      commit('aaaaaaa', 'JeronimoRepetto@users.noreply.github.com'),
+      commit('bbbbbbb', 'someone@users.noreply.github.com'),
+    ]
+    expect(findNonNoreplyAuthorCommits(commits)).toEqual([])
+  })
+
+  it('is case-insensitive about the domain', () => {
+    const commits = [commit('aaaaaaa', 'Jane@Users.Noreply.GitHub.com')]
+    expect(findNonNoreplyAuthorCommits(commits)).toEqual([])
+  })
+
+  it('fails on a non-noreply author e-mail', () => {
+    const commits = [commit('016c9fe', 'jane.doe@gmail.com', 'jane.doe@users.noreply.github.com')]
+    const findings = findNonNoreplyAuthorCommits(commits)
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ rule: 'non-noreply-author-email' })
+    expect(findings[0].message).toContain('016c9fe')
+  })
+
+  it('fails on a non-noreply committer e-mail even when the author is compliant', () => {
+    const commits = [commit('2aa2e5c', 'jane.doe@users.noreply.github.com', 'noreply@github.com')]
+    const findings = findNonNoreplyAuthorCommits(commits)
+    expect(findings).toHaveLength(1)
+    expect(findings[0].message).toContain('2aa2e5c')
+  })
+
+  it('reports one finding per non-compliant commit', () => {
+    const commits = [
+      commit('0000001', 'a@gmail.com', 'a@gmail.com'),
+      commit('0000002', 'b@users.noreply.github.com'),
+      commit('0000003', 'c@gmail.com', 'c@gmail.com'),
+    ]
+    expect(findNonNoreplyAuthorCommits(commits)).toHaveLength(2)
   })
 })
 

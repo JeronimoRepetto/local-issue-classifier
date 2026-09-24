@@ -132,6 +132,49 @@ export function findStrayStreamlineAssets(paths) {
     }))
 }
 
+// ── Rule: author/committer e-mail on new commits ──────────────────────────
+// 1669a23 is the commit where this repo's identity switched to the noreply
+// address; every commit after it must carry that address, so a future commit
+// authored with a real e-mail is caught here instead of shipping to the
+// public repo. Commits at or before the boundary are exempt by design (the
+// user declined a history rewrite for those).
+export const NOREPLY_BOUNDARY_COMMIT = '1669a23c4b09ae4bcf430df5d2bb13340ec7183e'
+const NOREPLY_DOMAIN = '@users.noreply.github.com'
+
+// `git log --format=%H%x1f%h%x1f%ae%x1f%ce` output: one record per line, with
+// `\x1f` (unit separator) between the full hash, short hash, author e-mail
+// and committer e-mail.
+export function parseCommitLog(raw) {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, shortHash, authorEmail, committerEmail] = line.split('\x1f')
+      return { hash, shortHash, authorEmail, committerEmail }
+    })
+}
+
+export function findNonNoreplyAuthorCommits(commits, { domain = NOREPLY_DOMAIN } = {}) {
+  const lower = domain.toLowerCase()
+  const isCompliant = (email) => email != null && email.toLowerCase().endsWith(lower)
+  const findings = []
+  for (const { shortHash, authorEmail, committerEmail } of commits) {
+    const badAuthor = !isCompliant(authorEmail)
+    const badCommitter = !isCompliant(committerEmail)
+    if (!badAuthor && !badCommitter) continue
+    const parts = []
+    if (badAuthor) parts.push(`author e-mail "${authorEmail}"`)
+    if (badCommitter) parts.push(`committer e-mail "${committerEmail}"`)
+    findings.push({
+      rule: 'non-noreply-author-email',
+      path: `commit ${shortHash}`,
+      message: `commit ${shortHash} has a non-noreply ${parts.join(' and ')}; expected an address ending in ${domain}.`,
+    })
+  }
+  return findings
+}
+
 // ── Aggregate ──────────────────────────────────────────────────────────────
 export function runHygieneChecks(files) {
   const paths = files.map((f) => f.path)
@@ -163,9 +206,30 @@ export function loadTrackedFiles(repoRoot) {
   })
 }
 
+export function loadAuthorCommitLog(repoRoot, { boundaryRef = NOREPLY_BOUNDARY_COMMIT } = {}) {
+  const out = execFileSync(
+    'git',
+    ['log', '--format=%H%x1f%h%x1f%ae%x1f%ce', `${boundaryRef}..HEAD`],
+    { cwd: repoRoot, encoding: 'utf8' },
+  )
+  return parseCommitLog(out)
+}
+
 export function main(repoRoot = process.cwd()) {
   const files = loadTrackedFiles(repoRoot)
   const findings = runHygieneChecks(files)
+
+  try {
+    const commits = loadAuthorCommitLog(repoRoot)
+    findings.push(...findNonNoreplyAuthorCommits(commits))
+  } catch (err) {
+    findings.push({
+      rule: 'author-email-check-unavailable',
+      path: '.git',
+      message: `could not run the author/committer e-mail check: ${err.message}`,
+    })
+  }
+
   if (findings.length === 0) {
     console.log(`hygiene: ok (${files.length} tracked files checked)`)
     return 0
