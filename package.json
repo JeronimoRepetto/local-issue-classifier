@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "icons": "node scripts/build-icons.mjs",
-    "hygiene": "node scripts/check-hygiene.mjs"
+    "hygiene": "node scripts/check-hygiene.mjs",
+    "local:kev": "node scripts/local-kev.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
