@@ -43,27 +43,42 @@ The v2 design (2026-09-23) replaced the pixel UI icons with line icons, so no ic
 
 ### Brand icons (app-bar links, 2026-09-24)
 
-One third-party brand icon is bundled, as a deliberate, narrow exception to "no third-party icons"
-above: the GitHub app-bar link (`src/ui/GitHubMarkIcon.vue`) renders GitHub's own mark so the link is
-recognizable at a glance.
+Two third-party brand icons are bundled, as a deliberate, narrow exception to "no third-party
+icons" above: the GitHub and LinkedIn app-bar links (`src/ui/GitHubMarkIcon.vue`,
+`src/ui/LinkedInMarkIcon.vue`) render each service's own mark so the links are recognizable at
+a glance. Neither mark is relicensed under this project's MIT license; both remain their
+owners' trademarks, used only as described below.
 
 | Icon | Source | License | Notes |
 |---|---|---|---|
 | GitHub mark | Simple Icons `simple-icons@16.32.0`, `icons/github.svg` (CC0 1.0). Simple Icons' own `source` field for this icon points to `https://github.com/logos`. | CC0 1.0 | Path data copied verbatim into `src/ui/GitHubMarkIcon.vue`. The mark itself remains GitHub, Inc.'s trademark; this notice does not grant any trademark rights, only records the CC0-licensed redistribution of the artwork. |
+| LinkedIn `[in]` Logo | LinkedIn Corporation, via its own brand guidelines site `https://brand.linkedin.com/in-logo`. Path data copied verbatim from that page's own inline SVG symbol (`id="inbug-blue-28"`, viewBox `0 0 28 28`) — the same artwork that page uses for its own nav and footer logo, fetched directly, not scraped from a third party. | LinkedIn trademark; used strictly under the LinkedIn Brand and User Agreements, not MIT | Path data copied verbatim into `src/ui/LinkedInMarkIcon.vue`. Rendered **unaltered** in the two monochrome variants LinkedIn itself provides for download (`https://brand.linkedin.com/in-logo` → "Download the `[in]` Logo`", asset `in-logo.zip`): confirmed by pixel-inspecting that zip's `InBug-Black.png` and `InBug-White.png` (checked 2026-09-24), which are pure `#000000` and pure `#FFFFFF` respectively on a transparent background — the exact two values in `src/ui/tokens.ts`'s `brand-linkedin-mark` token. This notice does not grant any trademark rights, only records that the shape and colors are LinkedIn's own official, freely-downloadable artwork, used exactly as published. |
 
-**LinkedIn has no bundled brand mark, on purpose.** The task that requested this link assumed Simple
-Icons also offers a free LinkedIn mark; it does not. Verified 2026-09-24:
+**Why the LinkedIn mark is allowed here.** LinkedIn's `[in]` Logo guidelines
+(`https://brand.linkedin.com/in-logo`, "Acceptable use") explicitly permit any LinkedIn member
+to use the `[in]` Logo "as a hyperlink to your LinkedIn profile, company page, and/or group
+page" and "in a series of social media icons showing your participation in those sites" — both
+exactly describe this app bar's "Author on LinkedIn" link. The same page's "Please Do Not"
+section forbids modifying the mark's color or shape ("You may only use the approved color
+variations provided for download") or combining it with other symbols/words, or implying
+LinkedIn affiliation/endorsement — `LinkedInMarkIcon.vue` follows all three: the path is
+verbatim, the fill is one of the three approved variants (black/white; blue is the third, not
+used here), and the icon renders alone, with no added symbol or wordmark.
 
-- `simple-icons@16.32.0`'s own icon data (`data/simple-icons.json`, 3,461 icons) has zero entries for
-  LinkedIn — the flat `icons/linkedin.svg` some CDNs serve under a stale cache is not part of the
-  current, real package tree (confirmed 404 on a version-pinned fetch of that exact path).
-- Simple Icons' public issue tracker shows repeated "Request: LinkedIn" issues (e.g.
-  [simple-icons/simple-icons#15014](https://github.com/simple-icons/simple-icons/issues/15014)),
-  all closed `not_planned` and labeled `won't add` / `permissions in review` — i.e. LinkedIn's own
-  brand/ToS terms are understood to not permit free redistribution the way GitHub's do.
+The full **LinkedIn Logo** (wordmark + bug together, a *different* page at
+`https://brand.linkedin.com/linkedin-logo`) is a separate, license-gated asset ("LinkedIn does
+not allow anyone to use the LinkedIn Logo, unless they already have an existing relationship
+with LinkedIn and a Brand or Trademark License") and is not used anywhere in this project — only
+the standalone, freely-usable `[in]` Logo bug is bundled.
 
-So the LinkedIn app-bar link (`src/App.vue`) reuses the project's own generic
-`IconExternalLink` (an original stroke icon, MIT, already covered above) instead of a redrawn
-LinkedIn logo. This mirrors this project's existing convention of not redrawing a brand mark it
-cannot freely license (see `docs/design.md`, "Icons" — GitHub's mark was previously avoided
-the same way, before this exception).
+**Superseded note, kept for history (originally 2026-09-24):** this project previously reused
+the generic `IconExternalLink` for the LinkedIn link, believing (from Simple Icons' own
+CC0-icon coverage and its public issue tracker's `won't add` / `permissions in review` responses
+to "Request: LinkedIn" issues, e.g.
+[simple-icons/simple-icons#15014](https://github.com/simple-icons/simple-icons/issues/15014))
+that LinkedIn did not permit free redistribution of its mark at all. That conclusion was correct
+about Simple Icons specifically (it still ships no LinkedIn icon, confirmed 404 on a
+version-pinned fetch of `icons/linkedin.svg`) but not about LinkedIn's own guidelines, which
+were not checked directly at the time. Checking `brand.linkedin.com` itself (this entry, same
+day) found the standalone `[in]` Logo is in fact freely downloadable and usable for exactly this
+purpose, so the generic icon was replaced with the real mark above.
