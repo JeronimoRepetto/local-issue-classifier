@@ -123,4 +123,25 @@ describe('ProviderSelector', () => {
     expect(wrapper.emitted('update:classifyMode')?.[0]).toEqual(['per-issue'])
     expect(wrapper.emitted('update:trimmingFloor')?.[0]).toEqual(['compact'])
   })
+
+  // FB-4 — the local setup guide, and a hint pointing to it when unreachable.
+  it('mounts the local setup guide only for a local provider', () => {
+    expect(mountSelector().find('[data-test="local-setup-guide"]').exists()).toBe(false)
+    expect(mountSelector({ modelValue: LOCAL }).find('[data-test="local-setup-guide"]').exists()).toBe(true)
+  })
+
+  it('shows no unreachable hint before testing or after a successful test', async () => {
+    const wrapper = mountSelector({ modelValue: LOCAL })
+    expect(wrapper.find('[data-test="unreachable-hint"]').exists()).toBe(false)
+    await wrapper.get('[data-test="test-connection"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="unreachable-hint"]').exists()).toBe(false)
+  })
+
+  it('hints at the setup guide, naming the port, when the server is unreachable', async () => {
+    const wrapper = mountSelector({ modelValue: LOCAL, probe: async () => ({ status: 'unreachable', models: null }) })
+    await wrapper.get('[data-test="test-connection"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="unreachable-hint"]').text()).toMatch(/port 8009/)
+  })
 })

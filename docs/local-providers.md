@@ -13,12 +13,33 @@ issues never leave your machine or LAN.
 Both are presets in Settings. The facts here come from each project's README (checked 2026-09-23).
 Check them again before you rely on them.
 
+This section is also built into the app: Settings → Classifier → **Local server** shows the same
+steps and commands below, with copy buttons and an OS switch, in
+[`LocalSetupGuide`](../src/components/ui/LocalSetupGuide.vue).
+
+## Prerequisites
+
+- **Git** (to clone Kev; not needed for JevK5).
+- **Python 3.12 or 3.13** for Kev; **pip** for JevK5.
+- **uv** for Kev (manages Kev's Python environment). Install it if you don't have it:
+
+  | OS | Install uv |
+  |----|------------|
+  | Windows | `winget install astral-sh.uv` |
+  | macOS / Linux | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+
+- An **NVIDIA GPU is optional**: without one, both servers run on the CPU (slow — see
+  "CPU-only torch" under Troubleshooting). JevK5 needs about 9 GB of GPU memory in practice.
+
 ## Run Kev
+
+The commands below are the same on Windows, macOS and Linux, except installing uv (above) and the
+optional CUDA step.
 
 ```sh
 git clone https://github.com/jaredpalmer/kev.git && cd kev
 uv sync --extra serve
-uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009
+uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 ```
 
 - `--run` takes a Hub model id (`jaredpalmer/kev-0.8b`, `jaredpalmer/kev-4b`, `jaredpalmer/kev-9b`),
@@ -28,6 +49,28 @@ uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009
 - Besides `/v1/systemone`, Kev serves `GET /v1/models`, which the app's connection test uses.
 - Kev's README notes that questions share the input text but cannot read each other's answers,
   which is also true of the TypeSafe API.
+
+**Or skip all three commands**: from this repo, run `pnpm local:kev` (add `--model kev-4b` or
+`--model kev-9b` to pick a bigger size, `--port` to change the port, `--cuda` to also run the CUDA
+step below). It checks git/uv/Python, clones Kev into `.local/kev` if it isn't there yet, installs
+its dependencies and starts the server in your terminal — `Ctrl+C` stops it. See
+`scripts/local-kev.mjs --help` for every option. If you already have a Kev checkout from an earlier
+session, point `--dir` at it instead of letting the script clone a new one.
+
+### Optional: use an NVIDIA GPU (Windows, Linux)
+
+`uv sync` installs a **CPU-only** build of torch (see "CPU-only torch" below). To use the GPU
+instead, run this once inside the `kev` folder, after `uv sync`:
+
+```sh
+uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/cu130
+```
+
+The index URL is PyTorch's current CUDA build for pip (`pytorch.org/get-started/locally`, OS,
+Pip, CUDA — checked 2026-09-24 from `download.pytorch.org/assets/quick-start-module.js`; it also
+offers `cu126` and `cu132`). Check the site again if this stops working — the offered CUDA
+versions change over time. **Not applicable on macOS**: Apple Silicon uses Metal (MPS)
+automatically, with no separate install.
 
 ### Which Kev size fits your GPU
 
@@ -39,12 +82,12 @@ uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009
 
 The README quotes latency on data-center GPUs (L4 for 0.8B, L40S for 4B, H100 for 9B). A consumer
 GPU is slower. [hardware-fit.md](hardware-fit.md) explains how the app checks what your machine can
-run.
+run, and the same tiers back the Model size picker in the in-app guide.
 
-## JevK5
+## Run JevK5
 
 JevK5 is Qwen3.5-4B with a LoRA adapter that answers the `/v1/systemone` shape. It **ships its own
-server**:
+server**, the same command on every OS:
 
 ```sh
 pip install "jevk5[fast] @ git+https://github.com/allebee/jevk5@v0.2.0"
@@ -56,6 +99,7 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
   `alibiserikbay/JevK5`). If the server rejects it, set the model to whatever the server expects.
 - The README does not mention `GET /v1/models`. The connection test still passes when that path
   answers 404, but it shows no model list.
+- There is no `pnpm local:kev`-style shortcut for JevK5; run the two commands above yourself.
 
 ## Point the app at a local server
 
@@ -67,7 +111,8 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
 4. Click **Test connection**. It reports one of three results:
    - **direct**: the browser calls the server itself.
    - **proxied**: the browser calls `/jev-local` on the Vite server, which forwards the call.
-   - **unreachable**: neither route answered.
+   - **unreachable**: neither route answered. The app then points back at the setup guide above
+     and asks whether the server is running on the expected port — see Troubleshooting below.
 
 No TypeSafe key is needed for a local server. The cost estimate before a run shows **$0**. The
 request count and the latency estimate still apply.
@@ -91,6 +136,42 @@ address or an `https` local server therefore always goes through the proxy. See
 
 Local calls time out after 180 s instead of the cloud's 20 s, because a 4B model on a consumer GPU
 is much slower than the TypeSafe API.
+
+## Troubleshooting
+
+**"Unreachable" in Test connection.**
+
+- Is the server actually running? Check the terminal you started it in (or `pnpm local:kev`'s
+  window) for errors, and that it printed something like "Uvicorn running on
+  `http://127.0.0.1:8009`".
+- Does the port match? The base URL's port (`8009` for Kev, `8090` for JevK5 by default) must be
+  the same port the server actually bound to (`--port`).
+- Is something else already using that port ("address already in use" / "port is already
+  allocated" in the server's own error)? Either stop that process, or start the server on a
+  different port (`--port 8010`, matching the app's base URL to it), or edit the app's base URL to
+  match whatever port the server is really using.
+- A firewall prompt the first time you start the server (Windows Defender, a corporate firewall)
+  must be **allowed** for `localhost`/private-network access, or the browser's request never
+  reaches it. A LAN address (not `localhost`) additionally needs the server to actually bind to
+  `0.0.0.0` or the LAN interface, not only `127.0.0.1`.
+- The app tries a direct call first and only falls back to the `/jev-local` proxy if that fails
+  (see "CORS and the `/jev-local` proxy" above); "unreachable" means *both* failed, so a CORS
+  problem alone would show as **proxied**, not **unreachable**.
+
+**The model runs on the CPU and is very slow (or `/v1/models` reports `"device": "cpu"`).**
+
+On Windows and Linux, `uv sync --extra serve` installs a CPU-only build of torch by default,
+because Kev's `pyproject.toml` names no CUDA wheel index (confirmed 2026-09-23, see "Measured on
+2026-09-23" below). Run the CUDA step under "Run Kev" above once, inside the `kev` folder, after
+`uv sync`, then restart the server. Not applicable on macOS (Apple Silicon already uses Metal/MPS).
+JevK5 needs a real NVIDIA GPU in practice (~9 GB in bf16); it has not been checked for a CPU-only
+fallback.
+
+**The first start takes a long time, or looks stuck.**
+
+The first run downloads the base model into the Hugging Face cache (Kev-0.8B: about 1.7 GB plus a
+63 MB adapter — bigger for Kev-4B/9B). This only happens once per model; watch the terminal for
+download progress rather than assuming it hung.
 
 ## Batching on a small model
 
