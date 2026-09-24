@@ -81,6 +81,35 @@ not allow anyone to use the LinkedIn Logo, unless they already have an existing 
 with LinkedIn and a Brand or Trademark License") and is not used anywhere in this project — only
 the standalone, freely-usable `[in]` Logo bug is bundled.
 
+### Ko-fi support link (README + app bar, 2026-09-24)
+
+Two Ko-fi references are used, with different sourcing and neither one bundles Ko-fi's own
+logo/cup mark:
+
+- **App-bar "Support the author on Ko-fi" link** (`src/ui/KofiMarkIcon.vue`) renders an
+  **original** coffee-mug icon drawn for this project (`design/icons/stroke/coffee.svg`,
+  generated through the normal `scripts/build-icons.mjs` stroke pipeline), covered by this
+  project's own MIT license — not Ko-fi's logo. Ko-fi's brand-assets page
+  (`https://more.ko-fi.com/brand-assets`, "Use these logos, buttons, and cups to help spread
+  the word about your page", checked 2026-09-24) offers no monochrome (black/white) variant
+  to recolor to `--color-icon-social`, and Ko-fi's Terms of Use (`https://more.ko-fi.com/terms`)
+  broadly restrict trademark use ("Our trademarks and trade dress may not be used in
+  connection with any good or service without our prior written consent") and forbid altering
+  downloaded materials ("You may not modify ... digital copies ... in any way") — unlike
+  LinkedIn's `[in]` Logo guidelines above, which explicitly authorize approved black/white
+  downloads for exactly this hyperlink use. An earlier candidate — the Streamline "Core Remix"
+  coffee mug pasted into this task — was rejected for the same reason `docs/design.md`'s "Icon
+  source decision" rejected the Streamline Pixel set: its Free License requires attribution and
+  forbids redistributing the SVG as a standalone asset in a public repo. This notice does not
+  grant any trademark rights; it only records why no Ko-fi trademark asset is bundled here.
+- **README "Support the project" button** uses Ko-fi's own ready-made README button image,
+  `https://ko-fi.com/img/githubbutton_sm.svg` (Ko-fi's own guide for this is "How to use Ko-fi
+  with Github", `https://help.ko-fi.com/hc/en-us/articles/360021025553`), referenced as an
+  **externally-hosted** `<img>` linking to `https://ko-fi.com/jeronimorepetto` — the same
+  treatment this README already gives the "Built with Gentle-AI" badge. The SVG is never
+  downloaded, copied or redistributed by this repository; only its URL is referenced, so it is
+  not subject to the "no third-party icons" rule above.
+
 **Superseded note, kept for history (originally 2026-09-24):** this project previously reused
 the generic `IconExternalLink` for the LinkedIn link, believing (from Simple Icons' own
 CC0-icon coverage and its public issue tracker's `won't add` / `permissions in review` responses

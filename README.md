@@ -1,5 +1,14 @@
 # local-issue-classifier
 
+[![License: MIT](https://img.shields.io/github/license/JeronimoRepetto/local-issue-classifier)](LICENSE)
+[![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![pnpm](https://img.shields.io/badge/pnpm-11-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
+[![Tested with Vitest](https://img.shields.io/badge/tested_with-vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
+[![Node >= 20](https://img.shields.io/badge/node-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![CI](https://github.com/JeronimoRepetto/local-issue-classifier/actions/workflows/ci.yml/badge.svg)](https://github.com/JeronimoRepetto/local-issue-classifier/actions/workflows/ci.yml)
+
 Local-first web app that pulls a GitHub repo's issues and README, then asks Jev (TypeSafe AI's
 decision model) to rate each issue by complexity, criticality, effort and relevance. Filter,
 dismiss, sort by weighted priority and export as plain text. Keys stay in memory; results stay in
@@ -115,6 +124,9 @@ switch to force reduced motion.
 This project is developed with **strict TDD**: a test is written first and confirmed to fail for
 the expected reason (RED), then the minimum implementation is added (GREEN), then refactored.
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full convention and the architecture rules.
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `pnpm typecheck`, `pnpm test`,
+`pnpm hygiene` and `pnpm build` on every push to `main` and every pull request.
 
 ## Keys
 
@@ -356,6 +368,14 @@ Full notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own licenses; see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Support the project
+
+If local-issue-classifier is useful to you, consider supporting its development on Ko-fi:
+
+<a href="https://ko-fi.com/jeronimorepetto" target="_blank" rel="noopener noreferrer">
+  <img height="36" src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" />
+</a>
 
 ## Acknowledgements
 

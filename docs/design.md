@@ -204,7 +204,7 @@ unsafe (scripts, handlers, links, ids, styles), enforces a `viewBox` and recolor
 `tests/icons.test.ts` checks the normalizer, both render modes, that the committed output
 matches a fresh build, and that only the logo and the empty-state box are pixel art.
 
-### App-bar brand icons (2026-09-24, LinkedIn mark added 2026-09-24)
+### App-bar brand icons (2026-09-24, LinkedIn mark added 2026-09-24, Ko-fi link added 2026-09-24)
 
 The app bar's "Source code on GitHub" / "Author on LinkedIn" links (`src/App.vue`, 20 px) are
 the one deliberate exception to "no third-party icons": each renders its own service's real
@@ -228,6 +228,16 @@ knows about generator output, and a hand-written file in that directory would br
   ships as pure black/white PNGs. See `THIRD_PARTY_NOTICES.md` ("Brand icons") for the full
   sourcing note, the guideline URLs, and why this supersedes the 2026-09-24 decision below to
   use the generic `IconExternalLink` instead.
+- **Ko-fi** ("Support the author on Ko-fi") is the one link of the three that does *not* render
+  Ko-fi's own logo: `src/ui/KofiMarkIcon.vue` renders an **original** coffee-mug icon
+  (`design/icons/stroke/coffee.svg`, MIT), generated through the normal
+  `scripts/build-icons.mjs` stroke pipeline — unlike the two hand-inlined marks above — and
+  colored with the shared `--color-icon-social` token, same as GitHub. Ko-fi's own brand-assets
+  page offers no monochrome variant to recolor, and its Terms broadly restrict trademark use
+  and forbid modifying downloaded assets, unlike LinkedIn's guidelines; a Streamline coffee-mug
+  icon considered earlier was rejected for the same licensing reason the Streamline Pixel set
+  was (see "Icon source decision" below). See `THIRD_PARTY_NOTICES.md` ("Ko-fi support link")
+  for the full sourcing note and evidence.
 
 Earlier note, kept for history: **as of 2026-09-24, LinkedIn had no bundled brand mark.**
 Simple Icons — the CC0 source used for the GitHub mark — does not offer one: its own icon data

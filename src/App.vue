@@ -28,6 +28,7 @@ import IconSun from './assets/icons/IconSun.vue'
 import IconSettings from './assets/icons/IconSettings.vue'
 import GitHubMarkIcon from './ui/GitHubMarkIcon.vue'
 import LinkedInMarkIcon from './ui/LinkedInMarkIcon.vue'
+import KofiMarkIcon from './ui/KofiMarkIcon.vue'
 import UiTooltip from './ui/UiTooltip.vue'
 import HomeContainer from './components/containers/HomeContainer.vue'
 import AnalysisViewContainer from './components/containers/AnalysisViewContainer.vue'
@@ -126,13 +127,18 @@ function cycleTheme(): void {
 // T16: ready is a Jev key for TypeSafe, or a valid base URL for a local provider (key optional).
 const showKeysBanner = computed(() => !provider.ready.value && !prefs.state.keysBannerDismissed)
 
-// Author links (requested after the Home provider-card approval). Both now
-// render their real brand mark: GitHub's (Simple Icons, CC0) and, since
-// 2026-09-24, LinkedIn's own official [in] Logo (see docs/design.md "Icons" and
+// Author links (requested after the Home provider-card approval). GitHub and
+// LinkedIn render their real brand mark: GitHub's (Simple Icons, CC0) and
+// LinkedIn's own official [in] Logo (see docs/design.md "Icons" and
 // THIRD_PARTY_NOTICES.md "Brand icons" for sourcing and the brand-guideline
-// rules each mark follows).
+// rules each mark follows). Ko-fi (added 2026-09-24) instead renders an
+// original coffee-mug icon: Ko-fi's own brand assets offer no monochrome
+// variant to recolor and its Terms broadly restrict trademark use and
+// modification, unlike LinkedIn's guidelines — see KofiMarkIcon.vue and
+// THIRD_PARTY_NOTICES.md ("Ko-fi support link") for the full reasoning.
 const GITHUB_REPO_URL = 'https://github.com/JeronimoRepetto/local-issue-classifier'
 const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
+const KOFI_PROFILE_URL = 'https://ko-fi.com/jeronimorepetto'
 </script>
 
 <template>
@@ -190,6 +196,21 @@ const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
               :aria-describedby="describedBy"
             >
               <LinkedInMarkIcon />
+            </a>
+          </template>
+        </UiTooltip>
+        <UiTooltip text="Support the author on Ko-fi">
+          <template #default="{ describedBy }">
+            <a
+              class="app-shell__social-link"
+              data-test="social-kofi"
+              :href="KOFI_PROFILE_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Support the author on Ko-fi"
+              :aria-describedby="describedBy"
+            >
+              <KofiMarkIcon />
             </a>
           </template>
         </UiTooltip>
