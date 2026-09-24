@@ -43,6 +43,11 @@ function dismissKeysBanner(): SavePreferencesResult {
   return update({ keysBannerDismissed: true })
 }
 
+/** PoC (odd/tasks/home-provider-onboarding.md): Home's provider-onboarding card "Not now". */
+function dismissHomeProviderCard(): SavePreferencesResult {
+  return update({ homeProviderCardDismissed: true })
+}
+
 function completeOnboardingStep(step: keyof Preferences['onboarding']): SavePreferencesResult {
   return update({ onboarding: { ...state.onboarding, [step]: true } })
 }
@@ -71,6 +76,7 @@ export function usePreferences() {
     status,
     update,
     dismissKeysBanner,
+    dismissHomeProviderCard,
     completeOnboardingStep,
     setHardwareOverride,
     retrySave: persist,

@@ -197,6 +197,7 @@ export interface Preferences {
   theme: 'system' | 'light' | 'dark' // §10.2, default 'system'
   onboarding: { keys: boolean; repo: boolean; classify: boolean } // first-run checklist, §10.1
   keysBannerDismissed: boolean // §2.1 step 2, Task 4: "Keys required" banner dismissal
+  homeProviderCardDismissed: boolean // PoC (odd/tasks/home-provider-onboarding.md): Home's provider-onboarding card dismissal
   /** Manual GPU/VRAM correction for the hardware-fit panel (docs/hardware-fit.md). Detected values are never persisted. */
   hardwareOverride?: HardwareOverride | null // default null
   provider: ProviderConfig // T16: TypeSafe cloud (default) or a local Jev-compatible server; never a key
@@ -353,6 +354,7 @@ export function defaultPreferences(): Preferences {
     theme: 'system',
     onboarding: { keys: false, repo: false, classify: false },
     keysBannerDismissed: false,
+    homeProviderCardDismissed: false,
     hardwareOverride: null,
     provider: defaultProviderConfig(),
     secretsPersistence: 'memory',
