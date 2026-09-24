@@ -26,6 +26,7 @@ import {
   createTokenBucketLimiter,
   decideJevProxyRequest,
   JEV_MAX_BODY_BYTES,
+  JEV_RESPONSE_HEADERS,
   precomputedLimiter,
   type AsyncJevRateLimiter,
   type JevProxyDecision,
@@ -126,6 +127,15 @@ export function createJevPagesHandler<Env extends JevFunctionEnv = JevFunctionEn
   const maxBodyBytes = options.maxBodyBytes ?? JEV_MAX_BODY_BYTES
 
   return async ({ request, env }) => {
+    const allowedOrigins = parseOrigins(env.ALLOWED_ORIGINS)
+    if (allowedOrigins.length === 0) {
+      // Fail closed: an unset or empty ALLOWED_ORIGINS means this deployment is
+      // misconfigured. Sec-Fetch-Site alone is not enough to fall back on here —
+      // it is a genuine browser guarantee only for a browser request; a scripted,
+      // non-browser caller can set that header to whatever value it likes. Refuse
+      // everything instead of silently trusting it.
+      return answer(403, { ...JEV_RESPONSE_HEADERS }, { error: 'ALLOWED_ORIGINS not configured' })
+    }
     const url = new URL(request.url)
     const policyRequest = {
       method: request.method,
@@ -135,7 +145,7 @@ export function createJevPagesHandler<Env extends JevFunctionEnv = JevFunctionEn
       ip: request.headers.get('cf-connecting-ip') ?? undefined,
     }
     const at = now()
-    const context = { allowedOrigins: parseOrigins(env.ALLOWED_ORIGINS), now: at, maxBodyBytes }
+    const context = { allowedOrigins, now: at, maxBodyBytes }
     const shared = options.sharedLimiter?.(env)
 
     let decision = decideJevProxyRequest(policyRequest, { ...context, limiter: shared ? ALLOW_ALL : localLimiter })

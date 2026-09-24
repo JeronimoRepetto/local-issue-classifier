@@ -98,8 +98,8 @@ describe('Jev Pages Function: forwarding', () => {
   it('defaults the upstream to https://api.typesafe.ai and strips a trailing slash from JEV_UPSTREAM_URL', async () => {
     const upstream = fakeUpstream()
     const handler = createJevPagesHandler({ fetch: upstream.fetch, limiter: unlimited })
-    await handler({ request: post('{}'), env: {} })
-    await handler({ request: post('{}'), env: { JEV_UPSTREAM_URL: 'https://jev.test/' } })
+    await handler({ request: post('{}'), env: { ALLOWED_ORIGINS: SITE } })
+    await handler({ request: post('{}'), env: { ALLOWED_ORIGINS: SITE, JEV_UPSTREAM_URL: 'https://jev.test/' } })
     expect(upstream.seen.map((s) => s.url)).toEqual(['https://api.typesafe.ai/v1/systemone', 'https://jev.test/v1/systemone'])
   })
 
@@ -179,6 +179,34 @@ describe('Jev Pages Function: rate limit', () => {
     expect(res.headers.get('retry-after')).toBe('5')
     expect(shared.take).toHaveBeenCalledWith('203.0.113.9', expect.any(Number))
     expect(upstream.seen).toHaveLength(0)
+  })
+})
+
+describe('Jev Pages Function: environment', () => {
+  it('refuses every request when ALLOWED_ORIGINS is missing, even with Sec-Fetch-Site: same-origin (fail closed)', async () => {
+    const upstream = fakeUpstream()
+    const handler = createJevPagesHandler({ fetch: upstream.fetch, limiter: unlimited })
+    const res = await handler({ request: post('{}'), env: {} })
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: 'ALLOWED_ORIGINS not configured' })
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(upstream.seen).toHaveLength(0)
+  })
+
+  it('refuses every request when ALLOWED_ORIGINS is set but empty (fail closed)', async () => {
+    const upstream = fakeUpstream()
+    const handler = createJevPagesHandler({ fetch: upstream.fetch, limiter: unlimited })
+    const res = await handler({ request: post('{}'), env: { ALLOWED_ORIGINS: '  ,  ' } })
+    expect(res.status).toBe(403)
+    expect(upstream.seen).toHaveLength(0)
+  })
+
+  it('still serves a configured deployment normally', async () => {
+    const upstream = fakeUpstream()
+    const handler = createJevPagesHandler({ fetch: upstream.fetch, limiter: unlimited })
+    const res = await handler({ request: post('{}'), env: ENV })
+    expect(res.status).toBe(200)
+    expect(upstream.seen).toHaveLength(1)
   })
 })
 
