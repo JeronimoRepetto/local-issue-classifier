@@ -1,0 +1,35 @@
+# Cloudflare Pages response headers (docs/architecture.md "Deployment modes").
+#
+# The Content-Security-Policy below must stay byte-identical to the meta tag in
+# index.html (tests/pagesHeaders.test.ts checks this): the meta tag protects
+# `pnpm dev`/`pnpm preview` and the one-off scripts/browser-smoke/ page, where
+# this file has no effect; this header protects the hosted build, including
+# any response the meta tag cannot reach (a fetched, non-HTML resource; a
+# script that strips or edits the DOM before the CSP is parsed).
+#
+# No /jev/* block: Cloudflare does not apply _headers to a Pages Function's own
+# response (verified against the platform docs, 2026-09-24). functions/jev/[[path]].ts
+# already sets Cache-Control: no-store and X-Content-Type-Options itself
+# (server/jevProxyPolicy.ts JEV_RESPONSE_HEADERS), so a rule here would be
+# silently ineffective.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.github.com http://localhost:* http://127.0.0.1:* http://[::1]:* https://huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co; img-src 'self' data: https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# Vite's own hashed bundle output: a content change always means a new
+# filename, so caching forever is safe.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# ONNX Runtime Web's loader + wasm binary (server/ortAssets.ts). Unlike
+# /assets/*, these filenames are NOT content-hashed (they are copied verbatim
+# from @huggingface/transformers/dist), so a version bump that changes their
+# bytes without changing the name would serve a stale cached copy to a
+# browser that already fetched them, until this max-age (1 year) elapses. That
+# risk is accepted for now — see docs/browser-inference.md; the fix, if it
+# is ever needed, is to add a content hash to these two filenames.
+/ort/*
+  Cache-Control: public, max-age=31536000, immutable

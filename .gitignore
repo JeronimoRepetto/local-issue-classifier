@@ -17,6 +17,9 @@ coverage
 # CodeGraph local index (machine-local, per worktree)
 .codegraph/
 
+# Wrangler's local cache/state (e.g. from `wrangler pages dev`)
+.wrangler/
+
 # pnpm local:kev's Kev checkout (FB-4, scripts/local-kev.mjs)
 .local/
 

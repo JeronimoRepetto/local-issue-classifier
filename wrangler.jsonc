@@ -1,0 +1,24 @@
+{
+  // Cloudflare Pages build configuration for local-issue-classifier.
+  // Not deployed by this repository (no deploy, no API calls, no DNS from
+  // here) — this file only pins the settings a Cloudflare Pages project reads
+  // from source control, so "Connect to Git" in the dashboard picks them up
+  // instead of relying on values re-entered by hand. See docs/architecture.md
+  // "Deployment modes" for what actually runs, and the operator's own
+  // deployment guide (kept outside this public repository) for the
+  // dashboard click-through steps.
+  //
+  // "name" should match (or become) the Pages project's name in the Cloudflare
+  // dashboard; it also seeds the default <name>.pages.dev preview subdomain.
+  "name": "local-issue-classifier",
+  // dist/ is Vite's build output (vite.config.ts has no custom outDir).
+  "pages_build_output_dir": "dist",
+  // Pins the Workers runtime version this project builds against. Bump this
+  // deliberately (not silently on every deploy) and re-run the full test
+  // suite plus a preview deploy first.
+  "compatibility_date": "2026-09-24"
+  // No "compatibility_flags": functions/jev/[[path]].ts and the policy it
+  // imports (server/jevProxyPolicy.ts) use only standard fetch APIs (Request,
+  // Response, fetch) — no Node builtin, so "nodejs_compat" is not needed.
+  // Add it here (and re-check this comment) if that ever changes.
+}
