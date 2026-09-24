@@ -5,7 +5,7 @@
 // SettingsContainer.test.ts: usePreferences, useSecrets, useProvider and
 // useHardwareDetection are module singletons wired together by this
 // container, so each test starts from a fresh module graph and fake storage.
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defaultLocalProviderConfig } from '../../domain/provider'
 import { unknownHardwareReport } from '../../domain/hardware'
@@ -24,6 +24,17 @@ const RTX_5070: HardwareReport = {
   confidence: 'high',
 }
 
+/** 24 GB card: the largest local tier (Kev 9B, needs ~20 GB) fits comfortably. */
+const RTX_4090: HardwareReport = {
+  gpu: { vendor: 'nvidia', model: 'NVIDIA GeForce RTX 4090', vramGb: 24, source: 'webgl' },
+  ramGb: 32,
+  ramIsLowerBound: false,
+  cpuThreads: 24,
+  platform: 'Windows',
+  unifiedMemory: false,
+  confidence: 'high',
+}
+
 beforeEach(async () => {
   vi.resetModules()
   storage = new MemoryStorage()
@@ -32,12 +43,14 @@ beforeEach(async () => {
 })
 
 /** Pre-seeds the shared hardware-detection cache (passive: no real detection
- *  runs in jsdom), then mounts the card fresh over the current module graph. */
-async function mountCard(hardware: HardwareReport = RTX_5070) {
+ *  runs in jsdom), then mounts the card fresh over the current module graph.
+ *  `isDev` overrides import.meta.env.DEV (defaults true under vitest), so the
+ *  repo-shortcut line can be tested in both modes. */
+async function mountCard(hardware: HardwareReport = RTX_5070, isDev?: boolean) {
   const { useHardwareDetection } = await import('../../composables/useHardwareDetection')
   await useHardwareDetection().run(async () => hardware)
   const { default: ProviderOnboardingCard } = await import('./ProviderOnboardingCard.vue')
-  return mount(ProviderOnboardingCard)
+  return mount(ProviderOnboardingCard, { props: isDev === undefined ? {} : { isDev } })
 }
 
 describe('ProviderOnboardingCard', () => {
@@ -65,18 +78,90 @@ describe('ProviderOnboardingCard', () => {
     expect(wrapper.find('[data-test="open-settings-cloud"]').exists()).toBe(true)
   })
 
-  it('choosing Local applies the Kev preset via usePreferences and shows the condensed setup summary', async () => {
-    const wrapper = await mountCard()
+  it('choosing Local applies the Kev preset via usePreferences and shows the setup summary', async () => {
+    const wrapper = await mountCard(RTX_5070, true)
     await wrapper.get('[data-test="choice-local"]').trigger('click')
 
     const { usePreferences } = await import('../../composables/usePreferences')
     expect(usePreferences().state.provider).toEqual(defaultLocalProviderConfig())
 
-    const summary = wrapper.get('[data-test="local-setup-summary"]').text()
-    expect(summary).toContain('pnpm local:kev')
-    expect(summary).toContain('uv run --extra serve')
+    expect(wrapper.get('[data-test="command-shortcut"]').text()).toBe('pnpm local:kev --model kev-4b')
+    expect(wrapper.get('[data-test="command-clone"]').text()).toBe(
+      'git clone https://github.com/jaredpalmer/kev.git && cd kev',
+    )
+    expect(wrapper.get('[data-test="command-sync"]').text()).toBe('uv sync --extra serve')
+    expect(wrapper.get('[data-test="command-serve"]').text()).toBe(
+      'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009',
+    )
     expect(wrapper.find('[data-test="test-connection"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="open-settings-local"]').exists()).toBe(true)
+  })
+
+  describe('recommended model follows the detected hardware', () => {
+    it('recommends Kev 4B for a 12 GB GPU', async () => {
+      const wrapper = await mountCard(RTX_5070)
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.get('[data-test="recommended-model-line"]').text()).toBe('Recommended for your GPU: Kev 4B')
+      expect(wrapper.get('[data-test="command-serve"]').text()).toContain('jaredpalmer/kev-4b')
+    })
+
+    it('recommends Kev 9B for a 24 GB GPU', async () => {
+      const wrapper = await mountCard(RTX_4090)
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.get('[data-test="recommended-model-line"]').text()).toBe('Recommended for your GPU: Kev 9B')
+      expect(wrapper.get('[data-test="command-serve"]').text()).toContain('jaredpalmer/kev-9b')
+    })
+
+    it('recommends the smallest Kev with a hint when hardware detection is unknown', async () => {
+      const wrapper = await mountCard(unknownHardwareReport())
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.get('[data-test="recommended-model-line"]').text()).toBe(
+        'Recommended for your GPU: Kev 0.8B (smallest; detection unknown)',
+      )
+      expect(wrapper.get('[data-test="command-serve"]').text()).toContain('jaredpalmer/kev-0.8b')
+    })
+  })
+
+  describe('the repo shortcut only makes sense from the repo dev server', () => {
+    it('shows the pnpm local:kev shortcut in dev mode', async () => {
+      const wrapper = await mountCard(RTX_5070, true)
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.find('[data-test="command-shortcut"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="hosted-hint"]').exists()).toBe(false)
+    })
+
+    it('hides the shortcut and shows a hint when not running from the repo dev server', async () => {
+      const wrapper = await mountCard(RTX_5070, false)
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      expect(wrapper.find('[data-test="command-shortcut"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('pnpm local:kev')
+      expect(wrapper.get('[data-test="hosted-hint"]').text()).toMatch(
+        /clone the repo or run kev manually with the commands below/i,
+      )
+    })
+  })
+
+  describe('copy buttons', () => {
+    const originalClipboard = navigator.clipboard
+
+    afterEach(() => {
+      Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true })
+      vi.restoreAllMocks()
+    })
+
+    it('copies the exact command text for a line via navigator.clipboard', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+
+      const wrapper = await mountCard(RTX_5070, true)
+      await wrapper.get('[data-test="choice-local"]').trigger('click')
+      await wrapper.get('[data-test="copy-serve"]').trigger('click')
+
+      expect(writeText).toHaveBeenCalledWith(
+        'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009',
+      )
+      expect(wrapper.get('[data-test="copy-serve"]').text()).toMatch(/copied/i)
+    })
   })
 
   it('Test connection calls useProvider().probe() and shows the result', async () => {

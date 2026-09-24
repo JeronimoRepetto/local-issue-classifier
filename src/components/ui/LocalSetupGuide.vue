@@ -3,10 +3,11 @@
 // a local Jev-compatible server (Kev, JevK5), so "Local server" in Settings is
 // no longer a dead end. Presentational: it owns no persistence and no
 // network; `status` (the container's last connection-test result) only
-// decides whether it starts collapsed. The commands mirror
-// docs/local-providers.md and scripts/local-kev.mjs verbatim — keep the four
-// in sync (the fourth being the condensed summary in Home's
-// ProviderOnboardingCard.vue, PoC odd/tasks/home-provider-onboarding.md).
+// decides whether it starts collapsed. The Kev commands themselves come from
+// domain/localCommands.ts's kevCommands(), the single source of truth shared
+// with Home's condensed summary in ProviderOnboardingCard.vue, so the two can
+// never drift apart again — keep this file's prereqs/uv-install/JevK5 steps
+// and docs/local-providers.md in sync by hand.
 import { computed, ref, watch } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSegmented from '../../ui/UiSegmented.vue'
@@ -15,6 +16,9 @@ import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
 import { LOCAL_TIERS } from '../../domain/hardware'
 import type { ProviderProbeResult } from '../../domain/provider'
+import { kevCommands } from '../../domain/localCommands'
+import type { KevOs } from '../../domain/localCommands'
+import { useClipboardCopy } from '../../composables/useClipboardCopy'
 
 const props = defineProps<{
   /** The last connection-test result, or null before one runs. */
@@ -22,7 +26,6 @@ const props = defineProps<{
 }>()
 
 type GuideProvider = 'kev' | 'jevk5'
-type GuideOs = 'windows' | 'macos' | 'linux'
 
 const PROVIDER_OPTIONS: SegmentedOption[] = [
   { value: 'kev', label: 'Kev' },
@@ -42,12 +45,7 @@ const KEV_MODEL_OPTIONS: SelectOption[] = LOCAL_TIERS.filter((t) => t.id !== 'je
 }))
 const JEVK5_TIER = LOCAL_TIERS.find((t) => t.id === 'jevk5')!
 
-// CUDA wheel index (pytorch.org/get-started/locally, Windows+Linux, checked
-// 2026-09-24 from https://download.pytorch.org/assets/quick-start-module.js).
-// Keep in sync with scripts/local-kev.mjs's CUDA_TORCH_INDEX_URL.
-const CUDA_TORCH_INDEX_URL = 'https://download.pytorch.org/whl/cu130'
-
-const UV_INSTALL: Record<GuideOs, string> = {
+const UV_INSTALL: Record<KevOs, string> = {
   windows: 'winget install astral-sh.uv',
   macos: 'curl -LsSf https://astral.sh/uv/install.sh | sh',
   linux: 'curl -LsSf https://astral.sh/uv/install.sh | sh',
@@ -61,7 +59,7 @@ interface GuideStep {
 }
 
 const provider = ref<GuideProvider>('kev')
-const os = ref<GuideOs>('windows')
+const os = ref<KevOs>('windows')
 const kevModel = ref<string>('kev-0.8b')
 
 // Open by default; the first successful probe (direct or proxied) collapses
@@ -80,39 +78,16 @@ function onToggle(event: Event): void {
   expanded.value = (event.target as HTMLDetailsElement).open
 }
 
-const kevSteps = computed<GuideStep[]>(() => {
-  const cuda =
-    os.value === 'macos'
-      ? { id: 'cuda-note', label: 'GPU on macOS', command: null, note: 'Not applicable on macOS: Apple Silicon uses Metal (MPS) automatically.' }
-      : {
-          id: 'cuda',
-          label: 'Optional: use an NVIDIA GPU',
-          command: `uv pip install --python .venv torch torchvision --index-url ${CUDA_TORCH_INDEX_URL}`,
-          note: '`uv sync` installs a CPU-only torch. Run this once, inside the kev folder, to use the GPU instead. Always start with `--no-sync` afterwards, or uv will reinstall the CPU build.',
-        }
-  return [
-    {
-      id: 'prereqs',
-      label: 'Prerequisites',
-      command: null,
-      note: 'Git, Python 3.12 or 3.13, and uv. An NVIDIA GPU is optional; without one Kev runs on the CPU (slow).',
-    },
-    { id: 'uv-install', label: "Install uv (skip if you already have it)", command: UV_INSTALL[os.value] },
-    { id: 'clone', label: 'Clone Kev', command: 'git clone https://github.com/jaredpalmer/kev.git && cd kev' },
-    { id: 'sync', label: 'Install its dependencies', command: 'uv sync --extra serve' },
-    cuda,
-    {
-      id: 'serve',
-      label: 'Start the server',
-      command: `uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/${kevModel.value} --port 8009`,
-    },
-    {
-      id: 'shortcut',
-      label: "Or use this repo's shortcut for the steps above",
-      command: `pnpm local:kev --model ${kevModel.value}`,
-    },
-  ]
-})
+const kevSteps = computed<GuideStep[]>(() => [
+  {
+    id: 'prereqs',
+    label: 'Prerequisites',
+    command: null,
+    note: 'Git, Python 3.12 or 3.13, and uv. An NVIDIA GPU is optional; without one Kev runs on the CPU (slow).',
+  },
+  { id: 'uv-install', label: "Install uv (skip if you already have it)", command: UV_INSTALL[os.value] },
+  ...kevCommands({ model: kevModel.value, port: 8009, os: os.value, shortcut: true }),
+])
 
 const jevk5Steps: GuideStep[] = [
   {
@@ -131,40 +106,10 @@ const jevk5Steps: GuideStep[] = [
 
 const steps = computed<GuideStep[]>(() => (provider.value === 'kev' ? kevSteps.value : jevk5Steps))
 
-const copiedId = ref<string | null>(null)
-let copiedTimer: ReturnType<typeof setTimeout> | undefined
+const { copiedId, copy: copyText } = useClipboardCopy()
 
-function fallbackCopy(text: string): void {
-  const el = document.createElement('textarea')
-  el.value = text
-  el.setAttribute('readonly', '')
-  el.style.position = 'fixed'
-  el.style.opacity = '0'
-  document.body.appendChild(el)
-  el.select()
-  try {
-    document.execCommand('copy')
-  } finally {
-    document.body.removeChild(el)
-  }
-}
-
-async function copy(step: GuideStep): Promise<void> {
-  if (!step.command) return
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(step.command)
-    } else {
-      fallbackCopy(step.command)
-    }
-  } catch {
-    fallbackCopy(step.command)
-  }
-  copiedId.value = step.id
-  clearTimeout(copiedTimer)
-  copiedTimer = setTimeout(() => {
-    if (copiedId.value === step.id) copiedId.value = null
-  }, 2000)
+function copy(step: GuideStep): Promise<void> {
+  return copyText(step.id, step.command)
 }
 </script>
 

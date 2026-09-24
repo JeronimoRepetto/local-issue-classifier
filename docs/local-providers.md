@@ -15,7 +15,10 @@ Check them again before you rely on them.
 
 This section is also built into the app: Settings → Classifier → **Local server** shows the same
 steps and commands below, with copy buttons and an OS switch, in
-[`LocalSetupGuide`](../src/components/ui/LocalSetupGuide.vue).
+[`LocalSetupGuide`](../src/components/ui/LocalSetupGuide.vue). Home's condensed onboarding card
+shows the same Kev commands too — both read them from the same
+[`kevCommands`](../src/domain/localCommands.ts) function, and Home picks the model from your
+detected hardware instead of a fixed size.
 
 ## Prerequisites
 

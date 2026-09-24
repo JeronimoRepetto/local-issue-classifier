@@ -30,10 +30,21 @@ import { usePreferences } from '../../composables/usePreferences'
 import { useSecrets } from '../../composables/useSecrets'
 import { useView } from '../../composables/useView'
 import { useHardwareDetection } from '../../composables/useHardwareDetection'
+import { useClipboardCopy } from '../../composables/useClipboardCopy'
 import { detectHardware } from '../../adapters/hardware/detect'
 import { defaultLocalProviderConfig } from '../../domain/provider'
 import type { ProviderProbeResult } from '../../domain/provider'
-import { fitTiers } from '../../domain/hardware'
+import { fitTiers, LOCAL_TIERS } from '../../domain/hardware'
+import type { TierId, TierVerdict } from '../../domain/hardware'
+import { kevCommands } from '../../domain/localCommands'
+import type { KevCommandStep } from '../../domain/localCommands'
+
+const props = defineProps<{
+  /** Injectable for tests; defaults to Vite's import.meta.env.DEV. The
+   *  `pnpm local:kev` shortcut only works from this repo's own dev server —
+   *  a hosted/production build shows a hint instead (see hostedHint below). */
+  isDev?: boolean
+}>()
 
 const provider = useProvider()
 const prefs = usePreferences()
@@ -126,14 +137,51 @@ const PROBE_TEXT: Record<ProviderProbeResult['status'], string> = {
   unreachable: 'Could not reach the server yet.',
 }
 
-// Condensed 3-line setup summary, kept in sync BY HAND with
-// docs/local-providers.md, scripts/local-kev.mjs and LocalSetupGuide.vue (its
-// own comment: "keep the four in sync" — this file is the fourth place).
-const SETUP_SUMMARY = [
-  'pnpm local:kev',
-  'git clone https://github.com/jaredpalmer/kev.git && cd kev && uv sync --extra serve',
-  'uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009',
-].join('\n')
+// Condensed setup summary. The commands themselves come from
+// domain/localCommands.ts's kevCommands() — the same function
+// LocalSetupGuide.vue uses — so this card can no longer drift from the full
+// guide the way it previously did (fixed kev-0.8b model, missing --no-sync,
+// no copy buttons). docs/local-providers.md documents the same commands.
+const KEV_MODEL_LABEL: Record<string, string> = Object.fromEntries(LOCAL_TIERS.map((t) => [t.id, t.label]))
+const DEFAULT_PORT = 8009 // LOCAL_PRESETS[0] (Kev), src/domain/provider.ts
+
+/** `pnpm local:kev` only works from this repo's own dev server, not a hosted build. */
+const isDevMode = computed(() => props.isDev ?? import.meta.env.DEV)
+
+function fits(verdict: TierVerdict | undefined): boolean {
+  return verdict?.verdict === 'ok' || verdict?.verdict === 'tight'
+}
+
+/** The largest Kev tier that fits the detected hardware; kev-0.8b (smallest)
+ *  when nothing bigger fits, or when hardware detection is unknown. */
+const recommendedModel = computed<{ id: TierId; unknown: boolean }>(() => {
+  const f = fit.value
+  const tier = (id: TierId) => f?.tiers.find((t) => t.id === id)
+  if (fits(tier('kev-9b'))) return { id: 'kev-9b', unknown: false }
+  if (fits(tier('kev-4b'))) return { id: 'kev-4b', unknown: false }
+  return { id: 'kev-0.8b', unknown: f === null || f.memory.availableGb === null }
+})
+
+const recommendedLine = computed(() => {
+  const { id, unknown } = recommendedModel.value
+  const label = KEV_MODEL_LABEL[id] ?? id
+  return unknown ? `Recommended for your GPU: ${label} (smallest; detection unknown)` : `Recommended for your GPU: ${label}`
+})
+
+/** Only the lines this condensed summary shows; the full CUDA step and OS
+ *  picker stay in Settings' LocalSetupGuide. */
+const summarySteps = computed<KevCommandStep[]>(() => {
+  const shown = new Set(['shortcut', 'clone', 'sync', 'serve'])
+  return kevCommands({ model: recommendedModel.value.id, port: DEFAULT_PORT, shortcut: isDevMode.value }).filter(
+    (step) => shown.has(step.id),
+  )
+})
+
+const { copiedId, copy: copyText } = useClipboardCopy()
+
+function copyStep(step: KevCommandStep): Promise<void> {
+  return copyText(step.id, step.command)
+}
 </script>
 
 <template>
@@ -185,7 +233,24 @@ const SETUP_SUMMARY = [
     </div>
 
     <div v-if="choice === 'local'" class="provider-onboarding__panel" data-test="local-panel">
-      <pre class="provider-onboarding__summary" data-test="local-setup-summary">{{ SETUP_SUMMARY }}</pre>
+      <div class="provider-onboarding__summary" data-test="local-setup-summary">
+        <p class="provider-onboarding__recommend" data-test="recommended-model-line">{{ recommendedLine }}</p>
+        <div v-for="step in summarySteps" :key="step.id" class="provider-onboarding__command">
+          <pre :data-test="`command-${step.id}`">{{ step.command }}</pre>
+          <UiButton
+            size="compact"
+            variant="ghost"
+            :data-test="`copy-${step.id}`"
+            :aria-label="`Copy: ${step.label}`"
+            @click="copyStep(step)"
+          >
+            {{ copiedId === step.id ? 'Copied' : 'Copy' }}
+          </UiButton>
+        </div>
+        <p v-if="!isDevMode" class="provider-onboarding__note" data-test="hosted-hint">
+          Running from a hosted page? Clone the repo or run Kev manually with the commands below.
+        </p>
+      </div>
       <div class="provider-onboarding__test">
         <UiButton data-test="test-connection" :loading="checking" @click="testConnection">Test connection</UiButton>
         <p v-if="checking || probeResult" role="status" class="provider-onboarding__status" data-test="probe-status">
@@ -296,6 +361,26 @@ pre {
 }
 
 .provider-onboarding__summary {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.provider-onboarding__recommend {
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  color: var(--color-text-muted);
+}
+
+.provider-onboarding__command {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.provider-onboarding__command pre {
+  flex: 1 1 auto;
+  min-width: 0;
   padding: var(--space-2);
   overflow-x: auto;
   border: var(--line-thin) solid var(--color-border);
@@ -304,6 +389,12 @@ pre {
   font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   white-space: pre;
+}
+
+.provider-onboarding__note {
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  color: var(--color-text-muted);
 }
 
 .provider-onboarding__test {
