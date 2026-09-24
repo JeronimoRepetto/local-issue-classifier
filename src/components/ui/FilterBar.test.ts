@@ -83,6 +83,39 @@ describe('FilterBar — relevance range and minimum confidence', () => {
   })
 })
 
+describe('FilterBar — collapsible search and filters', () => {
+  const section = (wrapper: ReturnType<typeof mountBar>) =>
+    wrapper.get<HTMLDetailsElement>('[data-test="filters-section"]').element
+
+  it('wraps search and the multi-selects in a section that starts expanded', () => {
+    const wrapper = mountBar()
+    expect(section(wrapper).tagName).toBe('DETAILS')
+    expect(section(wrapper).open).toBe(true)
+    expect(wrapper.get('[data-test="filters-toggle"]').text()).toContain('Search and filters')
+    expect(section(wrapper).querySelector('[data-test="search-input"]')).not.toBeNull()
+    expect(section(wrapper).querySelector('[data-test="filter-labels"]')).not.toBeNull()
+  })
+
+  it('counts the active search and multi-select filters in the toggle, so a collapsed section still shows them', () => {
+    const wrapper = mountBar({ ...defaultFilter(), text: 'crash', criticality: ['high'], labels: ['bug'] })
+    expect(wrapper.get('[data-test="filters-toggle"]').text()).toContain('3 active')
+  })
+
+  it('shows no active count when nothing is filtered', () => {
+    const wrapper = mountBar()
+    expect(wrapper.get('[data-test="filters-toggle"]').text()).not.toContain('active')
+  })
+
+  it('re-opens a collapsed section when focusSearch runs (the "/" shortcut)', async () => {
+    const wrapper = mountBar()
+    section(wrapper).open = false
+    wrapper.vm.focusSearch()
+    await wrapper.vm.$nextTick()
+    expect(section(wrapper).open).toBe(true)
+    expect(document.activeElement).toBe(wrapper.get('[data-test="search-input"] input').element)
+  })
+})
+
 describe('FilterBar — reset', () => {
   it('emits reset when Reset filters is clicked', async () => {
     const wrapper = mountBar({ ...defaultFilter(), criticality: ['high'] })
