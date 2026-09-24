@@ -74,14 +74,35 @@ export interface ProviderProbeResult {
 }
 
 export interface LocalPreset {
-  id: 'kev' | 'jevk5'
+  id: 'kev' | 'jevk5' | 'laya'
   label: string
   baseUrl: string
   model: string
   description: string
+  /**
+   * This preset's model context is far too small ever to carry a batched,
+   * multi-issue state: it always runs one request per issue, the same as the
+   * browser provider (docs/local-providers.md "Batching on a small model").
+   * Undefined (Kev, JevK5) behaves as false — a user preference still decides.
+   */
+  perIssueOnly?: boolean
+  /**
+   * Per-issue size-guard override (domain/jevState.ts's
+   * BuildIssueStateOptions.maxStateTokens) for a preset whose real context is
+   * far below the app's 12k default; undefined keeps that default.
+   */
+  maxStateTokens?: number
 }
 
-/** Defaults from each project's README (checked 2026-09-23). */
+/**
+ * Defaults from each project's README (Kev, JevK5: checked 2026-09-23; Laya:
+ * checked 2026-09-24 from github.com/NandhaKishorM/laya's README and
+ * laya/serve.py). Laya's `laya-serve` takes a Hugging Face model id or a
+ * router checkpoint name in its request `model` field (resolved by
+ * `_resolve_model()`); `convaiinnovations/laya` is its flagship, English,
+ * 512-token-context ModernBERT-large checkpoint — the one this preset starts
+ * with (see `perIssueOnly`/`maxStateTokens` above and docs/local-providers.md).
+ */
 export const LOCAL_PRESETS: readonly LocalPreset[] = [
   {
     id: 'kev',
@@ -96,6 +117,15 @@ export const LOCAL_PRESETS: readonly LocalPreset[] = [
     baseUrl: 'http://localhost:8090',
     model: 'alibiserikbay/JevK5',
     description: 'allebee/jevk5: jevk5-serve, port 8090',
+  },
+  {
+    id: 'laya',
+    label: 'Laya',
+    baseUrl: 'http://localhost:8000',
+    model: 'convaiinnovations/laya',
+    description: 'NandhaKishorM/laya: laya-serve, port 8000',
+    perIssueOnly: true,
+    maxStateTokens: 512,
   },
 ]
 
@@ -182,6 +212,26 @@ export function findPreset(config: ProviderConfig): LocalPreset | null {
   if (config.kind !== 'local') return null
   const url = normalizedBaseUrl(config.baseUrl)
   return LOCAL_PRESETS.find((p) => p.baseUrl === url) ?? null
+}
+
+/**
+ * True when the configured provider must always run one request per issue —
+ * its preset's model context is too small ever to batch (currently only
+ * Laya), the same hard rule as the browser provider. Never a user preference:
+ * false for every other provider, including a local config that matches no
+ * preset.
+ */
+export function forcesPerIssue(config: ProviderConfig): boolean {
+  return findPreset(config)?.perIssueOnly === true
+}
+
+/**
+ * The preset's per-issue size-guard override (domain/jevState.ts's
+ * BuildIssueStateOptions.maxStateTokens), or undefined to keep that module's
+ * own default.
+ */
+export function presetMaxStateTokens(config: ProviderConfig): number | undefined {
+  return findPreset(config)?.maxStateTokens
 }
 
 export function providerLabel(config: ProviderConfig): string {

@@ -175,9 +175,9 @@ describe('ProviderSelector', () => {
       })
         .get('[data-test="kind-local-label"]')
         .text()
-    expect(label(true)).toBe('Advanced: a Kev/JevK5 server on your machine')
-    expect(label(false)).toBe('Local server (Kev, JevK5)')
-    expect(label()).toBe('Local server (Kev, JevK5)')
+    expect(label(true)).toBe('Advanced: a Kev/JevK5/Laya server on your machine')
+    expect(label(false)).toBe('Local server (Kev, JevK5, Laya)')
+    expect(label()).toBe('Local server (Kev, JevK5, Laya)')
   })
 
   // FB-4 — the local setup guide, and a hint pointing to it when unreachable.

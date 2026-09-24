@@ -454,3 +454,40 @@ describe('useClassifier: browser provider (docs/browser-inference.md)', () => {
     expect(classifier.state.progress?.concurrency).toBe(1)
   })
 })
+
+describe('useClassifier: Laya preset (per-issue only, small context, docs/local-providers.md)', () => {
+  const LAYA = { kind: 'local' as const, baseUrl: 'http://localhost:8000', model: 'convaiinnovations/laya' }
+
+  it('forces per-issue mode even when batched is preferred, never sending a composite state', async () => {
+    await load(() => ok(), { classifyMode: 'batched', provider: LAYA })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const summary = await mods.classifier.useClassifier().start()
+    expect(summary).toMatchObject({ status: 'completed', classified: 2, profile: null })
+    expect(client.batches).toEqual([])
+    expect(client.calls.map((c) => c.issue).sort()).toEqual([1, 4])
+  })
+
+  it('estimates per-issue at zero cost, whatever the preferred mode', async () => {
+    await load(() => ok(), { classifyMode: 'batched', provider: LAYA })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const estimate = mods.classifier.useClassifier().estimate({ scope: 'unclassified' })
+    expect(estimate).toMatchObject({ mode: 'per-issue', requests: 2, costUsd: 0, profile: null })
+  })
+
+  it('caps the per-issue state at 512 tokens: a body that fits Kev/JevK5 easily fails here as too large', async () => {
+    await load(() => ok(), { classifyMode: 'per-issue', provider: LAYA })
+    const a = createAnalysis({
+      id: 'laya-cap',
+      repo: fakeRepo(),
+      stateFilter: 'open',
+      now: NOW,
+      prefs: defaultPreferences(),
+      projectContext: defaultProjectContext('acme/widgets'),
+      issues: [1].map((n) => fakeIssue(n, { body: 'word '.repeat(700).trim() })),
+      commentsFetched: false,
+    })
+    mods.analysis.useAnalysis().setCurrent(a)
+    const summary = await mods.classifier.useClassifier().start()
+    expect(summary).toMatchObject({ status: 'completed', classified: 0, failed: 1 })
+  })
+})

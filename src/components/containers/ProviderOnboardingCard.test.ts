@@ -393,7 +393,7 @@ describe('ProviderOnboardingCard', () => {
       expect(wrapper.find('[data-test="choice-cloud"]').exists()).toBe(true)
 
       const hint = wrapper.get('[data-test="local-in-settings-hint"]')
-      expect(hint.text()).toMatch(/have a kev\/jevk5 server on your machine\?/i)
+      expect(hint.text()).toMatch(/have a kev\/jevk5\/laya server on your machine\?/i)
       expect(hint.text()).toMatch(/configure it in settings/i)
 
       expect(wrapper.find('[data-test="hosted-hint"]').exists()).toBe(false)
