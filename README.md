@@ -300,16 +300,20 @@ table and the tier thresholds.
 
 ## Deployment modes
 
-v1 runs locally only (`pnpm dev` or `pnpm preview` on `localhost:5200`). The Jev API rejects
-browser origins, so the browser calls `/jev/v1/...` and the Vite server forwards it to
-`https://api.typesafe.ai` (configurable through the server-only `JEV_UPSTREAM_URL`). The proxy
-forwards only `/v1/systemone` and `/v1/models`, strips `origin`, `referer` and `cookie`, logs
-nothing and stores nothing; your key passes through in transit only. GitHub is called directly
-from the browser.
+Locally, `pnpm dev`/`pnpm preview` run the app on `localhost:5200`; the Vite server proxies
+`/jev/v1/...` to `https://api.typesafe.ai` (configurable through the server-only
+`JEV_UPSTREAM_URL`), stripping `origin`, `referer` and `cookie`, logging and storing nothing — your
+key passes through in transit only. GitHub is called directly from the browser in both modes.
 
-A hosted mode (for example Firebase Hosting with a serverless proxy function) is a future option,
-not implemented. Switching is configuration only (`VITE_JEV_BASE_URL`). See
-[`docs/deployment.md`](docs/deployment.md) for the proxy contract and configuration.
+Hosted, a static build plus a Cloudflare Pages Function (`functions/jev/[[path]].ts`) serves the
+same `/jev` routes under the same same-origin policy. Switching between the two is configuration
+only (`VITE_JEV_BASE_URL`, and for the hosted function, `ALLOWED_ORIGINS`). See
+[`docs/architecture.md`](docs/architecture.md#deployment-modes) for the proxy contract and
+environment variables.
+
+## Deploy
+
+The app is a static build plus a Pages Function; see docs/architecture.md for the deployment modes.
 
 ## Design
 

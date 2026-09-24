@@ -51,7 +51,7 @@ export function findBrowserModel(modelId: string): BrowserModelPreset | null {
   return BROWSER_MODELS.find((m) => m.id === modelId) ?? null
 }
 
-/** Browser-side path of the Vite proxy for local servers (server/jevProxy.ts, docs/deployment.md). */
+/** Browser-side path of the Vite proxy for local servers (server/jevProxy.ts, docs/local-providers.md). */
 export const JEV_LOCAL_PROXY_PREFIX = '/jev-local'
 /** Request header naming the local server the `/jev-local` proxy forwards to. */
 export const LOCAL_TARGET_HEADER = 'x-local-target'

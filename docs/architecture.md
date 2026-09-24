@@ -31,8 +31,8 @@ server/
   jevProxyPolicy.ts  Pure /jev proxy policy (allowlists, same-origin, rate limit, body cap),
                   shared by jevProxy.ts and the hosted function.
 functions/
-  jev/[[path]].ts Reference Cloudflare Pages Function for the hosted /jev proxy. Not deployed,
-                  not part of the Vite build (docs/deployment.md, docs/security.md).
+  jev/[[path]].ts Cloudflare Pages Function for the hosted /jev proxy: not part of the Vite build
+                  ("Deployment modes" below, docs/security.md).
   ortAssets.ts    Serves/emits ONNX Runtime Web's wasm + loader under /ort/ (no CDN).
 tests/            Cross-cutting tests: architecture rules, tokens-only rule, icons, the
                   secrets-never-persisted behaviour test, the proxy tests, and fixtures.
@@ -85,6 +85,21 @@ import turns the test suite red instead of relying on code review:
 
 Every composable is a module-singleton function (`useX()` returns the same reactive state on
 every call within a module instance) — there is no external store library.
+
+## Deployment modes
+
+The proxy runs on two hosts, both driven by the same pure policy (`server/jevProxyPolicy.ts`), so
+they answer every request identically: locally, `pnpm dev`/`pnpm preview` serve `/jev` through the
+Vite proxy (`server/jevProxy.ts`, bound to `localhost` only); hosted, a Cloudflare Pages Function
+(`functions/jev/[[path]].ts`) serves the same routes at the same same-origin path, so
+`VITE_JEV_BASE_URL` stays `/jev` either way. The hosted function's entire contract is two Pages
+environment variables: `ALLOWED_ORIGINS` (comma-separated site origins accepted from `Origin` or
+`Referer` when `Sec-Fetch-Site` is absent — **required**: the function fails closed with a 403 on
+every request when this is unset or empty, rather than trusting `Sec-Fetch-Site` alone) and
+`JEV_UPSTREAM_URL` (optional; defaults to `https://api.typesafe.ai`). See
+[security.md](security.md#the-proxy-trust-boundary) for the full threat model and
+[local-providers.md](local-providers.md) for what a hosted build does not offer (no `/jev-local`,
+no local-provider proxy).
 
 ## Storage layout
 
@@ -197,8 +212,8 @@ The Jev API rejects browser origins, so the browser never calls `api.typesafe.ai
 same-origin callers only, a 2 MB body cap and a per-IP token-bucket rate limit. Only
 `authorization`, `content-type` and `accept` reach upstream, and answers carry
 `Cache-Control: no-store`. It forwards the JSON body unchanged, logs nothing, and stores
-nothing — the key passes through in transit only. The hosted reference function
+nothing — the key passes through in transit only. The hosted function
 (`functions/jev/[[path]].ts`) imports the same policy. The threat model is in
 [security.md](security.md). GitHub is always called
-directly from the browser, since `api.github.com` allows CORS. See `docs/deployment.md` for the
-full contract and how a future hosted mode would honour it.
+directly from the browser, since `api.github.com` allows CORS. See "Deployment modes" above for
+the two hosts and their environment variable contract.

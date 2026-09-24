@@ -1,5 +1,5 @@
 // @vitest-environment node
-// T16 — the /jev-local proxy (docs/deployment.md): forwards to a local
+// T16 — the /jev-local proxy (docs/local-providers.md): forwards to a local
 // Jev-compatible server named per request in `x-local-target`, only when that
 // target is loopback or a private LAN address. Tested against a fake upstream.
 import { createServer as createHttpServer, type IncomingHttpHeaders, type Server } from 'node:http'

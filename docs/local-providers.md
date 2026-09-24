@@ -249,7 +249,7 @@ JevK5's READMEs do not say whether they do, so the app handles both cases:
 
 The page's CSP allows direct calls only to `localhost`, `127.0.0.1` and `[::1]` over `http`. A LAN
 address or an `https` local server therefore always goes through the proxy. See
-[deployment.md](deployment.md) for what the proxy does.
+[security.md](security.md#the-proxy-trust-boundary) for what the proxy does.
 
 **Hosted pages.** A hosted build has no `/jev-local` proxy, so it reaches `http://localhost` directly
 from your browser. That works with Kev, which answers with CORS `*`; JevK5 sends no CORS headers,

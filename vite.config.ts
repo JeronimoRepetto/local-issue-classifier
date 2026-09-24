@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     // /jev-local (T16): forwards to a local Kev/JevK5 server named in x-local-target,
-    // loopback or private LAN only. Local Vite server only; see docs/deployment.md.
+    // loopback or private LAN only. Local Vite server only; see docs/local-providers.md.
     // ortAssets: ONNX Runtime Web's wasm + loader for the in-browser provider,
     // served from /ort/ instead of a CDN (docs/browser-inference.md).
     // launcherAssets: the one-click Kev launchers under /launchers/ (docs/local-providers.md).

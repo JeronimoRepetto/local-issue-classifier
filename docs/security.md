@@ -58,6 +58,14 @@ Vite server locally, the Pages Function when hosted) runs the same pure decision
 The limits leave room for normal use. One tab classifying at the maximum concurrency of 8 sends
 about 240 requests a minute. A refused request never spends rate-limit tokens.
 
+**Fail-closed on the hosted function.** `Sec-Fetch-Site` is a genuine browser guarantee only for an
+actual browser request; a non-browser caller can set it to whatever it likes. So the hosted
+function (`functions/jev/[[path]].ts`) does not rely on it alone: when its `ALLOWED_ORIGINS`
+environment variable is unset or empty, it refuses every request with a 403 before the shared
+policy even runs, rather than silently falling through to trusting `Sec-Fetch-Site`. See
+[architecture.md](architecture.md#deployment-modes) for the two hosts and their environment
+variable contract.
+
 What reaches Jev: only `authorization`, `content-type` and `accept`, plus the transport headers the
 HTTP client sets for the hop (`host`, `content-length`). `Cookie`, `Origin`, `Referer`, `User-Agent`,
 `X-Forwarded-For` and all other headers are dropped. Upstream `Set-Cookie` is dropped from the
