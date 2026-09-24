@@ -9,6 +9,10 @@
     "url": "https://github.com/JeronimoRepetto/local-issue-classifier"
   },
   "type": "module",
+  "packageManager": "pnpm@11.1.1",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit -p tsconfig.json && vite build",
