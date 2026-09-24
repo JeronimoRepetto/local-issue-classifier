@@ -38,6 +38,15 @@ const busy = computed(() => PROGRESS_PHASES.includes(repo.state.phase))
 
 const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.status.failure : null))
 
+// GitHub's cursor-paginated issues list reports no total, so the count can be unknown.
+const hugeRepoText = computed(() => {
+  const size =
+    repo.state.totalPages != null
+      ? `It has ${repo.state.totalPages} pages of issues (over 20)`
+      : 'Your "Max issues to load" limit could need more than 20 pages of issues (GitHub does not report the total)'
+  return `${size}, which will use a lot of your GitHub quota. Load all of them, or stop with what has already loaded?`
+})
+
 const resetAtText = computed(() =>
   repo.state.rateLimitResetAt ? new Date(repo.state.rateLimitResetAt).toLocaleTimeString() : 'unknown',
 )
@@ -57,7 +66,7 @@ const resetAtText = computed(() =>
       <ConfirmDialog
         :open="repo.state.phase === 'confirm-huge-repo'"
         title="This is a large repository"
-        :description="`It has ${repo.state.totalPages} pages of issues (over 20), which will use a lot of your GitHub quota. Load all of them, or stop with what has already loaded?`"
+        :description="hugeRepoText"
         confirm-label="Load all"
         cancel-label="Stop here"
         @close="repo.confirmHugeRepo(false)"

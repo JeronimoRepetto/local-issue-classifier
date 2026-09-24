@@ -32,6 +32,8 @@ export interface LoadIssuesOptions {
   onProgress?: (progress: LoadProgress) => void
   /** Absolute page URL to continue from, e.g. `nextUrl` of the last progress event before a rate limit. */
   resumeFrom?: string
+  /** Stops after this many pages even below `maxIssues`, so a caller can resume from `nextUrl` without skipping items. */
+  maxPages?: number
 }
 
 export interface LoadIssuesResult {
@@ -149,7 +151,7 @@ export function createGitHubLoader(http: GitHubHttp): GitHubLoader {
       return buildProjectContext(repo, sources)
     },
 
-    async loadIssues(ref, { state, maxIssues, signal, onProgress, resumeFrom }) {
+    async loadIssues(ref, { state, maxIssues, signal, onProgress, resumeFrom, maxPages }) {
       const cap = Math.max(0, Math.floor(maxIssues))
       const start =
         resumeFrom ?? `${repoPath(ref)}/issues?state=${state}&sort=updated&direction=desc&per_page=${PER_PAGE}`
@@ -180,7 +182,7 @@ export function createGitHubLoader(http: GitHubHttp): GitHubLoader {
             totalPages,
             nextUrl: response.link.next ?? null,
           })
-          return !capped
+          return !capped && (maxPages === undefined || pagesFetched < maxPages)
         },
         signal,
       )

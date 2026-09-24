@@ -150,6 +150,14 @@ describe('RepoLoadFeedback', () => {
     await vi.waitFor(() => expect(repoMod.useRepo().state.phase).toBe('done'))
   })
 
+  it('words the huge-repo confirmation without a page count when GitHub reports none', async () => {
+    Object.assign(repoMod.useRepo().state, { phase: 'confirm-huge-repo', totalPages: null })
+    mount(RepoLoadFeedback, { attachTo: document.body })
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+    expect(document.body.textContent).not.toContain('null')
+    expect(document.body.textContent).toContain('more than 20 pages')
+  })
+
   it('shows the comment-cost confirmation, and Skip continues without comments', async () => {
     const server = fakeGitHub({ totalPages: 1, perPage: 1 })
     ;(server.fetchFn as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (input: RequestInfo | URL) => {
