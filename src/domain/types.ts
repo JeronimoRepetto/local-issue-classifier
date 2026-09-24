@@ -245,6 +245,10 @@ export interface IssueFilter {
   text: string
 }
 
+/** `'text'` (default) is the plain-text report; `'markdown'`/`'html'` are the AI-feeding and
+ * viewable/shareable exports (docs/export-format.md). */
+export type ExportFormat = 'text' | 'markdown' | 'html'
+
 export interface ExportOptions {
   order: ExportOrder
   /**
@@ -261,6 +265,10 @@ export interface ExportOptions {
   includeDismissed: boolean
   includeConfidence: boolean
   includeUrls: boolean
+  /** Output format: plain text (default), Markdown, or self-contained HTML. */
+  format: ExportFormat
+  /** HTML export only: adds a per-row `<details>` with the trimmed issue body. Default false. */
+  includeBodies: boolean
 }
 
 // Only non-secret data has a storage key. There is deliberately no key for secrets.
@@ -311,19 +319,26 @@ export function defaultExportOptions(): ExportOptions {
     includeDismissed: false,
     includeConfidence: true,
     includeUrls: true,
+    format: 'text',
+    includeBodies: false,
   }
 }
 
 /**
  * Tolerant read of a possibly-older stored `ExportOptions` (same pattern as
  * `domain/columns.ts`'s `resolveVisibleColumns`): an analysis saved before
- * `orderMode` existed has every other field but that one, so it falls back to
- * `'table'` rather than `undefined`. Everything else is passed through as-is.
+ * `orderMode`, `format` or `includeBodies` existed is missing those fields (or
+ * `format` may hold an since-removed value), so each falls back to its default
+ * rather than passing through `undefined`/unrecognized. Everything else is
+ * passed through as-is.
  */
 export function resolveExportOptions(stored: ExportOptions | undefined): ExportOptions {
   if (!stored) return defaultExportOptions()
-  if (stored.orderMode === 'table' || stored.orderMode === 'custom') return stored
-  return { ...stored, orderMode: 'table' }
+  const orderMode = stored.orderMode === 'table' || stored.orderMode === 'custom' ? stored.orderMode : 'table'
+  const format: ExportFormat =
+    stored.format === 'markdown' || stored.format === 'html' || stored.format === 'text' ? stored.format : 'text'
+  const includeBodies = typeof stored.includeBodies === 'boolean' ? stored.includeBodies : false
+  return { ...stored, orderMode, format, includeBodies }
 }
 
 export function defaultPriorityWeights(): PriorityWeights {
@@ -360,6 +375,8 @@ function cloneExportOptions(options: ExportOptions): ExportOptions {
     includeDismissed: options.includeDismissed,
     includeConfidence: options.includeConfidence,
     includeUrls: options.includeUrls,
+    format: options.format,
+    includeBodies: options.includeBodies,
   }
 }
 

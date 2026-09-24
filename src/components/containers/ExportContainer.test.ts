@@ -82,7 +82,7 @@ describe('ExportContainer', () => {
     )
   })
 
-  it('lays the dialog out as labelled rows: scope, include, order and preview', async () => {
+  it('lays the dialog out as labelled rows: scope, include, format, order and preview', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     mount(ExportContainer, { props: { open: true }, attachTo: document.body })
     await flush()
@@ -90,7 +90,7 @@ describe('ExportContainer', () => {
     const keys = [...document.querySelectorAll('.export-container__row > .export-container__key')].map((el) =>
       el.textContent?.trim(),
     )
-    expect(keys).toEqual(['Scope', 'Include', 'Order', 'Preview'])
+    expect(keys).toEqual(['Scope', 'Include', 'Format', 'Order', 'Preview'])
   })
 
   it('toggling "Include dismissed" persists into the analysis working state', async () => {
@@ -168,6 +168,42 @@ describe('ExportContainer', () => {
     expect(downloadMod.downloadText).toHaveBeenCalledWith(
       expect.stringContaining('local-issue-classifier report'),
       'acme-widgets-issues-20260923-1405.txt',
+    )
+  })
+
+  it('the Format control defaults to Text, and switching to Markdown persists and updates the preview', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(ExportContainer, { props: { open: true }, attachTo: document.body })
+    await flush()
+
+    expect(document.querySelector('[data-test="segment-text"]')?.getAttribute('aria-checked')).toBe('true')
+
+    ;(document.querySelector('[data-test="segment-markdown"]') as HTMLButtonElement).click()
+    await flush()
+
+    expect(analysisMod.useAnalysis().current.value?.working.exportOptions.format).toBe('markdown')
+    expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain(
+      '# local-issue-classifier report',
+    )
+    expect(document.querySelector('[data-test="export-preview-note"]')?.textContent).toContain('Markdown')
+  })
+
+  it('switching Format to HTML persists, updates the preview, and downloads as .html', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(ExportContainer, { props: { open: true }, attachTo: document.body })
+    await flush()
+
+    ;(document.querySelector('[data-test="segment-html"]') as HTMLButtonElement).click()
+    await flush()
+
+    expect(analysisMod.useAnalysis().current.value?.working.exportOptions.format).toBe('html')
+    expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain('<!doctype html>')
+
+    ;(document.querySelector('[data-test="export-download"]') as HTMLButtonElement).click()
+    expect(downloadMod.downloadText).toHaveBeenCalledWith(
+      expect.stringContaining('<!doctype html>'),
+      'acme-widgets-issues-20260923-1405.html',
+      'text/html;charset=utf-8',
     )
   })
 

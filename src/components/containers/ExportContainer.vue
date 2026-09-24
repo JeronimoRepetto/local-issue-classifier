@@ -28,6 +28,12 @@ const ORDER_MODE_OPTIONS = [
   { value: 'custom', label: 'Custom' },
 ]
 
+const FORMAT_OPTIONS = [
+  { value: 'text', label: 'Text' },
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'html', label: 'HTML' },
+]
+
 function onCheckbox(field: keyof ExportOptions, event: Event): void {
   exportApi.setOptions({ [field]: (event.target as HTMLInputElement).checked })
 }
@@ -99,6 +105,18 @@ function onCheckbox(field: keyof ExportOptions, event: Event): void {
       </div>
 
       <div class="export-container__row">
+        <span class="export-container__key u-micro">Format</span>
+        <UiSegmented
+          data-test="export-format"
+          label="Export format"
+          size="compact"
+          :model-value="exportApi.options.value.format"
+          :options="FORMAT_OPTIONS"
+          @update:model-value="exportApi.setOptions({ format: $event as ExportOptions['format'] })"
+        />
+      </div>
+
+      <div class="export-container__row">
         <span class="export-container__key u-micro">Order</span>
         <div class="export-container__order">
           <UiSegmented
@@ -121,7 +139,7 @@ function onCheckbox(field: keyof ExportOptions, event: Event): void {
       <div class="export-container__row export-container__row--stacked">
         <span class="export-container__key u-micro">Preview</span>
         <div>
-          <ExportPreview :text="exportApi.previewText.value" />
+          <ExportPreview :text="exportApi.previewText.value" :format="exportApi.options.value.format" />
           <p v-if="exportApi.scopeCount.value === 0" class="export-container__empty" data-test="export-empty">
             Nothing to export.
           </p>
