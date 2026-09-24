@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!--
+    Social link-preview source (docs/architecture.md "Link preview"). Rasterized to
+    public/og-image.png by scripts/build-og-image.mjs (`pnpm og-image`), which is the ONLY
+    step allowed to touch the <style id="fonts"> tag below: it replaces its (empty) contents
+    with @font-face rules whose `src` is a data: URI built from the committed
+    @fontsource-variable/geist(-mono) package files, so the render never depends on a font
+    being installed on the machine that runs the script, and never fetches anything over the
+    network. Everything else here is a plain, hand-edited SVG — colors and radii are copied
+    from src/ui/tokens.ts (dark theme) and docs/design.md, not invented.
+  -->
+  <style id="fonts"></style>
+
+  <defs>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(150 120) rotate(90) scale(340 460)">
+      <stop offset="0%" stop-color="#1C1D33" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#1C1D33" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- bg (dark theme, tokens.ts) -->
+  <rect x="0" y="0" width="1200" height="630" fill="#09090B"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Logo mark: design/icons/pixel/logo.svg, recolored to the accent and scaled 4x (16px -> 64px). -->
+  <g transform="translate(84 76) scale(4)" shape-rendering="crispEdges">
+    <path fill="#8B93FF" d="M1 0h14v1h-14zM0 1h16v1h-16zM0 2h16v1h-16zM0 3h11v1h-11zM13 3h3v1h-3zM0 4h11v1h-11zM13 4h3v1h-3zM0 5h11v1h-11zM13 5h3v1h-3zM0 6h7v1h-7zM9 6h2v1h-2zM13 6h3v1h-3zM0 7h7v1h-7zM9 7h2v1h-2zM13 7h3v1h-3zM0 8h7v1h-7zM9 8h2v1h-2zM13 8h3v1h-3zM0 9h3v1h-3zM5 9h2v1h-2zM9 9h2v1h-2zM13 9h3v1h-3zM0 10h3v1h-3zM5 10h2v1h-2zM9 10h2v1h-2zM13 10h3v1h-3zM0 11h3v1h-3zM5 11h2v1h-2zM9 11h2v1h-2zM13 11h3v1h-3zM0 12h3v1h-3zM5 12h2v1h-2zM9 12h2v1h-2zM13 12h3v1h-3zM0 13h16v1h-16zM0 14h16v1h-16zM1 15h14v1h-14z"/>
+  </g>
+
+  <!-- Wordmark + tagline (Geist Sans, text / text-muted). -->
+  <text x="172" y="122" font-family="'Geist Variable', system-ui, sans-serif" font-weight="600" font-size="52" fill="#EDEDEF">Issue Classifier</text>
+  <text x="84" y="184" font-family="'Geist Variable', system-ui, sans-serif" font-weight="400" font-size="26" fill="#94949E">Rate GitHub issues by criticality, effort and relevance</text>
+
+  <!-- Card panel (surface / border, radius-md). -->
+  <rect x="84" y="234" width="1032" height="326" rx="8" fill="#111113" stroke="#26262B" stroke-width="1"/>
+  <line x1="84" y1="343" x2="1116" y2="343" stroke="#26262B" stroke-width="1"/>
+  <line x1="84" y1="452" x2="1116" y2="452" stroke="#26262B" stroke-width="1"/>
+
+  <!-- Row 1: high priority. -->
+  <text x="116" y="296" dominant-baseline="central" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="20" fill="#81818B">#142</text>
+  <text x="210" y="296" dominant-baseline="central" font-family="'Geist Variable', system-ui, sans-serif" font-weight="500" font-size="24" fill="#EDEDEF">Add dark mode toggle to settings</text>
+  <g>
+    <rect x="952" y="270" width="132" height="36" rx="18" fill="#2A1414"/>
+    <rect x="976" y="282" width="3" height="6" rx="1" fill="#F87171"/>
+    <rect x="982" y="279" width="3" height="9" rx="1" fill="#F87171"/>
+    <rect x="988" y="276" width="3" height="12" rx="1" fill="#F87171"/>
+    <text x="1000" y="288" dominant-baseline="central" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="15" fill="#F87171">High</text>
+  </g>
+
+  <!-- Row 2: medium priority. -->
+  <text x="116" y="397" dominant-baseline="central" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="20" fill="#81818B">#156</text>
+  <text x="210" y="397" dominant-baseline="central" font-family="'Geist Variable', system-ui, sans-serif" font-weight="500" font-size="24" fill="#EDEDEF">API request times out on large repos</text>
+  <g>
+    <rect x="952" y="379" width="132" height="36" rx="18" fill="#2A2110"/>
+    <rect x="976" y="391" width="3" height="6" rx="1" fill="#FBBF24" fill-opacity="0.3"/>
+    <rect x="982" y="388" width="3" height="9" rx="1" fill="#FBBF24"/>
+    <rect x="988" y="385" width="3" height="12" rx="1" fill="#FBBF24"/>
+    <text x="1000" y="397" dominant-baseline="central" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="15" fill="#FBBF24">Medium</text>
+  </g>
+
+  <!-- Row 3: low priority. -->
+  <text x="116" y="506" dominant-baseline="central" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="20" fill="#81818B">#171</text>
+  <text x="210" y="506" dominant-baseline="central" font-family="'Geist Variable', system-ui, sans-serif" font-weight="500" font-size="24" fill="#EDEDEF">Improve onboarding copy for new users</text>
+  <g>
+    <rect x="952" y="488" width="132" height="36" rx="18" fill="#10261A"/>
+    <rect x="976" y="500" width="3" height="6" rx="1" fill="#4ADE80"/>
+    <rect x="982" y="497" width="3" height="9" rx="1" fill="#4ADE80" fill-opacity="0.3"/>
+    <rect x="988" y="494" width="3" height="12" rx="1" fill="#4ADE80" fill-opacity="0.3"/>
+    <text x="1000" y="506" dominant-baseline="central" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="15" fill="#4ADE80">Low</text>
+  </g>
+
+  <!-- Footer. -->
+  <text x="1116" y="598" text-anchor="end" font-family="'Geist Mono Variable', ui-monospace, monospace" font-weight="500" font-size="20" fill="#8B93FF">issueclassifier.com</text>
+</svg>

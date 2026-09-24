@@ -87,11 +87,11 @@ describe('App', () => {
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true)
   })
 
-  it('names the product local-issue-classifier in the wordmark and the document title', async () => {
+  it('names the product local-issue-classifier in the wordmark; the document title is the marketing title (tests/linkPreview.test.ts)', async () => {
     const wrapper = await mountApp()
     expect(wrapper.get('[data-test="brand"]').text()).toBe('local-issue-classifier')
     const html = readFileSync(join(__dirname, '..', 'index.html'), 'utf8')
-    expect(html).toContain('<title>local-issue-classifier</title>')
+    expect(html).toContain('<title>Issue Classifier — AI triage for GitHub issues</title>')
   })
 
   it('the top-bar theme toggle cycles system, light and dark and says which is active', async () => {

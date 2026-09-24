@@ -101,6 +101,30 @@ every request when this is unset or empty, rather than trusting `Sec-Fetch-Site`
 [local-providers.md](local-providers.md) for what a hosted build does not offer (no `/jev-local`,
 no local-provider proxy).
 
+## Link preview
+
+`index.html` carries the Open Graph and Twitter Card meta tags that a chat client or social
+platform reads to render a rich card for `https://issueclassifier.com` (title, description and
+`public/og-image.png`, a 1200x630 PNG). `tests/linkPreview.test.ts` checks the tags are present,
+consistent (`og:title`/`og:description` mirrored into `twitter:*`, absolute `https://` image URL)
+and that the image is committed at the right pixel size and under its size budget. The
+document `<title>` is this marketing copy, not the PWA identity: `site.webmanifest`'s `name` and
+the top-bar wordmark stay `local-issue-classifier` on purpose (see `tests/favicon.test.ts` and
+`src/App.test.ts`), so the two are checked separately rather than required to match.
+
+The image is generated from `design/og/og-image.svg` (a hand-edited source, colors and radii
+copied from `src/ui/tokens.ts`'s dark theme) by `scripts/build-og-image.mjs` — run `pnpm og-image`
+to regenerate it after editing the source. No image-processing dependency was added for this:
+the source has real text, not the simple monochrome pixel grid `scripts/build-favicon-png.mjs`
+rasterizes for the favicons, so that hand-rolled encoder doesn't apply here. Instead the script
+reuses `scripts/browser-smoke.mjs`'s existing pattern — driving a locally installed Chromium
+(Edge or Chrome) headlessly over raw DevTools Protocol WebSocket messages, with no npm
+dependency at all — to lay out real text with real font metrics and screenshot it. The two
+`@fontsource-variable` font files it needs are read from `node_modules` and embedded into the
+page as `data:` URIs before rendering, so the result never depends on a font being installed on
+the machine that runs the script and never fetches anything over the network. The output PNG is
+committed, same convention as `pnpm favicons` and `pnpm icons`.
+
 ## Storage layout
 
 Saved analyses live in **IndexedDB**; every other non-secret value stays in `localStorage`.
