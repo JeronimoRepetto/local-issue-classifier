@@ -48,6 +48,8 @@ import { useSecrets } from './useSecrets'
 export const LOCAL_TIMEOUT_MS = 180_000
 /** The connection check must answer quickly or count as failed. */
 export const PROBE_TIMEOUT_MS = 5_000
+/** Returning to Home re-probes a local server only when its last check is at least this old. */
+export const REPROBE_AFTER_MS = 30_000
 
 /** The in-browser runtime: real transformers.js and Cache API by default, fakes in tests. */
 export interface BrowserRuntime {
@@ -81,6 +83,8 @@ export interface ProviderEnvironment {
   localProxyPrefix: string
   localTimeoutMs: number
   probeTimeoutMs: number
+  /** Wall clock in ms, for autoProbe's staleness rule. */
+  now: () => number
 }
 
 let env: ProviderEnvironment = {
@@ -95,6 +99,7 @@ let env: ProviderEnvironment = {
   localProxyPrefix: JEV_LOCAL_PROXY_PREFIX,
   localTimeoutMs: LOCAL_TIMEOUT_MS,
   probeTimeoutMs: PROBE_TIMEOUT_MS,
+  now: () => Date.now(),
 }
 
 /** Dependency injection for tests (fake fetch). */
@@ -111,6 +116,10 @@ const modelLists = reactive<Record<string, string[] | null>>({})
 /** The first model's device, when a probed server's /v1/models includes one. */
 const modelDevices = reactive<Record<string, string | null>>({})
 const inflight = new Map<string, Promise<ProviderProbeResult>>()
+/** When each key's last probe finished (env.now()), for autoProbe's session cache. */
+const probedAt = new Map<string, number>()
+/** Keys with a probe in flight, so the UI can say it is still looking. */
+const probing = reactive<Record<string, boolean>>({})
 
 /** probeLocal's internal result: the same shape ProviderProbeResult exposes, plus the device. */
 type LocalProbeResult = ProviderProbeResult & { device: string | null }
@@ -245,10 +254,13 @@ function probeConfig(c: ProviderConfig): Promise<ProviderProbeResult> {
     const valid = validateLocalBaseUrl(c.baseUrl)
     task = valid.ok ? probeLocal(valid.url, apiKey) : Promise.resolve({ status: 'unreachable', models: null, device: null })
   }
+  probing[key] = true
   const done = task.then((result): ProviderProbeResult => {
     routes[key] = result.status
     modelLists[key] = result.models
     modelDevices[key] = result.device
+    probedAt.set(key, env.now())
+    delete probing[key]
     inflight.delete(key)
     // The device is an internal extra for the switcher's label (candidates
     // below); probe()'s public result stays exactly { status, models }.
@@ -258,10 +270,70 @@ function probeConfig(c: ProviderConfig): Promise<ProviderProbeResult> {
   return done
 }
 
-/** "Test connection": probes the current provider and caches the route. */
+/** "Test connection": probes the current provider and caches the route. Always runs: it is the manual retry. */
 function probe(): Promise<ProviderProbeResult> {
   return probeConfig(config.value)
 }
+
+export interface AutoProbeOptions {
+  /** Also probe the Kev/JevK5 presets; default true (false on a hosted page). */
+  presets?: boolean
+  /** Re-probe a key whose last check is at least this old; without it, a checked key is never re-probed. */
+  staleAfterMs?: number
+}
+
+/**
+ * Passive, cached connection checks (docs/local-providers.md "Connection
+ * status"): the configured local base URL (when the provider is local) and
+ * the local presets. A key is probed when it was never checked this session,
+ * or when `staleAfterMs` says its last check is old; a probe already in
+ * flight is shared. Called on app load, when a local provider is selected and
+ * when Home is shown again — never on a timer.
+ */
+function autoProbe(options: AutoProbeOptions = {}): Promise<void> {
+  const targets = new Map<string, ProviderConfig>()
+  const c = config.value
+  if (c.kind === 'local') targets.set(providerKey(c), c)
+  if (options.presets ?? true) {
+    for (const preset of LOCAL_PRESETS) {
+      const presetConfig: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
+      targets.set(providerKey(presetConfig), presetConfig)
+    }
+  }
+  const tasks: Promise<unknown>[] = []
+  for (const [key, target] of targets) {
+    const running = inflight.get(key)
+    if (running) {
+      tasks.push(running)
+      continue
+    }
+    const last = probedAt.get(key)
+    const stale = last === undefined || (options.staleAfterMs !== undefined && env.now() - last >= options.staleAfterMs)
+    if (stale) tasks.push(probeConfig(target))
+  }
+  return Promise.all(tasks).then(() => undefined)
+}
+
+/** The configured local server's live status, as the Home card and Settings show it. */
+export interface LocalLiveStatus {
+  phase: 'checking' | 'connected' | 'unreachable'
+  text: string
+}
+
+const localStatus = computed<LocalLiveStatus>(() => {
+  const c = config.value
+  if (c.kind !== 'local') return { phase: 'checking', text: '' }
+  const key = providerKey(c)
+  const route = routes[key]
+  if (probing[key] || route === undefined || route === 'unknown') {
+    return { phase: 'checking', text: 'Looking for a local server…' }
+  }
+  if (route === 'unreachable') {
+    const port = portOf(c.baseUrl)
+    return { phase: 'unreachable', text: port ? `Not reachable on :${port}` : 'Not reachable' }
+  }
+  return { phase: 'connected', text: 'Connected' }
+})
 
 /** A transport that picks direct or proxied on first use, probing when no route is known. */
 function localTransport(c: Extract<ProviderConfig, { kind: 'local' }>, getKey: () => string): JevTransport {
@@ -414,7 +486,9 @@ function __resetForTests(): void {
   for (const key of Object.keys(routes)) delete routes[key]
   for (const key of Object.keys(modelLists)) delete modelLists[key]
   for (const key of Object.keys(modelDevices)) delete modelDevices[key]
+  for (const key of Object.keys(probing)) delete probing[key]
   inflight.clear()
+  probedAt.clear()
   browserModel = null
   browserLoading = null
   Object.assign(browserStatus, { phase: 'idle', progress: null, support: null, device: null, cachedBytes: null, error: null })
@@ -517,6 +591,8 @@ export function useProvider() {
     status,
     models,
     probe,
+    autoProbe,
+    localStatus,
     getApiKey,
     model,
     dropKey,

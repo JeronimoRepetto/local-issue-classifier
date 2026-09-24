@@ -18,7 +18,8 @@ import { usePreferences } from './composables/usePreferences'
 import { useAnalysis } from './composables/useAnalysis'
 import { migrationNotice, useAnalyses } from './composables/useAnalyses'
 import { useSecrets } from './composables/useSecrets'
-import { useProvider } from './composables/useProvider'
+import { REPROBE_AFTER_MS, useProvider } from './composables/useProvider'
+import { useRuntime } from './composables/useRuntime'
 import { configureRepo } from './composables/useRepo'
 import { applyTheme, nextThemePreference } from './ui/theme'
 import IconLogo from './assets/icons/IconLogo.vue'
@@ -99,6 +100,19 @@ async function boot(): Promise<void> {
   }
 }
 void boot()
+
+// Local server status (docs/local-providers.md "Connection status"): probe the
+// configured local URL and, when this page runs locally, the Kev/JevK5
+// presets once on load; coming back to Home re-probes only when the last
+// check is at least REPROBE_AFTER_MS old. Cached per session, never polled.
+const runtime = useRuntime()
+void provider.autoProbe({ presets: runtime.isLocal.value })
+watch(
+  () => view.state.view,
+  (next) => {
+    if (next === 'home') void provider.autoProbe({ presets: runtime.isLocal.value, staleAfterMs: REPROBE_AFTER_MS })
+  },
+)
 
 // Top-bar theme toggle: cycles the persisted preference (system → light → dark).
 const themeLabel = computed(() => {

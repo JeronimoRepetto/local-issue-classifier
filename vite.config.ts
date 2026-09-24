@@ -40,8 +40,8 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'happy-dom',
       include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
-      // A fresh in-memory IndexedDB per test (happy-dom has none).
-      setupFiles: ['tests/setup/indexedDb.ts'],
+      // A fresh in-memory IndexedDB per test (happy-dom has none), and no real network.
+      setupFiles: ['tests/setup/indexedDb.ts', 'tests/setup/network.ts'],
     },
   }
 })

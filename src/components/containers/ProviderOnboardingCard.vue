@@ -53,7 +53,6 @@ import { useHardwareDetection } from '../../composables/useHardwareDetection'
 import { useRuntime } from '../../composables/useRuntime'
 import { detectHardware } from '../../adapters/hardware/detect'
 import { BROWSER_MODELS, defaultBrowserProviderConfig, defaultLocalProviderConfig, findBrowserModel } from '../../domain/provider'
-import type { ProviderProbeResult } from '../../domain/provider'
 import { fitTiers, LOCAL_TIERS } from '../../domain/hardware'
 import type { TierId, TierVerdict } from '../../domain/hardware'
 import {
@@ -152,6 +151,9 @@ function chooseCloud(): void {
 function chooseLocal(): void {
   manualChoice.value = 'local'
   prefs.update({ provider: defaultLocalProviderConfig() })
+  // Checked at once and cached for the session (useProvider().autoProbe);
+  // "Test connection" below stays as the manual retry.
+  void provider.autoProbe({ presets: false })
 }
 
 /** The in-browser model; the download itself starts from the panel below. */
@@ -165,24 +167,17 @@ function openSettings(): void {
 }
 
 const checking = ref(false)
-const probeResult = ref<ProviderProbeResult | null>(null)
 
+/** The manual retry: the live status below updates from the same cached route. */
 async function testConnection(): Promise<void> {
   checking.value = true
-  probeResult.value = null
   try {
-    probeResult.value = await provider.probe()
+    await provider.probe()
   } catch {
-    probeResult.value = { status: 'unreachable', models: null }
+    // probe() never rejects in practice; the status line keeps the last result.
   } finally {
     checking.value = false
   }
-}
-
-const PROBE_TEXT: Record<ProviderProbeResult['status'], string> = {
-  direct: 'Connected — the server answered directly.',
-  proxied: 'Connected through the local dev proxy.',
-  unreachable: 'Could not reach the server yet.',
 }
 
 // Condensed setup summary. The commands themselves come from
@@ -340,10 +335,12 @@ const summarySteps = computed<KevCommandStep[]>(() => {
         </div>
       </div>
       <div class="provider-onboarding__test">
-        <UiButton data-test="test-connection" :loading="checking" @click="testConnection">Test connection</UiButton>
-        <p v-if="checking || probeResult" role="status" class="provider-onboarding__status" data-test="probe-status">
-          {{ checking ? 'Checking…' : probeResult ? PROBE_TEXT[probeResult.status] : '' }}
+        <p role="status" class="provider-onboarding__status" data-test="probe-status">
+          {{ provider.localStatus.value.text }}
         </p>
+        <UiButton data-test="test-connection" :loading="checking" @click="testConnection">
+          Test connection
+        </UiButton>
       </div>
       <UiButton data-test="open-settings-local" variant="ghost" size="compact" @click="openSettings">
         Full guide in Settings

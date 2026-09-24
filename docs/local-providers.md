@@ -149,7 +149,8 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
 3. Choose a preset, or type the base URL and the model. Only `localhost`, `127.x.x.x`, `[::1]` or a
    private LAN address (`10.x`, `172.16–31.x`, `192.168.x`, IPv6 `fc00::/7`) is accepted. Public
    hosts, other schemes (`javascript:`, `file:`), credentials in the URL, and `?`/`#` are refused.
-4. Click **Test connection**. It reports one of three results:
+4. The app checks the server on its own (see "Connection status" below). **Test connection** is a
+   manual retry; it reports one of three results:
    - **direct**: the browser calls the server itself.
    - **proxied**: the browser calls `/jev-local` on the Vite server, which forwards the call.
    - **unreachable**: neither route answered. The app then points back at the setup guide above
@@ -157,6 +158,21 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
 
 No TypeSafe key is needed for a local server. The cost estimate before a run shows **$0**. The
 request count and the latency estimate still apply.
+
+## Connection status
+
+You don't have to click anything to find out whether a local server is up. The app probes it on
+its own (one `GET /v1/models` per address, the same check as **Test connection**):
+
+- **On load**: the configured local base URL, plus the Kev (`:8009`) and JevK5 (`:8090`) presets
+  when the page runs on your machine. A hosted page probes only a local URL you configured.
+- **When you select a local server**: choosing **On this computer** on Home, or **Local server**
+  or a preset in Settings.
+- **When you come back to Home**: only if the last check is at least 30 s old.
+
+Results are cached for the session. There is no polling loop; nothing runs in the background. The
+Home card and Settings show the live status: **Looking for a local server…**, then **Connected** or
+**Not reachable on :8009**. **Test connection** stays as the manual retry.
 
 ## Switching from the analysis view
 

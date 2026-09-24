@@ -219,6 +219,38 @@ describe('ProviderOnboardingCard', () => {
     })
   })
 
+  it('choosing "On this computer" probes the server at once and shows the live status, no click needed', async () => {
+    const { configureProvider } = await import('../../composables/useProvider')
+    const urls: string[] = []
+    configureProvider({
+      fetch: async (input) => {
+        urls.push(String(input))
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+      },
+    })
+    const wrapper = await mountCard()
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Looking for a local server…')
+    await flushPromises()
+    expect(urls).toContain('http://localhost:8009/v1/models')
+    expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Connected')
+  })
+
+  it('says "Not reachable on :8009" when nothing answers, and Test connection retries', async () => {
+    const wrapper = await mountCard()
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Not reachable on :8009')
+
+    const { configureProvider } = await import('../../composables/useProvider')
+    configureProvider({
+      fetch: async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+    })
+    await wrapper.get('[data-test="test-connection"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Connected')
+  })
+
   it('Test connection calls useProvider().probe() and shows the result', async () => {
     const wrapper = await mountCard()
     await wrapper.get('[data-test="choice-local"]').trigger('click')

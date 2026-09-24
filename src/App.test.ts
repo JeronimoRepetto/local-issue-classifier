@@ -412,3 +412,56 @@ describe('App', () => {
     })
   })
 })
+
+// Auto-probe (docs/local-providers.md "Connection status"): the local presets
+// are probed on load, cached for the session; coming back to Home re-probes
+// them only when the last check is at least 30 s old. No polling loop.
+describe('App: local server auto-probe', () => {
+  const T0 = new Date('2026-09-24T10:00:00Z')
+  let urls: string[]
+
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(T0)
+    urls = []
+    const { configureProvider } = await import('./composables/useProvider')
+    configureProvider({
+      fetch: async (input) => {
+        urls.push(String(input))
+        return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+      },
+    })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('probes the Kev and JevK5 presets once on load', async () => {
+    await mountApp()
+    await flushPromises()
+    expect(urls.sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+  })
+
+  it('re-probes on returning to Home only after 30 s', async () => {
+    await mountApp()
+    await flushPromises()
+    urls = []
+    const view = viewMod.useView()
+
+    view.openSettings()
+    await flush()
+    vi.setSystemTime(new Date(T0.getTime() + 10_000))
+    view.goHome()
+    await flushPromises()
+    expect(urls).toEqual([])
+
+    view.openSettings()
+    await flush()
+    // mountApp's waitFor may move the fake clock a few ms past T0; the exact
+    // 30 000 ms boundary is covered in useProvider.test.ts.
+    vi.setSystemTime(new Date(T0.getTime() + 31_000))
+    view.goHome()
+    await flushPromises()
+    expect(urls.sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+  })
+})

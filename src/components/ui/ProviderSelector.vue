@@ -38,6 +38,8 @@ const props = defineProps<{
   /** Preferences.localMaxStateTokens; shown in Advanced for a local provider only. */
   localMaxStateTokens?: number
   probe: () => Promise<ProviderProbeResult>
+  /** The local server's live status from the automatic check (useProvider().localStatus); shown until a manual test runs. */
+  liveStatus?: string
   /** The in-browser model's state (useProvider().browserStatus); only read for the browser kind. */
   browser?: BrowserPanelState
 }>()
@@ -249,8 +251,13 @@ async function testConnection(): Promise<void> {
         >
           Test connection
         </UiButton>
-        <p v-if="checking || result" role="status" class="provider-selector__status" data-test="probe-status">
-          {{ checking ? 'Checking…' : result ? PROBE_TEXT[result.status] : '' }}
+        <p
+          v-if="checking || result || liveStatus"
+          role="status"
+          class="provider-selector__status"
+          data-test="probe-status"
+        >
+          {{ checking ? 'Checking…' : result ? PROBE_TEXT[result.status] : liveStatus }}
         </p>
       </div>
       <p v-if="result?.status === 'unreachable'" class="provider-selector__hint" data-test="unreachable-hint">
