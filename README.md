@@ -329,11 +329,9 @@ MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own lic
 
 ## Acknowledgements
 
-- **midudev / [canirun.ai](https://github.com/midudev/canirun.ai)** — the visual direction and the
+- **[midudev](https://github.com/midudev) / [canirun.ai](https://github.com/midudev/canirun.ai)** — the visual direction and the
   browser-side hardware detection approach used by this app's "Hardware fit" panel were inspired
-  by canirun.ai. No code or assets were copied: canirun.ai's repository carries no license
-  (checked 2026-09-24 via the GitHub API), so the equivalent behavior here was reimplemented from
-  scratch.
+  by canirun.ai. 
 - **TypeSafe AI** — makers of Jev, the decision model this app sends issues to for classification.
   See ["Getting a Jev API key"](#getting-a-jev-api-key).
 - **[jaredpalmer/kev](https://github.com/jaredpalmer/kev)** and
@@ -348,6 +346,3 @@ MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own lic
 <a href="https://github.com/Gentleman-Programming/gentle-ai">
   <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
 </a>
-
-No official canirun.ai badge or "built with" asset was found in its repository (its README and
-`public/` tree were checked on 2026-09-24), so no canirun.ai badge is shown here.
