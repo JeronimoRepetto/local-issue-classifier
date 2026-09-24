@@ -11,7 +11,7 @@ import { nextTick } from 'vue'
 import { createAnalysis } from '../../domain/analysis'
 import type { Analysis } from '../../domain/types'
 import { defaultPreferences, defaultProjectContext, defaultPriorityWeights } from '../../domain/types'
-import { fakeIssue, fakeRepo } from '../../../tests/fakes/domainFixtures'
+import { fakeClassification, fakeIssue, fakeRepo } from '../../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
 
 type AnalysisModule = typeof import('../../composables/useAnalysis')
@@ -143,5 +143,47 @@ describe('PriorityContainer', () => {
 
     await wrapper.get('[data-test="weight-reset"]').trigger('click')
     expect(wrapper.emitted('sort')).toBeUndefined()
+  })
+
+  it('gives the trigger a visible tooltip and an aria-label naming its purpose', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(PriorityContainer, { attachTo: document.body })
+    await flush()
+
+    const trigger = wrapper.get('[data-test="weight-editor-trigger"]')
+    expect(trigger.attributes('aria-label')).toBe('Adjust priority weights')
+
+    await trigger.trigger('focusin')
+    vi.advanceTimersByTime(300)
+    await flush()
+    expect(wrapper.get('[role="tooltip"]').text()).toBe('Adjust priority weights')
+  })
+
+  it('passes the first classified row to the Weights popover as its live example', async () => {
+    const seeded = seedAnalysis()
+    seeded.rows[0] = {
+      ...seeded.rows[0],
+      status: 'done',
+      classification: fakeClassification({ criticality: { level: 'high', score: 2, confidence: 0.9, probabilities: [0, 0, 1] } }),
+    }
+    analysisMod.useAnalysis().setCurrent(seeded)
+    const wrapper = mount(PriorityContainer, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('[data-test="weight-editor-trigger"]').trigger('click')
+    await flush()
+
+    expect(wrapper.get('[data-test="weight-example"]').text()).toMatch(new RegExp(`^#${seeded.rows[0].issue.number} → \\d+/100$`))
+  })
+
+  it('falls back to the worked example when no row is classified yet', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    const wrapper = mount(PriorityContainer, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('[data-test="weight-editor-trigger"]').trigger('click')
+    await flush()
+
+    expect(wrapper.get('[data-test="weight-example"]').text()).toMatch(/^Example → \d+\/100$/)
   })
 })

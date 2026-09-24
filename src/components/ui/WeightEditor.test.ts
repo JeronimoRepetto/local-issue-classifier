@@ -7,6 +7,17 @@ import { mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import WeightEditor from './WeightEditor.vue'
 import { defaultPriorityWeights } from '../../domain/types'
+import { fakeClassification } from '../../../tests/fakes/domainFixtures'
+
+/** Same scores as SPEC.md §4.9's worked example (`priority.test.ts`): 83/100 with the default weights. */
+function workedExampleClassification() {
+  return fakeClassification({
+    criticality: { level: 'high', score: 1.8, confidence: 0.9, probabilities: [0, 0.1, 0.9] },
+    relevance: { value: 88, score: 3.5, confidence: 0.8, probabilities: [0, 0, 0, 0.8, 0.2] },
+    complexity: { level: 'medium', score: 0.9, confidence: 0.7, probabilities: [0.2, 0.7, 0.1] },
+    effort: { level: 'low', score: 0.4, confidence: 0.9, probabilities: [0.8, 0.2, 0] },
+  })
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setNumber(wrapper: VueWrapper<any>, testId: string, value: number) {
@@ -97,5 +108,92 @@ describe('WeightEditor', () => {
     expect(numberValue(wrapper, 'weight-criticality')).toBe('100')
     expect(numberValue(wrapper, 'weight-relevance')).toBe('0')
     expect(numberValue(wrapper, 'weight-complexity')).toBe('40')
+  })
+
+  describe('title, subtitle and per-slider explanation', () => {
+    it('names the popover content with a heading linked via aria-labelledby, plus a one-line subtitle', () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      const title = wrapper.get('[data-test="weight-editor-title"]')
+      expect(title.text()).toBe('Priority weights')
+      expect(wrapper.get('.weight-editor').attributes('aria-labelledby')).toBe(title.attributes('id'))
+      const subtitle = wrapper.get('[data-test="weight-editor-subtitle"]').text()
+      expect(subtitle).toContain('How much each Jev dimension counts in the 0–100 Priority score.')
+      expect(subtitle).toContain('Complexity and effort are inverted: simpler, cheaper issues rank higher.')
+    })
+
+    it('labels each slider with its current weight and its share of the total', () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      expect(wrapper.get('[data-test="weight-criticality"] label').text()).toBe('Criticality · 40 (40%)')
+      expect(wrapper.get('[data-test="weight-relevance"] label').text()).toBe('Relevance · 30 (30%)')
+      expect(wrapper.get('[data-test="weight-complexity"] label').text()).toBe('Complexity · 15 (15%)')
+      expect(wrapper.get('[data-test="weight-effort"] label').text()).toBe('Effort · 15 (15%)')
+    })
+
+    it('recomputes each share live (not debounced) as a weight changes', async () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      await setNumber(wrapper, 'weight-criticality', 60) // total 60+30+15+15 = 120
+      expect(wrapper.get('[data-test="weight-criticality"] label').text()).toBe('Criticality · 60 (50%)')
+      expect(wrapper.emitted('update')).toBeUndefined() // label updated ahead of the debounced emit
+    })
+
+    it('shows 0% shares without dividing by zero when every weight is 0', () => {
+      const wrapper = mount(WeightEditor, {
+        props: { weights: { criticality: 0, relevance: 0, complexity: 0, effort: 0 } },
+      })
+      expect(wrapper.get('[data-test="weight-criticality"] label').text()).toBe('Criticality · 0 (0%)')
+    })
+  })
+
+  describe('live example', () => {
+    it('uses the first visible row when provided via the exampleRow prop', () => {
+      const wrapper = mount(WeightEditor, {
+        props: {
+          weights: defaultPriorityWeights(),
+          exampleRow: { number: 89, classification: workedExampleClassification() },
+        },
+      })
+      expect(wrapper.get('[data-test="weight-example"]').text()).toBe('#89 → 83/100')
+    })
+
+    it('falls back to the SPEC.md worked example when no row is provided', () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      expect(wrapper.get('[data-test="weight-example"]').text()).toBe('Example → 83/100')
+    })
+
+    it('updates live as a weight changes, ahead of the debounced emit', async () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      await setNumber(wrapper, 'weight-criticality', 100)
+      expect(wrapper.get('[data-test="weight-example"]').text()).not.toBe('Example → 83/100')
+      expect(wrapper.emitted('update')).toBeUndefined()
+    })
+
+    it('shows — when every weight is 0 (nothing to rank)', () => {
+      const wrapper = mount(WeightEditor, {
+        props: { weights: { criticality: 0, relevance: 0, complexity: 0, effort: 0 } },
+      })
+      expect(wrapper.get('[data-test="weight-example"]').text()).toBe('Example → —')
+    })
+  })
+
+  it('labels Reset with the concrete default weights', () => {
+    const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+    expect(wrapper.get('[data-test="weight-reset"]').text()).toBe('Reset to defaults (40/30/15/15)')
+  })
+
+  describe('layout — everything stays inside the popover (SPEC.md §10.4)', () => {
+    it('wraps each slider in a row that pairs it with min-width:0 so the range input cannot force the row wider', () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      const rows = wrapper.findAll('.weight-editor__row')
+      expect(rows).toHaveLength(4)
+      for (const row of rows) {
+        expect(row.find('input[type="range"]').exists()).toBe(true)
+        expect(row.find('input[type="number"]').exists()).toBe(true)
+      }
+    })
+
+    it('matches the expected structure (title, subtitle, four rows, example, caption, warning slot, reset)', () => {
+      const wrapper = mount(WeightEditor, { props: { weights: defaultPriorityWeights() } })
+      expect(wrapper.find('.weight-editor').html()).toMatchSnapshot()
+    })
   })
 })
