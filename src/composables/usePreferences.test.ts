@@ -140,7 +140,7 @@ describe('lastAnalysisId sharing with useAnalysis (Task 4 wiring)', () => {
       )
     analysisMod.useAnalysis().discard()
     expect(prefsMod.usePreferences().state.lastAnalysisId).toBe('a1')
-    expect(analysisMod.useAnalysis().restoreLastOpened()).toBe(true)
+    expect(await analysisMod.useAnalysis().restoreLastOpened()).toBe(true)
     expect(analysisMod.useAnalysis().current.value?.id).toBe('a1')
   })
 })

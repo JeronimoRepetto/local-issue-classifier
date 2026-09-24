@@ -34,7 +34,7 @@ function refreshOnboarding(): void {
 }
 
 onMounted(() => {
-  analyses.refresh()
+  void analyses.refresh()
   // A finished ('done' or 'error') load from a previous visit should not
   // linger (incl. the one-time private-repo notice) once Home is shown again.
   repo.dismiss()
@@ -51,24 +51,29 @@ watch(
 )
 
 function onOpen(id: string): void {
-  view.openAnalysis(id)
+  void view.openAnalysis(id)
 }
 
 function onRename(id: string, name: string): void {
-  analyses.rename(id, name)
+  void analyses.rename(id, name)
 }
 
-function onRefresh(id: string): void {
-  repo.refresh(id)
+// useRepo().refresh(id) finds its target among the current analysis first;
+// saved analyses now live in IndexedDB (async), so load it as current before
+// refreshing. The merged result becomes current on completion anyway.
+async function onRefresh(id: string): Promise<void> {
+  await analyses.open(id)
+  await repo.refresh(id)
 }
 
 function onDelete(id: string): void {
-  analyses.remove(id)
+  void analyses.remove(id)
 }
 
 function confirmClearAll(): void {
   clearingAll.value = false
-  analyses.clearAll()
+  // Preferences are cleared synchronously; the database finishes in the background.
+  void analyses.clearAll()
   props.onClearAll()
   refreshOnboarding()
 }
@@ -90,7 +95,7 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
 
     <SaveFailedNotice v-if="saveFailed" :reason="saveFailed" @retry="analysis.retrySave()">
       <template #meter>
-        <StorageMeter :used-bytes="analyses.state.usageBytes" />
+        <StorageMeter :used-bytes="analyses.state.usageBytes" :quota-bytes="analyses.state.quotaBytes" />
       </template>
     </SaveFailedNotice>
 
@@ -101,7 +106,7 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
     <section class="home__saved" aria-labelledby="home-saved-title">
       <div class="home__kicker" data-test="saved-kicker">
         <h2 id="home-saved-title" class="u-micro home__kicker-title">Saved analyses</h2>
-        <StorageMeter :used-bytes="analyses.state.usageBytes" />
+        <StorageMeter :used-bytes="analyses.state.usageBytes" :quota-bytes="analyses.state.quotaBytes" />
       </div>
 
       <AnalysisList
@@ -122,7 +127,7 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
     <ConfirmDialog
       :open="clearingAll"
       title="Clear all local data?"
-      description="This removes every saved analysis and preference from this browser, and clears your keys from memory. This cannot be undone."
+      description="This removes every saved analysis (the browser's local database) and preference from this browser, and clears your keys from memory. This cannot be undone."
       confirm-phrase="delete"
       confirm-label="Clear all local data"
       @close="clearingAll = false"

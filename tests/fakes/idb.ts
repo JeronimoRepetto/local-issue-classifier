@@ -48,3 +48,8 @@ export async function rawDump(factory: IDBFactory): Promise<{ store: string; key
   db.close()
   return out
 }
+
+/** The per-test fake database the setup file installed on the global (tests/setup/indexedDb.ts). */
+export function globalFactory(): IDBFactory {
+  return (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB
+}

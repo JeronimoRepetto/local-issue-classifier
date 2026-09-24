@@ -5,6 +5,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
+import { createAnalysis } from '../../domain/analysis'
+import { defaultPreferences, defaultProjectContext } from '../../domain/types'
+import { fakeIssue, fakeRepo } from '../../../tests/fakes/domainFixtures'
 
 let storage: MemoryStorage
 
@@ -123,6 +126,19 @@ describe('SettingsContainer', () => {
   it('Clear all local data requires typed confirmation, then clears storage and secrets', async () => {
     const { useSecrets } = await import('../../composables/useSecrets')
     useSecrets().setJevKey('sk-test')
+    const { getAnalysisDb } = await import('../../adapters/storage/analysisDb')
+    await getAnalysisDb().saveAnalysis(
+      createAnalysis({
+        id: 'a1',
+        repo: fakeRepo(),
+        stateFilter: 'open',
+        now: '2026-06-01T00:00:00Z',
+        prefs: defaultPreferences(),
+        projectContext: defaultProjectContext('acme/widgets'),
+        issues: [fakeIssue(1)],
+        commentsFetched: false,
+      }),
+    )
 
     const { default: SettingsContainer } = await import('./SettingsContainer.vue')
     const wrapper = mount(SettingsContainer, { attachTo: document.body })
@@ -142,7 +158,29 @@ describe('SettingsContainer', () => {
     await wrapper.vm.$nextTick()
 
     expect(useSecrets().state.jevApiKey).toBe('')
+    // Clear all also empties the IndexedDB database of saved analyses.
+    const { useAnalyses } = await import('../../composables/useAnalyses')
+    await useAnalyses().settled()
+    expect(await getAnalysisDb().loadIndex()).toEqual([])
     wrapper.unmount()
+  })
+
+  it.each([
+    [{ persisted: async () => true }, 'Persistent storage: on.'],
+    [{ persisted: async () => false }, 'Persistent storage: not granted.'],
+    [{}, 'Persistent storage: not supported by this browser.'],
+  ])('Local data shows whether the browser keeps saved analyses under storage pressure (%#)', async (manager, text) => {
+    const { setStorageManager } = await import('../../adapters/storage/analysisDb')
+    const persist = vi.fn(async () => true)
+    setStorageManager({ ...manager, persist })
+    const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+    const wrapper = mount(SettingsContainer)
+    const { useAnalyses } = await import('../../composables/useAnalyses')
+    await useAnalyses().settled()
+    await flushPromises()
+    expect(wrapper.get('[data-test="storage-persistence"]').text()).toContain(text)
+    // Settings only reads the state; the request itself happens once, on the first save.
+    expect(persist).not.toHaveBeenCalled()
   })
 
   it('shows an About / credits block that points to the third-party notices', async () => {

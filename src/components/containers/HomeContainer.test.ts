@@ -2,7 +2,7 @@
 // their own, so these check that HomeContainer routes each event to the
 // right composable call and reacts to shared state (SPEC §2.2 / §8).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createAnalysis } from '../../domain/analysis'
 import { defaultPreferences, defaultProjectContext } from '../../domain/types'
 import type { Analysis } from '../../domain/types'
@@ -11,7 +11,7 @@ import { MemoryStorage } from '../../../tests/fakes/memoryStorage'
 
 let storage: MemoryStorage
 let HomeContainer: typeof import('./HomeContainer.vue')['default']
-let analysisStoreMod: typeof import('../../adapters/storage/analysisStore')
+let dbMod: typeof import('../../adapters/storage/analysisDb')
 let analysisMod: typeof import('../../composables/useAnalysis')
 let analysesMod: typeof import('../../composables/useAnalyses')
 let viewMod: typeof import('../../composables/useView')
@@ -33,11 +33,19 @@ function analysis(id: string, updatedAt: string): Analysis {
   }
 }
 
+/** Saved analyses live in IndexedDB (the per-test fake from tests/setup/indexedDb.ts). */
+const seed = (a: Analysis) => dbMod.getAnalysisDb().saveAnalysis(a)
+/** Waits for pending saves, list refreshes and the re-render they cause. */
+async function settle(): Promise<void> {
+  await analysesMod.useAnalyses().settled()
+  await flushPromises()
+}
+
 beforeEach(async () => {
   vi.resetModules()
   storage = new MemoryStorage()
   ;(await import('../../adapters/storage/appStorage')).setAppStorage(storage)
-  analysisStoreMod = await import('../../adapters/storage/analysisStore')
+  dbMod = await import('../../adapters/storage/analysisDb')
   analysisMod = await import('../../composables/useAnalysis')
   analysesMod = await import('../../composables/useAnalyses')
   viewMod = await import('../../composables/useView')
@@ -53,10 +61,10 @@ afterEach(() => {
 
 describe('HomeContainer', () => {
   it('lists saved analyses newest first and shows the storage meter', async () => {
-    analysisStoreMod.saveAnalysis(storage, analysis('old', '2026-01-01T00:00:00Z'))
-    analysisStoreMod.saveAnalysis(storage, analysis('new', '2026-02-01T00:00:00Z'))
+    await seed(analysis('old', '2026-01-01T00:00:00Z'))
+    await seed(analysis('new', '2026-02-01T00:00:00Z'))
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
     const cards = wrapper.findAll('[data-test="analysis-card"]')
     expect(cards).toHaveLength(2)
     expect(cards[0].text()).toContain('acme/widgets')
@@ -64,9 +72,9 @@ describe('HomeContainer', () => {
   })
 
   it('has one pixel page heading, a lede and a saved-analyses kicker with the storage meter', async () => {
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
     const headings = wrapper.findAll('h1')
     expect(headings).toHaveLength(1)
     expect(headings[0].classes()).toContain('u-pixel-font')
@@ -77,39 +85,41 @@ describe('HomeContainer', () => {
   })
 
   it('open switches to the analysis view', async () => {
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
     await wrapper.find('[data-test="analysis-card"]').trigger('click')
+    await settle()
     expect(viewMod.useView().state.view).toBe('analysis')
     expect(analysisMod.useAnalysis().current.value?.id).toBe('a1')
   })
 
   it('rename updates the saved entry', async () => {
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
     await wrapper.get('[data-test="rename"]').trigger('click')
     await wrapper.find('[data-test="analysis-card"] input[type="text"]').setValue('My triage')
     await wrapper.find('[data-test="analysis-card"] form').trigger('submit')
+    await settle()
     expect(analysesMod.useAnalyses().state.entries.map((e) => (e.status === 'ok' ? e.summary.name : ''))).toEqual([
       'My triage',
     ])
   })
 
   it('delete (after the card confirms) removes the analysis', async () => {
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
     const wrapper = mount(HomeContainer, { attachTo: document.body })
-    await wrapper.vm.$nextTick()
+    await settle()
     await wrapper.get('[data-test="delete"]').trigger('click')
     ;(document.querySelector('[data-test="confirm-dialog-confirm"]') as HTMLButtonElement).click()
-    await wrapper.vm.$nextTick()
+    await settle()
     expect(analysesMod.useAnalyses().state.entries).toEqual([])
     wrapper.unmount()
   })
 
   it('Clear all local data needs the typed confirmation, then clears storage', async () => {
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
     const onClearAll = vi.fn()
     const wrapper = mount(HomeContainer, { props: { onClearAll }, attachTo: document.body })
     await wrapper.get('[data-test="clear-all"]').trigger('click')
@@ -120,22 +130,36 @@ describe('HomeContainer', () => {
     phrase.dispatchEvent(new Event('input'))
     await wrapper.vm.$nextTick()
     confirm.click()
-    await wrapper.vm.$nextTick()
+    await settle()
     expect(analysesMod.useAnalyses().state.entries).toEqual([])
+    expect(await dbMod.getAnalysisDb().loadIndex()).toEqual([])
     expect(onClearAll).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 
   it('shows the save-failed notice with Retry when the current save failed', async () => {
-    storage.quotaBytes = 10
-    analysisMod.useAnalysis().setCurrent(analysis('a1', '2026-01-01T00:00:00Z'))
+    vi.spyOn(dbMod.getAnalysisDb(), 'saveAnalysis').mockResolvedValueOnce({ ok: false, reason: 'quota' })
+    await analysisMod.useAnalysis().setCurrent(analysis('a1', '2026-01-01T00:00:00Z'))
     expect(analysisMod.useAnalysis().status.save).toBe('failed')
     const wrapper = mount(HomeContainer)
+    await settle()
     expect(wrapper.find('[data-test="save-failed-notice"]').exists()).toBe(true)
 
-    storage.quotaBytes = Infinity
     await wrapper.get('[data-test="retry-save"]').trigger('click')
+    await settle()
     expect(analysisMod.useAnalysis().status.save).toBe('saved')
+    vi.restoreAllMocks()
+  })
+
+  it('Refresh on a saved (not current) card loads it from the database before re-fetching', async () => {
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
+    const wrapper = mount(HomeContainer)
+    await settle()
+    await wrapper.get('[data-test="refresh"]').trigger('click')
+    await vi.waitFor(() => expect(repoMod.useRepo().state.phase).toBe('error'))
+    expect(analysisMod.useAnalysis().current.value?.id).toBe('a1')
+    // The GitHub fake answers 404: the refresh really ran, instead of failing to find its target.
+    expect(repoMod.useRepo().state.error).not.toBe('This analysis could not be loaded.')
   })
 
   it('the first-run checklist marks "Repository" done once a new analysis loads', async () => {
@@ -173,7 +197,7 @@ describe('HomeContainer', () => {
       getPreferences: () => ({ ...defaultPreferences(), fetchComments: 'never' }),
     })
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
     const repoStep = () => wrapper.findAll('.onboarding-checklist__item')[1]
     expect(repoStep().text()).toContain('Repository')
     expect(repoStep().classes()).not.toContain('onboarding-checklist__item--done')
@@ -189,7 +213,7 @@ describe('HomeContainer', () => {
 
   it('shows the provider onboarding card directly above the repo loader, and leaves the one primary action unchanged', async () => {
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
 
     expect(wrapper.find('[data-test="provider-onboarding-card"]').exists()).toBe(true)
 

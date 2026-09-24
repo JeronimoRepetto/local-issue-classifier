@@ -28,7 +28,7 @@ function analysis(id = 'a1'): Analysis {
 }
 
 beforeEach(async () => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }) // the fake IndexedDB needs a real setImmediate
   vi.resetModules()
   storage = new MemoryStorage()
   const storageModule = await import('../adapters/storage/appStorage')
@@ -162,7 +162,7 @@ describe('useFilters — tableSort exposes the full multi-key order (Task 13)', 
     ])
   })
 
-  it('setTableSort persists per analysis and survives a reload', () => {
+  it('setTableSort persists per analysis and survives a reload', async () => {
     const store = analysisMod.useAnalysis()
     store.setCurrent(analysis('a1'))
     filtersMod.useFilters().setTableSort([
@@ -172,7 +172,8 @@ describe('useFilters — tableSort exposes the full multi-key order (Task 13)', 
     vi.advanceTimersByTime(500)
 
     store.close()
-    expect(store.open('a1')).toMatchObject({ ok: true })
+    await store.settled()
+    expect(await store.open('a1')).toMatchObject({ ok: true })
 
     expect(filtersMod.useFilters().tableSort.value).toEqual([
       { key: 'relevance', direction: 'desc' },
@@ -182,7 +183,7 @@ describe('useFilters — tableSort exposes the full multi-key order (Task 13)', 
 })
 
 describe('useFilters — filter and sort persist per analysis and survive a reload', () => {
-  it('is restored after the analysis is closed and reopened', () => {
+  it('is restored after the analysis is closed and reopened', async () => {
     const store = analysisMod.useAnalysis()
     store.setCurrent(analysis('a1'))
     const { setFilter, setSort, setSearch } = filtersMod.useFilters()
@@ -192,7 +193,8 @@ describe('useFilters — filter and sort persist per analysis and survive a relo
     vi.advanceTimersByTime(500) // working-state debounce (Task 7)
 
     store.close()
-    expect(store.open('a1')).toMatchObject({ ok: true })
+    await store.settled()
+    expect(await store.open('a1')).toMatchObject({ ok: true })
 
     const { filter, sort } = filtersMod.useFilters()
     expect(filter.value).toMatchObject({ criticality: ['high'], text: 'crash' })
@@ -204,13 +206,14 @@ describe('useFilters — filter and sort persist per analysis and survive a relo
     store.setCurrent(analysis('a1'))
     filtersMod.useFilters().setFilter({ labels: ['bug'] })
     vi.advanceTimersByTime(500)
+    await analysisMod.useAnalysis().settled()
 
     vi.resetModules()
     const reloadedStorageModule = await import('../adapters/storage/appStorage')
     reloadedStorageModule.setAppStorage(storage) // simulates the same browser localStorage after reload
     const reloadedAnalysis: AnalysisModule = await import('./useAnalysis')
     const reloadedFilters: FiltersModule = await import('./useFilters')
-    reloadedAnalysis.useAnalysis().open('a1')
+    await reloadedAnalysis.useAnalysis().open('a1')
 
     expect(reloadedFilters.useFilters().filter.value).toMatchObject({ labels: ['bug'] })
   })

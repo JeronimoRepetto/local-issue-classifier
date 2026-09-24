@@ -4,7 +4,6 @@ import { createAnalysis } from '../domain/analysis'
 import { defaultPreferences, defaultProjectContext } from '../domain/types'
 import { fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../tests/fakes/memoryStorage'
-import { saveAnalysis } from '../adapters/storage/analysisStore'
 
 let viewMod: typeof import('./useView')
 let analysisMod: typeof import('./useAnalysis')
@@ -19,9 +18,10 @@ beforeEach(async () => {
   analysisMod.configureAnalysis({ clock: () => '2026-06-01T00:00:00Z' })
 })
 
-function seedAnalysis(id: string) {
-  return saveAnalysis(
-    storage,
+/** Saved analyses live in IndexedDB (the per-test fake from tests/setup/indexedDb.ts). */
+async function seedAnalysis(id: string) {
+  const { getAnalysisDb } = await import('../adapters/storage/analysisDb')
+  return getAnalysisDb().saveAnalysis(
     createAnalysis({
       id,
       repo: fakeRepo(),
@@ -49,20 +49,60 @@ describe('useView', () => {
     expect(view.state.view).toBe('home')
   })
 
-  it('openAnalysis opens the saved analysis and switches to the analysis view', () => {
-    seedAnalysis('a1')
+  it('openAnalysis opens the saved analysis and switches to the analysis view', async () => {
+    await seedAnalysis('a1')
     const view = viewMod.useView()
-    const result = view.openAnalysis('a1')
+    const result = await view.openAnalysis('a1')
     expect(result).toMatchObject({ ok: true })
     expect(view.state.view).toBe('analysis')
     expect(analysisMod.useAnalysis().current.value?.id).toBe('a1')
   })
 
-  it('openAnalysis stays on the current view when the analysis cannot be opened', () => {
+  it('openAnalysis stays on the current view when the analysis cannot be opened', async () => {
     const view = viewMod.useView()
     view.openSettings()
-    const result = view.openAnalysis('missing')
+    const result = await view.openAnalysis('missing')
     expect(result).toEqual({ ok: false, reason: 'missing' })
     expect(view.state.view).toBe('settings')
+  })
+
+  it('openAnalysis switches synchronously when the analysis is already current', async () => {
+    await analysisMod.useAnalysis().setCurrent(
+      createAnalysis({
+        id: 'a1',
+        repo: fakeRepo(),
+        stateFilter: 'open',
+        now: '2026-06-01T00:00:00Z',
+        prefs: defaultPreferences(),
+        projectContext: defaultProjectContext('acme/widgets'),
+        issues: [fakeIssue(1)],
+        commentsFetched: false,
+      }),
+    )
+    const view = viewMod.useView()
+    const opening = view.openAnalysis('a1')
+    expect(view.state.view).toBe('analysis')
+    expect(await opening).toMatchObject({ ok: true })
+  })
+
+  it('openAnalysis does not switch when another analysis became current while it loaded', async () => {
+    await seedAnalysis('a1')
+    const view = viewMod.useView()
+    const opening = view.openAnalysis('a1')
+    analysisMod.useAnalysis().setCurrent(
+      createAnalysis({
+        id: 'a2',
+        repo: fakeRepo(),
+        stateFilter: 'open',
+        now: '2026-06-01T00:00:00Z',
+        prefs: defaultPreferences(),
+        projectContext: defaultProjectContext('acme/widgets'),
+        issues: [fakeIssue(1)],
+        commentsFetched: false,
+      }),
+    )
+    await opening
+    expect(view.state.view).toBe('home')
+    expect(analysisMod.useAnalysis().current.value?.id).toBe('a2')
   })
 })

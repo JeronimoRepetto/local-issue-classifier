@@ -254,8 +254,11 @@ describe('RepoLoadFeedback', () => {
   })
 
   it('hides the save-failed notice by default even when the current save failed', async () => {
-    storage.quotaBytes = 10
-    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    vi.spyOn((await import('../../adapters/storage/analysisDb')).getAnalysisDb(), 'saveAnalysis').mockResolvedValueOnce({
+      ok: false,
+      reason: 'quota',
+    })
+    await analysisMod.useAnalysis().setCurrent(seedAnalysis())
     expect(analysisMod.useAnalysis().status.save).toBe('failed')
 
     const wrapper = mount(RepoLoadFeedback, { attachTo: document.body })
@@ -263,15 +266,18 @@ describe('RepoLoadFeedback', () => {
   })
 
   it('shows the save-failed notice with Retry save when showSaveFailed is on', async () => {
-    storage.quotaBytes = 10
-    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    vi.spyOn((await import('../../adapters/storage/analysisDb')).getAnalysisDb(), 'saveAnalysis').mockResolvedValueOnce({
+      ok: false,
+      reason: 'quota',
+    })
+    await analysisMod.useAnalysis().setCurrent(seedAnalysis())
     expect(analysisMod.useAnalysis().status.save).toBe('failed')
 
     const wrapper = mount(RepoLoadFeedback, { props: { showSaveFailed: true }, attachTo: document.body })
     expect(wrapper.find('[data-test="save-failed-notice"]').exists()).toBe(true)
 
-    storage.quotaBytes = Infinity
     await wrapper.get('[data-test="retry-save"]').trigger('click')
+    await analysisMod.useAnalysis().settled()
     expect(analysisMod.useAnalysis().status.save).toBe('saved')
   })
 })
