@@ -1,4 +1,4 @@
-// Task 3 — SPEC.md §4.3 date buckets, computed with an injected clock.
+// Task 3 — date buckets, computed with an injected clock.
 import { describe, expect, it } from 'vitest'
 import { dateBucket } from './dates'
 

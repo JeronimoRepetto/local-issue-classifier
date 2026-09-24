@@ -1,7 +1,7 @@
-// Task 14 — SPEC.md §4.9: the priority score, a composite ranking aid
+// Task 14 — the priority score, a composite ranking aid
 // computed on the fly from a classification's raw scores and the analysis's
 // weights. It is never stored; changing a weight never touches a
-// classification. Table-driven per SPEC.md §4.9 "Tests".
+// classification. Table-driven.
 import { describe, expect, it } from 'vitest'
 import { clampWeights, priorityOf } from './priority'
 import { defaultPriorityWeights } from './types'
@@ -12,7 +12,7 @@ function weights(overrides: Partial<PriorityWeights> = {}): PriorityWeights {
   return { ...defaultPriorityWeights(), ...overrides }
 }
 
-describe('priorityOf — SPEC.md §4.9 worked example', () => {
+describe('priorityOf — worked example', () => {
   it('rounds to 83 with the default weights (criticality 1.8, relevance 3.5, complexity 0.9, effort 0.4)', () => {
     const c = fakeClassification({
       criticality: { level: 'high', score: 1.8, confidence: 0.9, probabilities: [0, 0.1, 0.9] },
@@ -24,7 +24,7 @@ describe('priorityOf — SPEC.md §4.9 worked example', () => {
   })
 })
 
-describe('priorityOf — null cases (SPEC.md §4.9 "Rules")', () => {
+describe('priorityOf — null cases', () => {
   it('is null when there is no classification', () => {
     expect(priorityOf(null, defaultPriorityWeights())).toBeNull()
     expect(priorityOf(undefined, defaultPriorityWeights())).toBeNull()
@@ -130,7 +130,7 @@ describe('priorityOf — monotonicity in each dimension', () => {
   })
 })
 
-describe('clampWeights — SPEC.md §4.9 "rounds each weight to a multiple of 5 within 0..100"', () => {
+describe('clampWeights — rounds each weight to a multiple of 5 within 0..100', () => {
   it.each<[PriorityWeights, PriorityWeights]>([
     [
       { criticality: 40, relevance: 30, complexity: 15, effort: 15 },

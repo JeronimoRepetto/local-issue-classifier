@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §2.6, §6.5: the pure plain-text export formatter. The
+// Task 13 — the pure plain-text export formatter (see docs/export-format.md). The
 // golden fixture is generated and audited by hand against the format rules
 // (§6.5 "Format rules"), then locked; the Generated line is normalized to a
 // placeholder before comparison since it carries the injected clock.
@@ -94,7 +94,7 @@ function withOptions(analysis: Analysis, patch: Partial<ExportOptions>): Analysi
   return updateWorking(analysis, { exportOptions: { ...analysis.working.exportOptions, ...patch } }, analysis.updatedAt)
 }
 
-describe('formatExport — golden file (SPEC.md §6.5)', () => {
+describe('formatExport — golden file (see docs/export-format.md)', () => {
   it('matches tests/fixtures/export/basic-report.txt byte-for-byte, apart from the Generated line', () => {
     const analysis = withOptions(
       updateWorking(baseAnalysis(), { filter: { ...defaultFilter(), relevanceMin: 50 } }, '2026-09-01T00:00:00Z'),
@@ -297,7 +297,7 @@ describe('formatExport — orderMode "table" (bug fix: export must match the tab
   })
 })
 
-describe('exportScopeCount — "Nothing to export" gating (SPEC.md §2.6 edge cases)', () => {
+describe('exportScopeCount — "Nothing to export" gating (see docs/export-format.md)', () => {
   it('counts every row that would appear in any section', () => {
     const analysis = withOptions(baseAnalysis(), {
       orderMode: 'custom',
@@ -325,14 +325,14 @@ describe('exportScopeCount — "Nothing to export" gating (SPEC.md §2.6 edge ca
   })
 })
 
-describe('exportFilenameStem (SPEC.md §2.6 item 4)', () => {
+describe('exportFilenameStem (see docs/export-format.md)', () => {
   it('builds {owner}-{repo}-issues-{YYYYMMDD-HHmm}', () => {
     const analysis = baseAnalysis()
     expect(exportFilenameStem(analysis, new Date('2026-09-23T14:05:00'))).toBe('acme-widgets-issues-20260923-1405')
   })
 })
 
-describe('defaultExportOptions (sanity: unchanged by Task 13, SPEC.md §2.6)', () => {
+describe('defaultExportOptions (sanity: unchanged by Task 13; see docs/export-format.md)', () => {
   it('matches the confirmed §2.6 defaults', () => {
     expect(defaultExportOptions()).toEqual({
       order: [

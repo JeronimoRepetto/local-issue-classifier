@@ -1,4 +1,4 @@
-// Task 3 — SPEC.md §3/§4.3 text helpers: trimMiddle, stripMarkdownNoise, estimateTokens.
+// Task 3 — text helpers: trimMiddle, stripMarkdownNoise, estimateTokens.
 import { describe, expect, it } from 'vitest'
 import {
   estimateTokens,

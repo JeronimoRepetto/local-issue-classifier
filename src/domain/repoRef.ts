@@ -1,4 +1,4 @@
-// local-issue-classifier — parses the repository URL/shorthand forms from SPEC.md §2.3
+// local-issue-classifier — parses the repository URL/shorthand forms
 // into a normalized RepoRef, or a typed error. Pure: no fetch, no browser APIs.
 import type { RepoRef } from './types'
 
@@ -45,7 +45,7 @@ function finishFromPath(pathPart: string): ParseRepoRefResult {
 }
 
 /**
- * Normalizes any accepted GitHub repository reference (SPEC.md §2.3):
+ * Normalizes any accepted GitHub repository reference:
  * `https://github.com/{owner}/{repo}` (+ trailing slash, `.git`, `/issues`
  * or a deeper path), the `http://` and `www.` variants, the schemeless
  * `github.com/{owner}/{repo}` host form, the `{owner}/{repo}` shorthand,

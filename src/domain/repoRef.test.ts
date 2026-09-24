@@ -1,4 +1,4 @@
-// Task 3 — SPEC.md §2.3 accepted repository URL forms and typed parse errors.
+// Task 3 — accepted repository URL forms and typed parse errors.
 import { describe, expect, it } from 'vitest'
 import { parseRepoRef } from './repoRef'
 

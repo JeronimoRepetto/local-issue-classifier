@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5 item 3, §6.4: single-key sortRows, pure and stable.
+// Task 12 — single-key sortRows, pure and stable.
 // Task 13 extends this into a multi-key sort by chaining `compareBy` per rule.
 import { describe, expect, it } from 'vitest'
 import { compareBy, sortRows, sortRowsBy } from './sort'
@@ -127,7 +127,7 @@ describe('sortRows — stability and purity', () => {
   })
 })
 
-describe('sortRows — priority (Task 14, SPEC.md §4.9: priorityOf(classification, weights))', () => {
+describe('sortRows — priority (Task 14: priorityOf(classification, weights); see docs/jev-questions.md)', () => {
   it('rows with identical classifications tie on priority, so the number tie-break decides', () => {
     const a = classifiedRow(5, {})
     const b = classifiedRow(2, {})
@@ -145,7 +145,7 @@ describe('sortRows — priority (Task 14, SPEC.md §4.9: priorityOf(classificati
   })
 })
 
-describe('sortRowsBy — priority key with all-zero weights (SPEC.md §4.9 "every weight 0 → null")', () => {
+describe('sortRowsBy — priority key with all-zero weights ("every weight 0 → null")', () => {
   it('treats every classified row as valueless when every weight is 0, so the number tie-break decides regardless of direction', () => {
     const a = classifiedRow(5, { criticality: 2, relevance: 4, complexity: 0, effort: 0 })
     const b = classifiedRow(2, { criticality: 0, relevance: 0, complexity: 2, effort: 2 })
@@ -173,7 +173,7 @@ describe('compareBy', () => {
   })
 })
 
-describe('sortRowsBy — multi-key sort (Task 13, SPEC.md §2.5 item 3, §6.4)', () => {
+describe('sortRowsBy — multi-key sort (Task 13)', () => {
   it('chains rules in order: the first rule decides, later rules break ties', () => {
     const a = classifiedRow(1, { criticality: 1, effort: 2 })
     const b = classifiedRow(2, { criticality: 1, effort: 0 })

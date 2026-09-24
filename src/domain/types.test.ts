@@ -1,4 +1,4 @@
-// Task 3 — SPEC.md §3 domain model: defaultX() factories and STORAGE_KEYS.
+// Task 3 — domain model: defaultX() factories and STORAGE_KEYS.
 import { describe, expect, it } from 'vitest'
 import {
   STORAGE_KEYS,

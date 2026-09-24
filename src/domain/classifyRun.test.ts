@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4: which issues a Classify scope sends.
+// Task 11 — which issues a Classify scope sends.
 import { describe, expect, it } from 'vitest'
 import { selectForClassification, needsClassification, scopeCounts, estimateSeconds, estimateBatchedSeconds } from './classifyRun'
 import { applyClassification, createAnalysis, dismiss, markStale } from './analysis'

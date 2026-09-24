@@ -1,6 +1,6 @@
-// Pure plain-text export formatter (SPEC.md §2.6, §6.5). No Vue, no fetch, no
+// Pure plain-text export formatter (see docs/export-format.md). No Vue, no fetch, no
 // storage, no browser APIs: the clock is always injected as `now`. Only
-// imports other domain modules, per SPEC.md §7.2.
+// imports other domain modules (see docs/architecture.md).
 //
 // The §6.5 Priority/Weights lines use `domain/priority.ts`'s `priorityOf`
 // (Task 14, §4.9) directly, so this formatter and the table's own `priority`
