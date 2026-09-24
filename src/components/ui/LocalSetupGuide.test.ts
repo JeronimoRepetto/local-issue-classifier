@@ -43,17 +43,22 @@ describe('LocalSetupGuide', () => {
       'uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/cu130',
     )
     expect(wrapper.get('[data-test="command-serve"]').text()).toBe(
-      'uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009',
+      'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009',
     )
     expect(wrapper.get('[data-test="command-shortcut"]').text()).toBe('pnpm local:kev --model kev-0.8b')
     expect(wrapper.text()).toMatch(/test connection/i)
+  })
+
+  it('notes that --no-sync is needed after installing CUDA torch, or uv reinstalls the CPU build', () => {
+    const wrapper = mountGuide()
+    expect(wrapper.text()).toMatch(/always start with `--no-sync`.*or uv will reinstall the cpu build/i)
   })
 
   it('changing the model tier updates the serve command and the shortcut', async () => {
     const wrapper = mountGuide()
     await wrapper.get('[data-test="kev-model"] select').setValue('kev-4b')
     expect(wrapper.get('[data-test="command-serve"]').text()).toBe(
-      'uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009',
+      'uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009',
     )
     expect(wrapper.get('[data-test="command-shortcut"]').text()).toBe('pnpm local:kev --model kev-4b')
   })

@@ -88,7 +88,7 @@ const kevSteps = computed<GuideStep[]>(() => {
           id: 'cuda',
           label: 'Optional: use an NVIDIA GPU',
           command: `uv pip install --python .venv torch torchvision --index-url ${CUDA_TORCH_INDEX_URL}`,
-          note: '`uv sync` installs a CPU-only torch. Run this once, inside the kev folder, to use the GPU instead.',
+          note: '`uv sync` installs a CPU-only torch. Run this once, inside the kev folder, to use the GPU instead. Always start with `--no-sync` afterwards, or uv will reinstall the CPU build.',
         }
   return [
     {
@@ -104,7 +104,7 @@ const kevSteps = computed<GuideStep[]>(() => {
     {
       id: 'serve',
       label: 'Start the server',
-      command: `uv run --extra serve python -m kev.serve --run jaredpalmer/${kevModel.value} --port 8009`,
+      command: `uv run --no-sync --extra serve python -m kev.serve --run jaredpalmer/${kevModel.value} --port 8009`,
     },
     {
       id: 'shortcut',
