@@ -137,6 +137,12 @@ multiple of 5 and clamps to that range), and are edited in the **Weights** popov
 table's Priority column header. Priority is `null` — shown as "—" — for an unclassified row, or
 when every weight is 0: there is nothing to rank on.
 
+The Weights popover (`WeightEditor.vue`) labels each slider with its current weight and its share
+of the total (e.g. "Criticality · 40 (40%)") and shows a live example line — the first classified
+row if one is visible, else this worked example — that recomputes as you drag: with the scores
+above (criticality 1.8, relevance 3.5, complexity 0.9, effort 0.4) and the default weights,
+`priorityOf` rounds to **83/100**.
+
 Like relevance, priority inherits the ordinal nature of the Jev scores: it is a **ranking aid, not
 a measurement**, and the UI caption next to the Weights popover says so.
 

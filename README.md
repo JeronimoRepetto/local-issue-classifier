@@ -207,11 +207,13 @@ adjustable weights — Criticality, Relevance, Complexity and Effort — into a 
 complexity and lower effort push priority up, since an easy, low-effort fix is more attractive to
 act on first.
 
-Open the **Weights** popover next to the Priority column header to adjust the four sliders
-(0–100, steps of 5, each with a numeric input beside it). Changes preview live: the Priority
-column and the row order update as you move a slider. **Reset to defaults** restores 40 / 30 / 15
-/ 15, and if every weight is set to 0 the column shows "—" and the popover says so — there is
-nothing to rank on. Weights are saved per analysis and survive a reload.
+Open the **Weights** popover (its trigger icon has a tooltip, "Adjust priority weights") next to
+the Priority column header to adjust the four sliders (0–100, steps of 5, each with a numeric
+input beside it, labeled with its current weight and share, e.g. "Criticality · 40 (40%)"). A live
+example line shows what the current weights do to a real row's score. Changes preview live: the
+Priority column and the row order update as you move a slider. **Reset to defaults** restores
+40 / 30 / 15 / 15, and if every weight is set to 0 the column shows "—" and the popover says so —
+there is nothing to rank on. Weights are saved per analysis and survive a reload.
 
 Priority is a ranking aid, not a measurement: like relevance, it is built from the same ordinal
 Jev scores (see [`docs/jev-questions.md`](docs/jev-questions.md#priority)).

@@ -14,15 +14,25 @@
 import { computed } from 'vue'
 import UiPopover from '../../ui/UiPopover.vue'
 import UiButton from '../../ui/UiButton.vue'
+import UiTooltip from '../../ui/UiTooltip.vue'
 import WeightEditor from '../ui/WeightEditor.vue'
+import type { WeightExampleRow } from '../ui/WeightEditor.vue'
 import IconSettings from '../../assets/icons/IconSettings.vue'
 import { useAnalysis } from '../../composables/useAnalysis'
 import { defaultPriorityWeights } from '../../domain/types'
 import type { PriorityWeights } from '../../domain/types'
 
+const TRIGGER_LABEL = 'Adjust priority weights'
+
 const analysis = useAnalysis()
 
 const weights = computed<PriorityWeights>(() => analysis.current.value?.working.priorityWeights ?? defaultPriorityWeights())
+
+/** The Weights popover's live example (SPEC.md §4.9): the first classified row, if any. */
+const exampleRow = computed<WeightExampleRow | null>(() => {
+  const row = analysis.current.value?.rows.find((r) => r.classification)
+  return row?.classification ? { number: row.issue.number, classification: row.classification } : null
+})
 
 function onUpdate(next: PriorityWeights): void {
   analysis.updateWorking({ priorityWeights: next })
@@ -35,20 +45,25 @@ function onUpdate(next: PriorityWeights): void {
     <span class="priority-container__weights" @click.stop>
       <UiPopover label="Priority weights" align="end">
         <template #trigger="{ toggle, attrs }">
-          <UiButton
-            data-test="weight-editor-trigger"
-            variant="ghost"
-            size="compact"
-            icon-only
-            aria-label="Edit priority weights"
-            v-bind="attrs"
-            @click="toggle"
-          >
-            <template #icon><IconSettings aria-hidden="true" /></template>
-          </UiButton>
+          <UiTooltip :text="TRIGGER_LABEL">
+            <template #default="{ describedBy }">
+              <UiButton
+                data-test="weight-editor-trigger"
+                variant="ghost"
+                size="compact"
+                icon-only
+                :aria-label="TRIGGER_LABEL"
+                :aria-describedby="describedBy"
+                v-bind="attrs"
+                @click="toggle"
+              >
+                <template #icon><IconSettings aria-hidden="true" /></template>
+              </UiButton>
+            </template>
+          </UiTooltip>
         </template>
         <template #default>
-          <WeightEditor :weights="weights" @update="onUpdate" />
+          <WeightEditor :weights="weights" :example-row="exampleRow" @update="onUpdate" />
         </template>
       </UiPopover>
     </span>

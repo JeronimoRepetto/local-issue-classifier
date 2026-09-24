@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WeightEditor > layout — everything stays inside the popover (SPEC.md §10.4) > matches the expected structure (title, subtitle, four rows, example, caption, warning slot, reset) 1`] = `
+"<div data-v-da0ac6c1="" class="weight-editor" role="group" aria-labelledby="weight-editor-title-v-0">
+  <h2 data-v-da0ac6c1="" id="weight-editor-title-v-0" class="weight-editor__title" data-test="weight-editor-title">Priority weights</h2>
+  <p data-v-da0ac6c1="" class="weight-editor__subtitle" data-test="weight-editor-subtitle"> How much each Jev dimension counts in the 0–100 Priority score. Complexity and effort are inverted: simpler, cheaper issues rank higher. </p>
+  <div data-v-da0ac6c1="" class="weight-editor__row">
+    <div data-v-7401b5d6="" data-v-da0ac6c1="" class="ui-field ui-slider" data-test="weight-criticality"><label data-v-7401b5d6="" class="ui-field__label" for="slider-v-1">Criticality · 40 (40%)</label>
+      <div data-v-7401b5d6="" class="ui-slider__row"><input data-v-7401b5d6="" id="slider-v-1" class="ui-slider__range" type="range" min="0" max="100" step="5" aria-valuetext="40" value="40"><input data-v-7401b5d6="" class="ui-control ui-slider__number u-tabular" type="number" min="0" max="100" step="5" aria-label="Criticality · 40 (40%) value" value="40"></div>
+    </div>
+  </div>
+  <div data-v-da0ac6c1="" class="weight-editor__row">
+    <div data-v-7401b5d6="" data-v-da0ac6c1="" class="ui-field ui-slider" data-test="weight-relevance"><label data-v-7401b5d6="" class="ui-field__label" for="slider-v-2">Relevance · 30 (30%)</label>
+      <div data-v-7401b5d6="" class="ui-slider__row"><input data-v-7401b5d6="" id="slider-v-2" class="ui-slider__range" type="range" min="0" max="100" step="5" aria-valuetext="30" value="30"><input data-v-7401b5d6="" class="ui-control ui-slider__number u-tabular" type="number" min="0" max="100" step="5" aria-label="Relevance · 30 (30%) value" value="30"></div>
+    </div>
+  </div>
+  <div data-v-da0ac6c1="" class="weight-editor__row">
+    <div data-v-7401b5d6="" data-v-da0ac6c1="" class="ui-field ui-slider" data-test="weight-complexity"><label data-v-7401b5d6="" class="ui-field__label" for="slider-v-3">Complexity · 15 (15%)</label>
+      <div data-v-7401b5d6="" class="ui-slider__row"><input data-v-7401b5d6="" id="slider-v-3" class="ui-slider__range" type="range" min="0" max="100" step="5" aria-valuetext="15" value="15"><input data-v-7401b5d6="" class="ui-control ui-slider__number u-tabular" type="number" min="0" max="100" step="5" aria-label="Complexity · 15 (15%) value" value="15"></div>
+    </div>
+  </div>
+  <div data-v-da0ac6c1="" class="weight-editor__row">
+    <div data-v-7401b5d6="" data-v-da0ac6c1="" class="ui-field ui-slider" data-test="weight-effort"><label data-v-7401b5d6="" class="ui-field__label" for="slider-v-4">Effort · 15 (15%)</label>
+      <div data-v-7401b5d6="" class="ui-slider__row"><input data-v-7401b5d6="" id="slider-v-4" class="ui-slider__range" type="range" min="0" max="100" step="5" aria-valuetext="15" value="15"><input data-v-7401b5d6="" class="ui-control ui-slider__number u-tabular" type="number" min="0" max="100" step="5" aria-label="Effort · 15 (15%) value" value="15"></div>
+    </div>
+  </div>
+  <p data-v-da0ac6c1="" class="weight-editor__example" data-test="weight-example">Example → 83/100</p>
+  <p data-v-da0ac6c1="" class="weight-editor__caption"> Lower complexity and lower effort raise priority. Priority is a ranking aid, not a measurement. </p>
+  <!--v-if--><button data-v-fc6549ab="" data-v-da0ac6c1="" type="button" class="ui-button ui-button--ghost ui-button--size-default" data-test="weight-reset"><span data-v-fc6549ab="" class="ui-button__content">Reset to defaults (40/30/15/15)</span>
+    <!--v-if-->
+  </button>
+</div>"
+`;
