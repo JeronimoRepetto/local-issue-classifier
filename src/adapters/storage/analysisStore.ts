@@ -1,5 +1,9 @@
-// Analysis persistence (SPEC.md §4.8): pure functions over an injected Storage,
-// following the house style of load/save/upsert/remove keyed by id.
+// Legacy analysis persistence (SPEC.md §4.8): pure functions over an injected
+// Storage, following the house style of load/save/upsert/remove keyed by id.
+// Saved analyses now live in IndexedDB (analysisDb.ts); this module remains the
+// reader of the old localStorage layout for the one-time migration
+// (analysisMigration.ts), and owns the shared parsing, result types and the
+// app-prefixed localStorage sweep used by "Clear all local data".
 // One Analysis per key plus a small AnalysisSummary[] index. No function throws:
 // every result is typed, and nothing is ever evicted to make room.
 import { summarize } from '../../domain/analysis'
@@ -25,7 +29,7 @@ export type ClearResult = { ok: true; removed: number } | WriteFailure
 
 const ANALYSIS_KEY_PREFIX = STORAGE_KEYS.analysis('')
 
-function isQuotaError(error: unknown): boolean {
+export function isQuotaError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const { name, code } = error as { name?: unknown; code?: unknown }
   return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22 || code === 1014
@@ -49,7 +53,8 @@ function allKeys(storage: StorageLike): string[] {
   return keys
 }
 
-function parseAnalysis(raw: string, id: string): Analysis | null {
+/** The stored JSON text back to an Analysis, or null when it is not one this build can read. */
+export function parseAnalysis(raw: string, id: string): Analysis | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)

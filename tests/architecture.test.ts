@@ -109,19 +109,35 @@ describe('architecture import rules (SPEC.md §7.2)', () => {
     expect(offenders).toEqual([])
   })
 
-  // Exact allowlist: sessionStorage exists only for the opt-in "this tab"
-  // secrets level, in the one adapter that owns it. indexedDB and cookies
-  // stay forbidden everywhere, with no exception.
+  // Exact allowlists: sessionStorage exists only for the opt-in "this tab"
+  // secrets level, in the one adapter that owns it; indexedDB exists only for
+  // the saved analyses, in their one adapter (FB IndexedDB lane). Cookies stay
+  // forbidden everywhere, with no exception.
   const SESSION_STORAGE_ALLOWLIST = new Set([join('adapters', 'storage', 'secretsStore.ts')])
+  const INDEXED_DB_ALLOWLIST = new Set([join('adapters', 'storage', 'analysisDb.ts')])
 
-  it('no file under src/ references indexedDB or document.cookie', () => {
+  it('no file under src/ references document.cookie', () => {
     const offenders: string[] = []
     for (const file of listSourceFiles(SRC_ROOT)) {
-      if (/indexedDB|document\.cookie/.test(readFileSync(file, 'utf8'))) {
+      if (/document\.cookie/.test(readFileSync(file, 'utf8'))) {
         offenders.push(relative(SRC_ROOT, file))
       }
     }
     expect(offenders).toEqual([])
+  })
+
+  it('indexedDB is referenced only by the allowlisted analysis database adapter', () => {
+    const offenders: string[] = []
+    const users: string[] = []
+    for (const file of listSourceFiles(SRC_ROOT)) {
+      const rel = relative(SRC_ROOT, file)
+      if (!/indexedDB/.test(readFileSync(file, 'utf8'))) continue
+      if (INDEXED_DB_ALLOWLIST.has(rel)) users.push(rel)
+      else offenders.push(rel)
+    }
+    expect(offenders).toEqual([])
+    // The allowlist is exact: the adapter really is the (only) user.
+    expect(users).toEqual([...INDEXED_DB_ALLOWLIST])
   })
 
   it('sessionStorage is referenced only by the allowlisted secrets store', () => {
