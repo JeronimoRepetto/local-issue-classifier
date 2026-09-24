@@ -16,4 +16,24 @@ describe('ExportPreview', () => {
     expect(wrapper.find('[data-test="export-preview-text"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Nothing to preview yet')
   })
+
+  it('shows no format note for the default "text" format', () => {
+    const wrapper = mount(ExportPreview, { props: { text: 'local-issue-classifier report' } })
+    expect(wrapper.find('[data-test="export-preview-note"]').exists()).toBe(false)
+  })
+
+  it('notes that the preview is raw Markdown source when format is "markdown"', () => {
+    const wrapper = mount(ExportPreview, { props: { text: '# report', format: 'markdown' } })
+    expect(wrapper.get('[data-test="export-preview-note"]').text()).toContain('Markdown')
+  })
+
+  it('notes that the preview is raw HTML source when format is "html"', () => {
+    const wrapper = mount(ExportPreview, { props: { text: '<!doctype html>', format: 'html' } })
+    expect(wrapper.get('[data-test="export-preview-note"]').text()).toContain('HTML')
+  })
+
+  it('shows no format note when there is nothing to preview, even for a non-text format', () => {
+    const wrapper = mount(ExportPreview, { props: { text: '', format: 'markdown' } })
+    expect(wrapper.find('[data-test="export-preview-note"]').exists()).toBe(false)
+  })
 })
