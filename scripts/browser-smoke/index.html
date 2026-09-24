@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- The same policy as the app's index.html (tests/csp.test.ts checks that one). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.github.com http://localhost:* http://127.0.0.1:* http://[::1]:* https://huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co; img-src 'self' data: https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'"
+    />
+    <title>browser inference smoke check</title>
+  </head>
+  <body>
+    <pre id="status">starting…</pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

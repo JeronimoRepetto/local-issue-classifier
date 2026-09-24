@@ -13,6 +13,9 @@ src/
     github/       GitHub REST client, pagination, mappers, typed errors.
     jev/          Jev transport, client, request/response mapping, the concurrency pool
                   and the classification runner.
+    browser/      In-browser inference (docs/browser-inference.md): the JevK5-style readout,
+                  an in-process JevTransport, the transformers.js model loader (lazy import),
+                  the WebGPU check and the model cache (Cache API).
     storage/      Thin browser-storage adapters: localStorage for preferences (and the
                   legacy analysis layout), IndexedDB for saved analyses (analysisDb.ts), and
                   the one-time migration between them (analysisMigration.ts).
@@ -25,6 +28,7 @@ src/
   assets/icons/   Generated icon components (see "Icon pipeline" below).
 server/
   jevProxy.ts     Node-only Vite middleware; imported by vite.config.ts alone.
+  ortAssets.ts    Serves/emits ONNX Runtime Web's wasm + loader under /ort/ (no CDN).
 tests/            Cross-cutting tests: architecture rules, tokens-only rule, icons, the
                   secrets-never-persisted behaviour test, the proxy tests, and fixtures.
 ```
@@ -53,6 +57,9 @@ import turns the test suite red instead of relying on code review:
 - `sessionStorage` may be referenced only by `src/adapters/storage/secretsStore.ts`, and `indexedDB`
   only by `src/adapters/storage/analysisDb.ts` (both exact allowlists: the test also fails if that
   one file stops using it); no file under `src/` may reference `document.cookie`.
+- The Cache API may be referenced only by `src/adapters/browser/modelCache.ts` (exact allowlist), and
+  `@huggingface/transformers` may be imported only by `src/adapters/browser/browserModel.ts`, and
+  only with a dynamic `import()`, so ONNX Runtime stays out of the main bundle.
 
 ## Key composables
 
