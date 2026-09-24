@@ -38,6 +38,9 @@
 // cards render (cloud always, local only in local mode, browser only with
 // WebGPU: 1 to 3) always share the full width in equal columns, with no
 // empty slot.
+// Friction pass (2026-09-24): the local panel leads with the live connection
+// status and the GPU vs CPU readout, then the one-click launcher for the
+// selected OS; the manual commands sit below it, collapsed, as the fallback.
 import { computed, onMounted, ref } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSecretInput from '../../ui/UiSecretInput.vue'
@@ -64,6 +67,7 @@ import {
   KEV_UNSUPPORTED_NOTE,
   detectOs,
   kevCommands,
+  kevLauncher,
 } from '../../domain/localCommands'
 import type { KevCommandStep, KevOs } from '../../domain/localCommands'
 
@@ -224,6 +228,12 @@ const recommendedModel = computed<{ id: TierId; unknown: boolean }>(() => {
   return { id: 'kev-0.8b', unknown: f === null || f.memory.availableGb === null }
 })
 
+/** The one-click launcher for the selected OS: the FIRST option in the panel;
+ *  the manual commands below it are the fallback (docs/local-providers.md
+ *  "One-click launcher"). Served under /launchers/ by server/launcherAssets.ts. */
+const launcher = computed(() => kevLauncher({ os: os.value, model: recommendedModel.value.id }))
+const launcherHref = computed(() => `${import.meta.env.BASE_URL}${launcher.value.path}`)
+
 const recommendedLine = computed(() => {
   const { id, unknown } = recommendedModel.value
   const label = KEV_MODEL_LABEL[id] ?? id
@@ -342,20 +352,38 @@ const summarySteps = computed<KevCommandStep[]>(() => {
         </UiButton>
       </div>
       <LocalDeviceCallouts :advice="deviceAdvice" />
-      <div class="provider-onboarding__callouts">
-        <UiCallout tone="warning" title="Prerequisites" data-test="callout-prereqs">{{ KEV_PREREQS_NOTE }}</UiCallout>
-        <UiCallout tone="warning" title="GPU is optional" data-test="callout-gpu-optional">{{ KEV_GPU_OPTIONAL_NOTE }}</UiCallout>
-        <UiCallout tone="danger" title="Won't work" data-test="callout-unsupported">{{ KEV_UNSUPPORTED_NOTE }}</UiCallout>
+      <p class="provider-onboarding__recommend" data-test="recommended-model-line">{{ recommendedLine }}</p>
+      <UiSegmented label="Operating system" size="compact" :options="KEV_OS_OPTIONS" v-model="os" />
+      <div class="provider-onboarding__launcher" data-test="launcher">
+        <p class="provider-onboarding__command-label">Easiest: the one-click launcher</p>
+        <a
+          class="provider-onboarding__download"
+          data-test="download-launcher"
+          :href="launcherHref"
+          :download="launcher.file"
+        >{{ launcher.label }}</a>
+        <p class="provider-onboarding__note">
+          Save it, then run it from that folder. It checks Git, Python and uv (and offers to install uv), downloads
+          Kev once, sets up the GPU build on an NVIDIA card and starts the server. Run it again any time to just start
+          the server.
+        </p>
+        <CopyCommandLine id="launcher-run" :command="launcher.run" />
       </div>
-      <div class="provider-onboarding__summary" data-test="local-setup-summary">
-        <p class="provider-onboarding__recommend" data-test="recommended-model-line">{{ recommendedLine }}</p>
-        <UiSegmented label="Operating system" size="compact" :options="KEV_OS_OPTIONS" v-model="os" />
-        <div v-for="step in summarySteps" :key="step.id" class="provider-onboarding__command-step">
-          <p class="provider-onboarding__command-label">{{ step.label }}</p>
-          <CopyCommandLine v-if="step.command" :id="step.id" :command="step.command" />
-          <p v-if="step.note" class="provider-onboarding__note">{{ step.note }}</p>
+      <details class="provider-onboarding__manual" data-test="manual-setup">
+        <summary>Or run the commands yourself</summary>
+        <div class="provider-onboarding__callouts">
+          <UiCallout tone="warning" title="Prerequisites" data-test="callout-prereqs">{{ KEV_PREREQS_NOTE }}</UiCallout>
+          <UiCallout tone="warning" title="GPU is optional" data-test="callout-gpu-optional">{{ KEV_GPU_OPTIONAL_NOTE }}</UiCallout>
+          <UiCallout tone="danger" title="Won't work" data-test="callout-unsupported">{{ KEV_UNSUPPORTED_NOTE }}</UiCallout>
         </div>
-      </div>
+        <div class="provider-onboarding__summary" data-test="local-setup-summary">
+          <div v-for="step in summarySteps" :key="step.id" class="provider-onboarding__command-step">
+            <p class="provider-onboarding__command-label">{{ step.label }}</p>
+            <CopyCommandLine v-if="step.command" :id="step.id" :command="step.command" />
+            <p v-if="step.note" class="provider-onboarding__note">{{ step.note }}</p>
+          </div>
+        </div>
+      </details>
       <UiButton data-test="open-settings-local" variant="ghost" size="compact" @click="openSettings">
         Full guide in Settings
       </UiButton>
@@ -466,9 +494,42 @@ p {
   gap: var(--space-2);
 }
 
-.provider-onboarding__summary {
+.provider-onboarding__summary,
+.provider-onboarding__launcher {
   display: grid;
   gap: var(--space-2);
+}
+
+.provider-onboarding__download {
+  justify-self: start;
+  padding: var(--space-1) var(--space-2h);
+  border: var(--line-thin) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-table-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background-color var(--dur-base) var(--ease-out);
+}
+
+.provider-onboarding__download:hover {
+  background: var(--color-surface-2);
+}
+
+.provider-onboarding__manual {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.provider-onboarding__manual[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+.provider-onboarding__manual summary {
+  width: fit-content;
+  font-size: var(--text-table-size);
+  color: var(--color-accent);
+  cursor: pointer;
 }
 
 .provider-onboarding__recommend {

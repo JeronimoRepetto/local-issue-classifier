@@ -37,6 +37,38 @@ detected hardware instead of a fixed size.
 - An **NVIDIA GPU is optional**: without one, both servers run on the CPU (slow — see
   "CPU-only torch" under Troubleshooting). JevK5 needs about 9 GB of GPU memory in practice.
 
+## One-click launcher
+
+The easiest way to run Kev. Home's **On this computer** card offers it first; the manual commands
+below are the fallback. Download the launcher for your OS
+([`start-kev.ps1`](../scripts/start-kev.ps1) for Windows, [`start-kev.sh`](../scripts/start-kev.sh)
+for macOS and Linux; the app serves both under `/launchers/`) and run it from the folder you saved
+it to:
+
+```powershell
+# Windows (PowerShell 5.1 or 7). The bypass applies to this one run and changes no setting.
+powershell -ExecutionPolicy Bypass -File .\start-kev.ps1 -Model kev-0.8b
+```
+
+```sh
+# macOS / Linux
+sh start-kev.sh --model kev-0.8b
+```
+
+It checks Git, Python 3.12–3.13 and uv, and offers to install uv (winget on Windows, the official
+installer elsewhere) after asking. It clones Kev into `./.local/kev` if it is not there yet, and runs
+`uv sync --extra serve` only when `.venv` is missing. On an NVIDIA machine (`nvidia-smi` present) it
+installs the CUDA build of torch when `torch.cuda.is_available()` is false. Then it starts the
+server with `uv run --no-sync`. It is idempotent: a second run just starts the server.
+
+| Windows | macOS / Linux | Default | What |
+|---------|---------------|---------|------|
+| `-Model` | `--model` | `kev-0.8b` | `kev-0.8b`, `kev-4b` or `kev-9b` |
+| `-Port` | `--port` | `8009` | Port to serve on |
+| `-Dir` | `--dir` | `./.local/kev` | Where Kev is cloned or found |
+| `-FastKernels` | `--fast-kernels` | off | Also install `causal-conv1d` and `flash-linear-attention`. Kev warns without them and uses slower kernels; they often fail to build on Windows, which is not fatal. |
+| `-DryRun` | `--dry-run` | off | Print the plan and run nothing |
+
 ## Run Kev
 
 The `sync` and `serve` commands below are the same on Windows, macOS and Linux (besides installing

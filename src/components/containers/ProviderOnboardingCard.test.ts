@@ -516,3 +516,32 @@ describe('ProviderOnboardingCard: GPU vs CPU readout', () => {
     expect(wrapper.find('[data-test="device-callout-cuda-fix"]').exists()).toBe(false)
   })
 })
+
+// One-click launchers (docs/local-providers.md "One-click launcher").
+describe('ProviderOnboardingCard: launcher first, manual commands as the fallback', () => {
+  it('offers the OS launcher as the first option, with the recommended model', async () => {
+    const wrapper = await mountCard({ hardware: RTX_5070, initialOs: 'windows' })
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    const panel = wrapper.get('[data-test="local-panel"]').html()
+    expect(panel.indexOf('data-test="launcher"')).toBeGreaterThan(-1)
+    expect(panel.indexOf('data-test="launcher"')).toBeLessThan(panel.indexOf('data-test="local-setup-summary"'))
+
+    const link = wrapper.get('[data-test="download-launcher"]')
+    expect(link.text()).toBe('Download launcher for Windows')
+    expect(link.attributes('href')).toBe('/launchers/start-kev.ps1')
+    expect(link.attributes('download')).toBe('start-kev.ps1')
+    expect(wrapper.get('[data-test="command-launcher-run"]').text()).toBe(
+      'powershell -ExecutionPolicy Bypass -File .\start-kev.ps1 -Model kev-4b',
+    )
+    expect(wrapper.get('[data-test="manual-setup"]').text()).toMatch(/run the commands yourself/i)
+  })
+
+  it('switches to the sh launcher with the OS toggle', async () => {
+    const wrapper = await mountCard({ hardware: RTX_5070, initialOs: 'windows' })
+    await wrapper.get('[data-test="choice-local"]').trigger('click')
+    await wrapper.get('[data-test="segment-linux"]').trigger('click')
+    expect(wrapper.get('[data-test="download-launcher"]').text()).toBe('Download launcher for Linux')
+    expect(wrapper.get('[data-test="download-launcher"]').attributes('href')).toBe('/launchers/start-kev.sh')
+    expect(wrapper.get('[data-test="command-launcher-run"]').text()).toBe('sh start-kev.sh --model kev-4b')
+  })
+})
