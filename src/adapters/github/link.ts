@@ -1,4 +1,4 @@
-/** The pagination relations GitHub sends in the `link` header (SPEC §5.1, §5.6). */
+/** The pagination relations GitHub sends in the `link` header. */
 export interface LinkRels {
   next?: string
   last?: string

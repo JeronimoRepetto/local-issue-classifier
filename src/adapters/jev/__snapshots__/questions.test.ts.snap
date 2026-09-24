@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`QUESTIONS (SPEC §4.2) > matches the snapshot 1`] = `
+exports[`QUESTIONS > matches the snapshot 1`] = `
 {
   "complexity": {
     "criteria": [

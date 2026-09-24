@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §6.5: "downloadText(filename, text) is anchor-based:
+// Task 13 — "downloadText(filename, text) is anchor-based:
 // Blob URL → <a download> click → revoke on the next tick." Mirrors the
 // AI-Tools house style (qr-tool/design-studio's downloadBlob/downloadText).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

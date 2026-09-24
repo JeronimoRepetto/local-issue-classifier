@@ -1,4 +1,4 @@
-// GitHub JSON → domain objects (SPEC §3, §4.8). Pure: no fetch, no Vue.
+// GitHub JSON → domain objects. Pure: no fetch, no Vue.
 // Issues are produced directly in STORED form: the body and the selected
 // comments are already trimmed, so what is stored is exactly what Jev sees.
 import { headText, trimMiddle } from '../../domain/text'

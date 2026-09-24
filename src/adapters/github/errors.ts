@@ -1,4 +1,4 @@
-// Typed errors of the GitHub adapter (SPEC §5.6). Messages carry the status only:
+// Typed errors of the GitHub adapter. Messages carry the status only:
 // never a token, a request header or a response body.
 
 /** Any GitHub response the HTTP core could not turn into a success. */
@@ -39,7 +39,7 @@ export class RateLimitedError extends GitHubHttpError {
   }
 }
 
-/** The repository exists but has issues disabled (`has_issues: false`, SPEC §2.3). */
+/** The repository exists but has issues disabled (`has_issues: false`). */
 export class IssuesDisabledError extends Error {
   constructor() {
     super('This repository has issues disabled.')

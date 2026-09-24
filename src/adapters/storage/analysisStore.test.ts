@@ -1,4 +1,4 @@
-// Task 7 — SPEC.md §4.8: analysis store over an injected Storage.
+// Task 7 — analysis store over an injected Storage.
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   clearAll,

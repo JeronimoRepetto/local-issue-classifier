@@ -17,7 +17,7 @@ function fakeTransport(): JevTransport & { systemOne: ReturnType<typeof vi.fn> }
   }
 }
 
-describe('buildSystemOneBody (SPEC §4.6)', () => {
+describe('buildSystemOneBody', () => {
   it('has exactly model, state and questions, in that order', () => {
     const body = buildSystemOneBody(state, 'jev-latest')
     expect(Object.keys(body)).toEqual(['model', 'state', 'questions'])

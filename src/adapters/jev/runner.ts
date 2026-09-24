@@ -1,4 +1,4 @@
-// local-issue-classifier — the classification runner (SPEC.md §2.4, §4.5). Pure of Vue.
+// local-issue-classifier — the classification runner. Pure of Vue.
 //
 // Two modes through the same bounded, adaptive pool (docs/batching.md):
 // - batched (default): the fitter plans as few requests as the Jev limits allow

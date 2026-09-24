@@ -1,4 +1,4 @@
-// GitHub loader (SPEC §5.5): repo metadata, project context, issues and comments.
+// GitHub loader: repo metadata, project context, issues and comments.
 // Built on the HTTP core, which owns headers, the ETag cache, the rate-limit policy
 // and the request queue. Framework-free; tests inject a fake `fetch` into the core.
 import { MANIFEST_FILES, buildProjectContext, type ProjectSources } from '../../domain/projectContext'

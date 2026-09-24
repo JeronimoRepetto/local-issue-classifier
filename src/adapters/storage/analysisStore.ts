@@ -1,4 +1,4 @@
-// Legacy analysis persistence (SPEC.md §4.8): pure functions over an injected
+// Legacy analysis persistence: pure functions over an injected
 // Storage, following the house style of load/save/upsert/remove keyed by id.
 // Saved analyses now live in IndexedDB (analysisDb.ts); this module remains the
 // reader of the old localStorage layout for the one-time migration

@@ -1,4 +1,4 @@
-// Saved analyses in IndexedDB (SPEC.md §4.8, FB IndexedDB lane). localStorage's
+// Saved analyses in IndexedDB (see docs/architecture.md). localStorage's
 // ~5 MB quota was too small for real analyses, so they moved here; preferences,
 // lastAnalysisId and the opt-in secrets entry stay where they were. This is the
 // ONLY file allowed to touch indexedDB (tests/architecture.test.ts).
