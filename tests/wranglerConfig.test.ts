@@ -44,14 +44,17 @@ describe('wrangler.jsonc', () => {
   describe('ALLOWED_ORIGINS for the /jev Function', () => {
     const origins = (vars: Record<string, string> | undefined) =>
       (vars?.ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim())
-    const expected = ['https://issueclassifier.com', `https://${config.name}.pages.dev`]
+    const domain = 'https://issueclassifier.com'
+    const pagesAlias = `https://${config.name}.pages.dev`
 
-    it('allows the custom domain and the project pages.dev alias in production', () => {
-      expect(origins(config.vars)).toEqual(expected)
+    // The custom domain is live (2026-09-25), so production accepts only the
+    // canonical origin; the pages.dev alias no longer relays Jev calls.
+    it('allows only the custom domain in production', () => {
+      expect(origins(config.vars)).toEqual([domain])
     })
 
-    it('redefines the same allowlist for preview, since vars are not inherited', () => {
-      expect(origins(config.env?.preview?.vars)).toEqual(expected)
+    it('redefines the allowlist for preview (vars are not inherited), keeping the pages.dev alias for testing', () => {
+      expect(origins(config.env?.preview?.vars)).toEqual([domain, pagesAlias])
     })
 
     it('declares no secret-looking variables (the file is public)', () => {
