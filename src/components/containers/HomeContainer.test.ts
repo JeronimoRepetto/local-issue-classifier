@@ -255,8 +255,8 @@ describe('HomeContainer', () => {
     expect(repoStep().classes()).not.toContain('onboarding-checklist__item--done')
 
     // Add a saved analysis
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
-    analysesMod.useAnalyses().refresh()
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
+    await analysesMod.useAnalyses().refresh()
     await wrapper.vm.$nextTick()
 
     expect(repoStep().classes()).toContain('onboarding-checklist__item--done')
@@ -285,8 +285,8 @@ describe('HomeContainer', () => {
       inputTokens: 100,
     }
     testAnalysis.rows[0].status = 'done'
-    analysisStoreMod.saveAnalysis(storage, testAnalysis)
-    analysesMod.useAnalyses().refresh()
+    await seed(testAnalysis)
+    await analysesMod.useAnalyses().refresh()
     await wrapper.vm.$nextTick()
 
     expect(classifyStep().classes()).toContain('onboarding-checklist__item--done')
@@ -313,10 +313,10 @@ describe('HomeContainer', () => {
       inputTokens: 100,
     }
     testAnalysis.rows[0].status = 'done'
-    analysisStoreMod.saveAnalysis(storage, testAnalysis)
+    await seed(testAnalysis)
 
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
 
     expect(wrapper.find('[data-test="onboarding-checklist"]').exists()).toBe(false)
   })
