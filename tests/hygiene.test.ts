@@ -1,8 +1,14 @@
 // Task 15 — public-repo hygiene checker. Exercises the pure
 // rule functions against tiny fake tracked trees first, then runs the real
 // checker against this repository's actual tracked files.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  ACKNOWLEDGED_ADVISORIES,
+  classifyAuditReport,
+  findKeysInFunctions,
+  findMissingEnvExampleKeys,
   findNonNoreplyAuthorCommits,
   findPersonalData,
   findStrayStreamlineAssets,
@@ -236,7 +242,7 @@ describe('runHygieneChecks', () => {
   it('combines every rule and reports nothing for a clean tree', () => {
     expect(
       runHygieneChecks([
-        { path: '.env.example', content: 'VITE_JEV_BASE_URL=/jev' },
+        { path: '.env.example', content: 'VITE_JEV_BASE_URL=/jev\n# ALLOWED_ORIGINS=\n# JEV_UPSTREAM_URL=' },
         { path: 'README.md', content: 'Nothing suspicious here.' },
         { path: 'design/icons/streamline-pixel/README.md', content: 'ok' },
       ]),
@@ -258,7 +264,136 @@ describe('runHygieneChecks', () => {
         'personal-email',
         'local-machine-path',
         'stray-streamline-asset',
+        'env-example-missing-key',
       ].sort(),
     )
+  })
+})
+
+describe('findKeysInFunctions', () => {
+  const fn = (content: string) => [{ path: 'functions/jev/[[path]].ts', content }]
+
+  it.each([
+    ['a hard-coded api key', `const apiKey = 'abcd1234efgh'`],
+    ['a hard-coded secret in an object', `{ secret: "s3cr3t-value-123" }`],
+    ['a bearer token literal', `headers.set('authorization', 'Bearer abcdefgh12345')`],
+    ['a long opaque literal', `const x = '${'A1b2'.repeat(9)}'`],
+    ['an sk- style key', `const k = sk-${'a'.repeat(24)}`],
+  ])('fails on %s under functions/', (_label, content) => {
+    const findings = findKeysInFunctions(fn(content))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ rule: 'key-in-function', path: 'functions/jev/[[path]].ts' })
+  })
+
+  it('ignores files outside functions/', () => {
+    expect(findKeysInFunctions([{ path: 'src/a.ts', content: `const apiKey = 'abcd1234efgh'` }])).toEqual([])
+  })
+
+  it('does not flag reading a key from env or forwarding the caller header', () => {
+    const content = [
+      `const upstream = env.JEV_UPSTREAM_URL || 'https://api.typesafe.ai'`,
+      `const token = request.headers.get('authorization')`,
+      `const secret = env.SOME_SECRET`,
+    ].join('\n')
+    expect(findKeysInFunctions(fn(content))).toEqual([])
+  })
+
+  it('passes on the real reference implementation', () => {
+    const path = 'functions/jev/[[path]].ts'
+    const content = readFileSync(join(__dirname, '..', path), 'utf8')
+    expect(findKeysInFunctions([{ path, content }])).toEqual([])
+  })
+})
+
+describe('findMissingEnvExampleKeys', () => {
+  it('passes when every hosted-proxy variable is documented, commented or not', () => {
+    const files = [{ path: '.env.example', content: 'ALLOWED_ORIGINS=https://a.example\n# JEV_UPSTREAM_URL=https://b' }]
+    expect(findMissingEnvExampleKeys(files)).toEqual([])
+  })
+
+  it('reports each missing variable', () => {
+    const findings = findMissingEnvExampleKeys([{ path: '.env.example', content: 'VITE_JEV_BASE_URL=/jev' }])
+    expect(findings.map((f) => f.message).join(' ')).toContain('ALLOWED_ORIGINS')
+    expect(findings.map((f) => f.message).join(' ')).toContain('JEV_UPSTREAM_URL')
+    expect(findings.every((f) => f.rule === 'env-example-missing-key')).toBe(true)
+  })
+
+  it('does not count a mere mention in prose', () => {
+    const files = [{ path: '.env.example', content: '# see ALLOWED_ORIGINS and JEV_UPSTREAM_URL in the docs' }]
+    expect(findMissingEnvExampleKeys(files)).toHaveLength(2)
+  })
+
+  it('reports a missing .env.example', () => {
+    expect(findMissingEnvExampleKeys([])).toMatchObject([{ rule: 'env-example-missing-key', path: '.env.example' }])
+  })
+
+  it('passes on the real .env.example', () => {
+    const content = readFileSync(join(__dirname, '..', '.env.example'), 'utf8')
+    expect(findMissingEnvExampleKeys([{ path: '.env.example', content }])).toEqual([])
+  })
+})
+
+describe('classifyAuditReport (pnpm audit --json)', () => {
+  const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', 'audit', `${name}.json`), 'utf8')
+
+  it('reports nothing for a clean audit', () => {
+    expect(classifyAuditReport(fixture('clean'), { acknowledged: {} })).toEqual({ failures: [], warnings: [] })
+  })
+
+  it('warns, never fails, on moderate and low production findings', () => {
+    const { failures, warnings } = classifyAuditReport(fixture('moderate-only'), { acknowledged: {} })
+    expect(failures).toEqual([])
+    expect(warnings.map((w) => w.rule)).toEqual(['dependency-audit', 'dependency-audit'])
+    expect(warnings.map((w) => w.message).join('\n')).toMatch(/moderate.*left-pad/)
+  })
+
+  it('fails on high and critical production findings, naming the package, version and fix', () => {
+    const { failures, warnings } = classifyAuditReport(fixture('high-prod'), { acknowledged: {} })
+    expect(warnings).toEqual([])
+    expect(failures).toHaveLength(2)
+    expect(failures.every((f) => f.rule === 'dependency-audit')).toBe(true)
+    const sharp = failures.find((f) => f.message.includes('sharp'))
+    expect(sharp?.message).toContain('0.34.5')
+    expect(sharp?.message).toContain('>=0.35.4')
+    expect(sharp?.message).toContain('GHSA-test-3')
+    expect(sharp?.path).toBe('.>@huggingface/transformers>sharp')
+  })
+
+  it('only warns on high and critical findings in devDependencies', () => {
+    const { failures, warnings } = classifyAuditReport(fixture('high-dev'), { acknowledged: {} })
+    expect(failures).toEqual([])
+    expect(warnings).toHaveLength(2)
+    expect(warnings.every((w) => w.message.includes('devDependency'))).toBe(true)
+  })
+
+  it('downgrades an acknowledged production advisory to a warning that states the reason', () => {
+    const { failures, warnings } = classifyAuditReport(fixture('high-prod'), {
+      acknowledged: { 'GHSA-test-3': 'never loaded in the browser build' },
+    })
+    expect(failures.map((f) => f.message.includes('boom'))).toEqual([true])
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0].message).toContain('acknowledged: never loaded in the browser build')
+  })
+
+  it('accepts an already-parsed report', () => {
+    const { failures } = classifyAuditReport(JSON.parse(fixture('high-prod')), { acknowledged: {} })
+    expect(failures).toHaveLength(2)
+  })
+
+  it.each([
+    ['not JSON', 'npm ERR! network'],
+    ['an error payload', JSON.stringify({ error: { code: 'ENOTFOUND', message: 'offline' } })],
+    ['no advisories key', JSON.stringify({ metadata: {} })],
+  ])('turns %s into one "audit unavailable" warning', (_label, raw) => {
+    const { failures, warnings } = classifyAuditReport(raw, { acknowledged: {} })
+    expect(failures).toEqual([])
+    expect(warnings).toMatchObject([{ rule: 'dependency-audit-unavailable' }])
+  })
+
+  it('keeps every acknowledgement justified', () => {
+    for (const [id, reason] of Object.entries(ACKNOWLEDGED_ADVISORIES)) {
+      expect(id).toMatch(/^GHSA-/)
+      expect(reason.length).toBeGreaterThan(40)
+    }
   })
 })

@@ -38,3 +38,19 @@ export declare function loadAuthorCommitLog(
   options?: { boundaryRef?: string },
 ): CommitRecord[]
 export declare function main(repoRoot?: string): number
+export declare function findKeysInFunctions(files: HygieneFile[]): HygieneFinding[]
+export declare const REQUIRED_ENV_EXAMPLE_KEYS: string[]
+export declare function findMissingEnvExampleKeys(
+  files: HygieneFile[],
+  options?: { keys?: string[] },
+): HygieneFinding[]
+export interface AuditClassification {
+  failures: HygieneFinding[]
+  warnings: HygieneFinding[]
+}
+export declare const ACKNOWLEDGED_ADVISORIES: Record<string, string>
+export declare function classifyAuditReport(
+  raw: string | unknown,
+  options?: { acknowledged?: Record<string, string> },
+): AuditClassification
+export declare function runDependencyAudit(repoRoot: string): AuditClassification

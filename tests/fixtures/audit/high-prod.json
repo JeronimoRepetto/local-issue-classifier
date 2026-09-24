@@ -1,0 +1,61 @@
+{
+  "advisories": {
+    "3": {
+      "findings": [
+        {
+          "version": "0.34.5",
+          "paths": [
+            ".>@huggingface/transformers>sharp"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 3,
+      "title": "sharp synthetic advisory",
+      "module_name": "sharp",
+      "vulnerable_versions": "<0.35.4",
+      "patched_versions": ">=0.35.4",
+      "severity": "high",
+      "cwe": "CWE-0",
+      "github_advisory_id": "GHSA-test-3",
+      "url": "https://github.com/advisories/GHSA-test-3"
+    },
+    "4": {
+      "findings": [
+        {
+          "version": "2.0.0",
+          "paths": [
+            ".>boom"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 4,
+      "title": "boom synthetic advisory",
+      "module_name": "boom",
+      "vulnerable_versions": "<2.0.1",
+      "patched_versions": ">=2.0.1",
+      "severity": "critical",
+      "cwe": "CWE-0",
+      "github_advisory_id": "GHSA-test-4",
+      "url": "https://github.com/advisories/GHSA-test-4"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 1,
+      "critical": 1
+    },
+    "dependencies": 80,
+    "devDependencies": 130,
+    "optionalDependencies": 0,
+    "totalDependencies": 210
+  }
+}

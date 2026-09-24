@@ -1,0 +1,61 @@
+{
+  "advisories": {
+    "5": {
+      "findings": [
+        {
+          "version": "15.11.7",
+          "paths": [
+            ".>happy-dom"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 5,
+      "title": "happy-dom synthetic advisory",
+      "module_name": "happy-dom",
+      "vulnerable_versions": "<20.0.0",
+      "patched_versions": ">=20.0.0",
+      "severity": "critical",
+      "cwe": "CWE-0",
+      "github_advisory_id": "GHSA-test-5",
+      "url": "https://github.com/advisories/GHSA-test-5"
+    },
+    "6": {
+      "findings": [
+        {
+          "version": "2.1.9",
+          "paths": [
+            ".>vitest"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 6,
+      "title": "vitest synthetic advisory",
+      "module_name": "vitest",
+      "vulnerable_versions": "<3.2.6",
+      "patched_versions": ">=3.2.6",
+      "severity": "high",
+      "cwe": "CWE-0",
+      "github_advisory_id": "GHSA-test-6",
+      "url": "https://github.com/advisories/GHSA-test-6"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 1,
+      "critical": 1
+    },
+    "dependencies": 80,
+    "devDependencies": 130,
+    "optionalDependencies": 0,
+    "totalDependencies": 210
+  }
+}

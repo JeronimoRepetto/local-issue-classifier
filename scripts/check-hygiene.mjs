@@ -3,11 +3,13 @@
 //
 // Scans the tracked file list for the things that must never reach a public
 // repository: a committed .env, token-like strings, real personal data
-// (e-mail addresses, local machine paths) and stray Streamline assets outside
-// their licensed home. Exported functions operate on a plain in-memory file
+// (e-mail addresses, local machine paths), stray Streamline assets outside
+// their licensed home, key-shaped strings in the hosted functions/, an
+// incomplete .env.example, and known vulnerabilities in production
+// dependencies (pnpm audit). Exported functions operate on a plain in-memory file
 // list, so tests can exercise them with tiny fake trees; `main()` wires them
 // to `git ls-files` and process exit codes for CLI/CI use.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { extname, isAbsolute, join } from 'node:path'
 
@@ -177,6 +179,138 @@ export function findNonNoreplyAuthorCommits(commits, { domain = NOREPLY_DOMAIN }
   return findings
 }
 
+// ── Rule: anything key-shaped in the hosted proxy functions ──────────────
+// functions/ is deployed to a public edge, and its secrets belong in the
+// hosting platform's environment, never in source. Stricter than the repo-wide
+// token rule: any quoted key/secret/token/password value, any Bearer literal,
+// any long opaque literal and any sk-/pk-/rk- style key fails.
+const FUNCTION_KEY_PATTERNS = [
+  {
+    name: 'hard-coded credential',
+    re: /\b\w*(?:api[_-]?key|secret|token|password|passwd|credential)\w*\s*[:=]\s*(['"`])[^'"`\s]{8,}\1/i,
+  },
+  { name: 'Bearer literal', re: /Bearer\s+[A-Za-z0-9._~+/=-]{8,}/ },
+  { name: 'long opaque literal', re: /(['"`])[A-Za-z0-9_+/=-]{32,}\1/ },
+  { name: 'provider-style key', re: /\b(?:sk|pk|rk)[-_][A-Za-z0-9_-]{16,}/ },
+]
+
+export function findKeysInFunctions(files) {
+  const findings = []
+  for (const { path, content } of files) {
+    if (content == null || !path.startsWith('functions/')) continue
+    for (const { name, re } of FUNCTION_KEY_PATTERNS) {
+      const match = re.exec(content)
+      if (match) {
+        findings.push({
+          rule: 'key-in-function',
+          path,
+          message: `${path} contains a ${name} ("${redact(match[0])}"); secrets for functions/ belong in the hosting environment.`,
+        })
+      }
+    }
+  }
+  return findings
+}
+
+// ── Rule: .env.example documents the hosted proxy variables ─────────────
+export const REQUIRED_ENV_EXAMPLE_KEYS = ['ALLOWED_ORIGINS', 'JEV_UPSTREAM_URL']
+
+export function findMissingEnvExampleKeys(files, { keys = REQUIRED_ENV_EXAMPLE_KEYS } = {}) {
+  const example = files.find((f) => f.path === '.env.example')
+  if (!example || example.content == null) {
+    return [{ rule: 'env-example-missing-key', path: '.env.example', message: '.env.example is missing.' }]
+  }
+  return keys
+    .filter((key) => !new RegExp(`^\\s*#?\\s*${key}=`, 'm').test(example.content))
+    .map((key) => ({
+      rule: 'env-example-missing-key',
+      path: '.env.example',
+      message: `.env.example does not document ${key} (a "${key}=" line, commented out or not).`,
+    }))
+}
+
+// ── Dependency audit (pnpm audit --json) ─────────────────────────────────
+// High or critical advisories in production dependencies fail; moderate and
+// low ones, and anything only in devDependencies, are warnings. An advisory
+// listed here is downgraded to a warning that repeats its justification; each
+// entry is a deliberate, reviewed decision, never a way to silence the audit.
+export const ACKNOWLEDGED_ADVISORIES = {
+  'GHSA-f88m-g3jw-g9cj':
+    'sharp (libvips) is a Node-only dependency of @huggingface/transformers. The app ships the browser build, which never imports sharp, and nothing in this repository runs transformers under Node. Revisit when transformers allows sharp >=0.35.4.',
+  'GHSA-rgj7-g3m4-5g8c':
+    'sharp (libheif) is a Node-only dependency of @huggingface/transformers. The app ships the browser build, which never imports sharp, and nothing in this repository runs transformers under Node. Revisit when transformers allows sharp >=0.35.4.',
+}
+
+const FAILING_SEVERITIES = new Set(['high', 'critical'])
+
+function auditUnavailable(detail) {
+  return {
+    failures: [],
+    warnings: [
+      {
+        rule: 'dependency-audit-unavailable',
+        path: 'pnpm-lock.yaml',
+        message: `could not run the dependency audit: ${detail}`,
+      },
+    ],
+  }
+}
+
+export function classifyAuditReport(raw, { acknowledged = ACKNOWLEDGED_ADVISORIES } = {}) {
+  let report = raw
+  if (typeof raw === 'string') {
+    try {
+      report = JSON.parse(raw)
+    } catch {
+      return auditUnavailable('pnpm audit did not return JSON')
+    }
+  }
+  if (report == null || typeof report !== 'object') return auditUnavailable('empty audit report')
+  if (report.error) return auditUnavailable(String(report.error.message ?? report.error.code ?? 'audit error'))
+  if (report.advisories == null || typeof report.advisories !== 'object') {
+    return auditUnavailable('the audit report has no advisories')
+  }
+
+  const failures = []
+  const warnings = []
+  for (const advisory of Object.values(report.advisories)) {
+    const findings = Array.isArray(advisory.findings) ? advisory.findings : []
+    const prod = findings.filter((f) => !f.dev)
+    const scoped = prod.length > 0 ? prod : findings
+    const versions = [...new Set(scoped.map((f) => f.version))].join(', ')
+    const path = scoped.flatMap((f) => f.paths ?? [])[0] ?? advisory.module_name
+    const id = advisory.github_advisory_id ?? String(advisory.id)
+    const where = prod.length > 0 ? 'a production dependency' : 'a devDependency only'
+    const base = `${advisory.severity} ${advisory.module_name}@${versions} (${id}) in ${where}, via ${path}: ${advisory.title}. Fix: ${advisory.patched_versions}. ${advisory.url ?? ''}`.trim()
+    const finding = { rule: 'dependency-audit', path, message: base }
+
+    if (prod.length === 0 || !FAILING_SEVERITIES.has(advisory.severity)) {
+      warnings.push(finding)
+    } else if (Object.hasOwn(acknowledged, id)) {
+      warnings.push({ ...finding, message: `${base} (acknowledged: ${acknowledged[id]})` })
+    } else {
+      failures.push(finding)
+    }
+  }
+  return { failures, warnings }
+}
+
+/** Runs `pnpm audit --json` (all dependencies; `dev` flags tell them apart). Needs the registry. */
+export function runDependencyAudit(repoRoot) {
+  // A fixed command string through the shell: pnpm is a .cmd shim on Windows,
+  // and no argument here comes from input.
+  const result = spawnSync('pnpm audit --json', {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 120_000,
+    maxBuffer: 64 * 1024 * 1024,
+    shell: true,
+  })
+  if (result.error) return auditUnavailable(result.error.message)
+  // pnpm audit exits non-zero whenever it finds anything; the JSON decides.
+  return classifyAuditReport(result.stdout ?? '')
+}
+
 // ── Aggregate ──────────────────────────────────────────────────────────────
 export function runHygieneChecks(files) {
   const paths = files.map((f) => f.path)
@@ -185,6 +319,8 @@ export function runHygieneChecks(files) {
     ...findTokenLikeStrings(files),
     ...findPersonalData(files),
     ...findStrayStreamlineAssets(paths),
+    ...findKeysInFunctions(files),
+    ...findMissingEnvExampleKeys(files),
   ]
 }
 
@@ -221,6 +357,10 @@ export function main(repoRoot = process.cwd()) {
   const files = loadTrackedFiles(repoRoot)
   const failures = runHygieneChecks(files)
   const warnings = []
+
+  const audit = runDependencyAudit(repoRoot)
+  failures.push(...audit.failures)
+  warnings.push(...audit.warnings)
 
   try {
     const commits = loadAuthorCommitLog(repoRoot)
