@@ -95,15 +95,27 @@ export function scopeCounts(
  */
 export const SECONDS_PER_CALL = 2
 
-export function estimateSeconds(requests: number, concurrency: number): number {
-  return Math.ceil((requests * SECONDS_PER_CALL) / Math.max(1, concurrency))
+/**
+ * `secondsPerCall` defaults to the cloud's measured constant above; a local
+ * server or the in-browser model pass their own latency assumption instead
+ * (useClassifier.ts's LOCAL_SECONDS_PER_CALL / BROWSER_SECONDS_PER_QUESTION,
+ * T-provider-switch).
+ */
+export function estimateSeconds(requests: number, concurrency: number, secondsPerCall: number = SECONDS_PER_CALL): number {
+  return Math.ceil((requests * secondsPerCall) / Math.max(1, concurrency))
 }
 
 /**
  * Batched runs send few, large requests: they go out in waves of at most
  * `concurrency`, each wave taking about one call. An approximation: a large
- * request may take longer than the measured 2 s (docs/batching.md).
+ * request may take longer than the measured 2 s (docs/batching.md). Batched
+ * mode is cloud/local only (the browser provider always forces per-issue), so
+ * `secondsPerCall` in practice only ever overrides to the local constant.
  */
-export function estimateBatchedSeconds(requests: number, concurrency: number): number {
-  return Math.ceil(requests / Math.max(1, concurrency)) * SECONDS_PER_CALL
+export function estimateBatchedSeconds(
+  requests: number,
+  concurrency: number,
+  secondsPerCall: number = SECONDS_PER_CALL,
+): number {
+  return Math.ceil(requests / Math.max(1, concurrency)) * secondsPerCall
 }

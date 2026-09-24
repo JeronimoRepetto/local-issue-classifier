@@ -9,6 +9,7 @@ import { estimateBatchedRun, estimateRun } from '../domain/estimate'
 import { buildIssueState } from '../domain/jevState'
 import { planBatches } from '../domain/jevBatchState'
 import { estimateBatchedSeconds, estimateSeconds, scopeCounts, selectForClassification } from '../domain/classifyRun'
+import { ANSWER_DIMENSIONS } from '../domain/classification'
 import type { ClassifyMode, Issue, ProjectContext, TrimmingProfileId } from '../domain/types'
 import type { ClassifyScope, RunProgress, RunSummary, ScopeCounts } from '../domain/classifyRun'
 import type { JevClient } from '../adapters/jev/client'
@@ -22,6 +23,20 @@ import { useProvider } from './useProvider'
 import { setRunActive } from './useRunGuard'
 
 export type ClassifierPhase = 'idle' | 'running' | 'finished'
+
+/**
+ * Per-provider latency assumption for the pre-run estimate (T-provider-switch,
+ * docs/local-providers.md, docs/browser-inference.md): classifyRun's
+ * SECONDS_PER_CALL (2 s, measured 2026-09-23) stays the cloud default.
+ * - Local: no network round trip, but still a real forward pass on whatever
+ *   hardware runs the server; kept as a small, conservative constant rather
+ *   than the cloud's 2 s until a server is actually measured end to end
+ *   (docs/local-providers.md's single-request smoke checks saw ~0.2-0.5 s).
+ * - Browser: one forward pass per question (adapters/browser/browserJevTransport.ts),
+ *   five questions per issue (ANSWER_DIMENSIONS) — always per-issue, concurrency 1.
+ */
+export const LOCAL_SECONDS_PER_CALL = 1
+export const BROWSER_SECONDS_PER_QUESTION = 2.5
 
 export interface ClassifyRequest {
   scope?: ClassifyScope
@@ -124,6 +139,13 @@ function estimate(request: ClassifyRequest = {}): ClassifyEstimate | null {
   return provider.isLocal.value || provider.isBrowser.value ? { ...run, costUsd: 0 } : run
 }
 
+/** Overrides classifyRun's cloud default only for a local or browser provider. */
+function perCallSecondsOverride(): number | undefined {
+  if (provider.isBrowser.value) return BROWSER_SECONDS_PER_QUESTION * ANSWER_DIMENSIONS.length
+  if (provider.isLocal.value) return LOCAL_SECONDS_PER_CALL
+  return undefined
+}
+
 function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): ClassifyEstimate {
   const plan = planBatches(issues, ctx, {
     now: config.now,
@@ -136,7 +158,7 @@ function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): Classif
     ...run,
     mode: 'batched',
     profile: plan.batches.length > 0 ? plan.profile : null,
-    seconds: estimateBatchedSeconds(run.requests, concurrency()),
+    seconds: estimateBatchedSeconds(run.requests, concurrency(), perCallSecondsOverride()),
     tooLarge: plan.tooLarge.length,
   }
 }
@@ -157,7 +179,7 @@ function estimatePerIssue(issues: readonly Issue[], ctx: ProjectContext): Classi
     ...run,
     mode: 'per-issue',
     profile: null,
-    seconds: estimateSeconds(run.requests, concurrency()),
+    seconds: estimateSeconds(run.requests, concurrency(), perCallSecondsOverride()),
     tooLarge,
   }
 }

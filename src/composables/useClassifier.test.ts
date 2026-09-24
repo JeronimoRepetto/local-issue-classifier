@@ -7,9 +7,10 @@ import { STORAGE_KEYS, defaultPreferences, defaultProjectContext } from '../doma
 import type { Scheduler } from './useAnalysis'
 import { fakeClassification, fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../tests/fakes/memoryStorage'
-import { http, ok, scriptedClient } from '../../tests/fakes/fakeJev'
+import { http, jevBody, ok, scriptedClient } from '../../tests/fakes/fakeJev'
 import { QUESTIONS_VERSION } from '../adapters/jev/questions'
 import { BATCH_QUESTION_BUDGET } from '../adapters/jev/batchQuestions'
+import { ANSWER_DIMENSIONS } from '../domain/classification'
 import type { Handler, ScriptedClient } from '../../tests/fakes/fakeJev'
 
 type Mods = {
@@ -307,6 +308,25 @@ describe('useClassifier: local provider (T16)', () => {
     expect(estimate?.inputTokens).toBeGreaterThan(0)
   })
 
+  it('assumes a small per-call latency for a local provider, not the cloud one (T-provider-switch)', async () => {
+    // concurrency 1 makes the two assumptions diverge: 2 requests at the cloud's
+    // 2 s/call would be ceil(2*2/1)=4; at the local constant (1 s/call) it is 2.
+    await load(() => ok(), { classifyMode: 'per-issue', provider: LOCAL, concurrency: 1 })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const { useClassifier, LOCAL_SECONDS_PER_CALL } = mods.classifier
+    expect(LOCAL_SECONDS_PER_CALL).toBeLessThan(2)
+    const estimate = useClassifier().estimate({ scope: 'unclassified' })
+    expect(estimate?.seconds).toBe(Math.ceil(2 * LOCAL_SECONDS_PER_CALL))
+  })
+
+  it('stores the model the local server actually answered with, not just the requested one', async () => {
+    await load(() => ok({ ...jevBody(), model: 'kev-latest' }), { classifyMode: 'per-issue', provider: LOCAL })
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    await mods.classifier.useClassifier().start()
+    const stored1 = row(await stored(), 1)
+    expect(stored1?.classification?.model).toBe('kev-latest')
+  })
+
   it('classifies with a local provider without any key, using the local model', async () => {
     const factory = vi.fn()
     await load(() => ok(), { classifyMode: 'per-issue', provider: LOCAL })
@@ -377,6 +397,14 @@ describe('useClassifier: browser provider (docs/browser-inference.md)', () => {
       costUsd: 0,
       profile: null,
     })
+  })
+
+  it('assumes 2.5 s per question, five questions per issue, at the forced concurrency of 1', async () => {
+    await loadBrowser()
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const { BROWSER_SECONDS_PER_QUESTION } = mods.classifier
+    const estimate = mods.classifier.useClassifier().estimate({ scope: 'unclassified' })
+    expect(estimate?.seconds).toBe(Math.ceil(2 * BROWSER_SECONDS_PER_QUESTION * ANSWER_DIMENSIONS.length))
   })
 
   it('runs one issue at a time, per issue, never batched', async () => {

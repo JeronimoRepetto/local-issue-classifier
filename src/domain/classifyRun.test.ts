@@ -75,6 +75,11 @@ describe('estimateSeconds', () => {
     expect(estimateSeconds(0, 4)).toBe(0)
     expect(estimateSeconds(3, 0)).toBe(6)
   })
+
+  it('takes an overridden per-call seconds, for providers with a different latency assumption', () => {
+    expect(estimateSeconds(4, 1, 1)).toBe(4)
+    expect(estimateSeconds(4, 2, 2.5)).toBe(5)
+  })
 })
 
 describe('estimateBatchedSeconds', () => {
@@ -84,5 +89,9 @@ describe('estimateBatchedSeconds', () => {
     expect(estimateBatchedSeconds(5, 4)).toBe(4)
     expect(estimateBatchedSeconds(0, 4)).toBe(0)
     expect(estimateBatchedSeconds(2, 0)).toBe(4)
+  })
+
+  it('takes an overridden per-call seconds', () => {
+    expect(estimateBatchedSeconds(4, 4, 1)).toBe(1)
   })
 })
