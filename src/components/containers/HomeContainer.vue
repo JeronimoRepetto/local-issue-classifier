@@ -13,6 +13,7 @@ import AnalysisList from '../ui/AnalysisList.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import OnboardingChecklist from '../ui/OnboardingChecklist.vue'
 import type { OnboardingSteps } from '../ui/OnboardingChecklist.vue'
+import ProviderOnboardingCard from './ProviderOnboardingCard.vue'
 import RepoLoaderContainer from './RepoLoaderContainer.vue'
 import SaveFailedNotice from '../ui/SaveFailedNotice.vue'
 import StorageMeter from '../ui/StorageMeter.vue'
@@ -92,6 +93,8 @@ const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.
         <StorageMeter :used-bytes="analyses.state.usageBytes" />
       </template>
     </SaveFailedNotice>
+
+    <ProviderOnboardingCard />
 
     <RepoLoaderContainer />
 
