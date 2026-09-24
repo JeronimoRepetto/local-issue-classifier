@@ -40,6 +40,9 @@ export const COLOR_ROLES = [
   'scale-3',
   'scale-4',
   'scale-5',
+  'warning-soft',
+  'danger-soft',
+  'info-soft',
 ] as const
 export type ColorRole = (typeof COLOR_ROLES)[number]
 
@@ -128,6 +131,18 @@ export const tokens: Tokens = {
       'scale-3': '#975A06',
       'scale-4': '#C2410C',
       'scale-5': '#B91C1C',
+      // UiCallout tints (FB local-setup UX task): color-mix(in oklab, <tone>
+      // 5%, surface). Precomputed by mixOklab (src/ui/colorMix.ts) and
+      // checked against it in tokens.test.ts, so a future palette change
+      // cannot silently drift these away from what the live CSS renders.
+      // 5% (not the more usual 8–12%) because `warning` on `surface` is
+      // already near the 4.5:1 AA floor in this theme (see docs/design.md);
+      // a bigger tint pulls the background toward `warning`'s low
+      // luminance and drops below AA — see this task's report for the
+      // percentage sweep that picked 5%.
+      'warning-soft': '#F6F2EF',
+      'danger-soft': '#F9F0EF',
+      'info-soft': '#EEF2F9',
     },
     dark: {
       bg: '#09090B',
@@ -167,6 +182,10 @@ export const tokens: Tokens = {
       'scale-3': '#FACC15',
       'scale-4': '#FB923C',
       'scale-5': '#F87171',
+      // See the light theme's comment above; same formula, dark's surface.
+      'warning-soft': '#1A1816',
+      'danger-soft': '#1B1617',
+      'info-soft': '#15171C',
     },
   },
   overlay: {
@@ -227,6 +246,11 @@ export const tokens: Tokens = {
   },
 }
 
+/** UiCallout's tint percentage (`color-mix(in oklab, var(--color-<tone>)
+ *  <pct>%, var(--color-surface))`) — see the `*-soft` roles' comment above
+ *  for why it is 5%, not the usual 8–12%. */
+export const CALLOUT_TINT_PERCENT = 5
+
 export type ContrastKind = 'text' | 'ui'
 
 export interface ContrastPair {
@@ -273,6 +297,11 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { fg: 'level-high-fg', bg: 'level-high-bg', kind: 'text' },
   { fg: 'level-medium-fg', bg: 'level-medium-bg', kind: 'text' },
   { fg: 'level-low-fg', bg: 'level-low-bg', kind: 'text' },
+  // UiCallout: the tone token as both border/icon/text color, on its own
+  // `color-mix` tint background (see the `*-soft` roles' comment above).
+  { fg: 'warning', bg: 'warning-soft', kind: 'text' },
+  { fg: 'danger', bg: 'danger-soft', kind: 'text' },
+  { fg: 'info', bg: 'info-soft', kind: 'text' },
   ...SURFACES.map((bg) => ({ fg: 'border-strong' as const, bg, kind: 'ui' as const })),
   ...SURFACES.map((bg) => ({ fg: 'accent' as const, bg, kind: 'ui' as const })),
   // App-bar social links sit only on the top bar's `bg` background.

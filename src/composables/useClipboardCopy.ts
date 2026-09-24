@@ -6,7 +6,9 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 
-const FEEDBACK_MS = 2000
+// ~1.5 s (FB local-setup UX task): long enough to register, short enough
+// that a second quick copy doesn't feel stuck on "Copied".
+const FEEDBACK_MS = 1500
 
 function fallbackCopy(text: string): void {
   const el = document.createElement('textarea')
