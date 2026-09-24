@@ -229,21 +229,79 @@ describe('HomeContainer', () => {
     expect(html.indexOf('provider-onboarding-card')).toBeLessThan(html.indexOf('data-test="repo-input"'))
   })
 
-  it('derives "Keys" step from provider.ready (true when Jev key or local base URL is set)', async () => {
-    const providerMod = await import('../../composables/useProvider')
-    const secretsMod = await import('../../composables/useSecrets')
+  // Layout change (user decisions 2026-09-24): "Your computer" moved out of
+  // the provider card into its own sibling panel in a Home row.
+  it('renders the hardware summary panel as a sibling of the provider card, not inside it', async () => {
     const wrapper = mount(HomeContainer)
-    await wrapper.vm.$nextTick()
+    await settle()
 
-    const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
-    expect(keysStep().text()).toContain('Keys')
-    expect(keysStep().classes()).not.toContain('onboarding-checklist__item--done')
+    const panel = wrapper.find('[data-test="hardware-summary-panel"]')
+    expect(panel.exists()).toBe(true)
+    expect(panel.text()).toContain('Your computer')
+    expect(wrapper.find('[data-test="provider-onboarding-card"] [data-test="hardware-summary-panel"]').exists()).toBe(
+      false,
+    )
 
-    // Set a Jev key
-    secretsMod.useSecrets().setJevKey('test-key')
-    await wrapper.vm.$nextTick()
+    const html = wrapper.html()
+    const cardClose = html.indexOf('provider-onboarding-card')
+    expect(cardClose).toBeGreaterThan(-1)
+    expect(html.indexOf('hardware-summary-panel')).toBeGreaterThan(cardClose)
+  })
 
-    expect(keysStep().classes()).toContain('onboarding-checklist__item--done')
+  // "Keys" step (user report, 2026-09-24): cloud (TypeSafe) is done only once
+  // a Jev key is actually present; local is done only once the provider probe
+  // has actually succeeded, not merely once a base URL is configured — a
+  // configured-but-unprobed local server must not read as ready.
+  describe('"Keys" step', () => {
+    it('cloud (TypeSafe) without a Jev key is not done', async () => {
+      const wrapper = mount(HomeContainer)
+      await wrapper.vm.$nextTick()
+
+      const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
+      expect(keysStep().text()).toContain('Keys')
+      expect(keysStep().classes()).not.toContain('onboarding-checklist__item--done')
+    })
+
+    it('cloud (TypeSafe) with a Jev key is done', async () => {
+      const secretsMod = await import('../../composables/useSecrets')
+      const wrapper = mount(HomeContainer)
+      await wrapper.vm.$nextTick()
+
+      secretsMod.useSecrets().setJevKey('test-key')
+      await wrapper.vm.$nextTick()
+
+      const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
+      expect(keysStep().classes()).toContain('onboarding-checklist__item--done')
+    })
+
+    it('local, configured but never probed, is not done', async () => {
+      const preferenceMod = await import('../../composables/usePreferences')
+      const { defaultLocalProviderConfig } = await import('../../domain/provider')
+      preferenceMod.usePreferences().update({ provider: defaultLocalProviderConfig() })
+
+      const wrapper = mount(HomeContainer)
+      await wrapper.vm.$nextTick()
+
+      const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
+      expect(keysStep().classes()).not.toContain('onboarding-checklist__item--done')
+    })
+
+    it('local, after a successful probe, is done', async () => {
+      const preferenceMod = await import('../../composables/usePreferences')
+      const { defaultLocalProviderConfig } = await import('../../domain/provider')
+      preferenceMod.usePreferences().update({ provider: defaultLocalProviderConfig() })
+      const providerMod = await import('../../composables/useProvider')
+      providerMod.configureProvider({
+        fetch: async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      })
+
+      const wrapper = mount(HomeContainer)
+      await providerMod.useProvider().probe()
+      await wrapper.vm.$nextTick()
+
+      const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
+      expect(keysStep().classes()).toContain('onboarding-checklist__item--done')
+    })
   })
 
   it('derives "Repository" step from saved analyses or current analysis', async () => {
@@ -255,8 +313,8 @@ describe('HomeContainer', () => {
     expect(repoStep().classes()).not.toContain('onboarding-checklist__item--done')
 
     // Add a saved analysis
-    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
-    analysesMod.useAnalyses().refresh()
+    await seed(analysis('a1', '2026-01-01T00:00:00Z'))
+    await analysesMod.useAnalyses().refresh()
     await wrapper.vm.$nextTick()
 
     expect(repoStep().classes()).toContain('onboarding-checklist__item--done')
@@ -285,8 +343,8 @@ describe('HomeContainer', () => {
       inputTokens: 100,
     }
     testAnalysis.rows[0].status = 'done'
-    analysisStoreMod.saveAnalysis(storage, testAnalysis)
-    analysesMod.useAnalyses().refresh()
+    await seed(testAnalysis)
+    await analysesMod.useAnalyses().refresh()
     await wrapper.vm.$nextTick()
 
     expect(classifyStep().classes()).toContain('onboarding-checklist__item--done')
@@ -313,7 +371,7 @@ describe('HomeContainer', () => {
       inputTokens: 100,
     }
     testAnalysis.rows[0].status = 'done'
-    analysisStoreMod.saveAnalysis(storage, testAnalysis)
+    await seed(testAnalysis)
 
     const wrapper = mount(HomeContainer)
     await wrapper.vm.$nextTick()
