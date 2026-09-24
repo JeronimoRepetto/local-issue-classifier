@@ -157,6 +157,18 @@ function setCurrent(analysis: Analysis): SaveResult | null {
 }
 
 function open(id: string): LoadResult {
+  // Already current (e.g. RepoLoaderContainer's watcher re-opening the
+  // analysis setCurrent() just finished loading, in the same tick): skip the
+  // redundant storage reload and the second lastOpened.write it would cause.
+  // That second write matters once usePreferences' reactive lastOpened hook
+  // is wired in (App.vue, and now Home's ProviderOnboardingCard,
+  // odd/tasks/home-provider-onboarding.md): its persist() writes the whole
+  // in-memory Preferences snapshot, which would otherwise race a direct
+  // storage writer such as useRepo's onboarding-checklist flag and clobber it.
+  if (current.value?.id === id) {
+    status.openError = null
+    return { ok: true, analysis: current.value }
+  }
   const result = loadAnalysis(getAppStorage(), id)
   if (!result.ok) {
     status.openError = result.reason
