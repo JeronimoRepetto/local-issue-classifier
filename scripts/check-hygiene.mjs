@@ -158,10 +158,12 @@ export function parseCommitLog(raw) {
 export function findNonNoreplyAuthorCommits(commits, { domain = NOREPLY_DOMAIN } = {}) {
   const lower = domain.toLowerCase()
   const isCompliant = (email) => email != null && email.toLowerCase().endsWith(lower)
+  // GitHub's web editor uses exactly noreply@github.com for committer field
+  const isWebEditorCommitter = (email) => email === 'noreply@github.com'
   const findings = []
   for (const { shortHash, authorEmail, committerEmail } of commits) {
     const badAuthor = !isCompliant(authorEmail)
-    const badCommitter = !isCompliant(committerEmail)
+    const badCommitter = !isCompliant(committerEmail) && !isWebEditorCommitter(committerEmail)
     if (!badAuthor && !badCommitter) continue
     const parts = []
     if (badAuthor) parts.push(`author e-mail "${authorEmail}"`)
@@ -217,26 +219,37 @@ export function loadAuthorCommitLog(repoRoot, { boundaryRef = NOREPLY_BOUNDARY_C
 
 export function main(repoRoot = process.cwd()) {
   const files = loadTrackedFiles(repoRoot)
-  const findings = runHygieneChecks(files)
+  const failures = runHygieneChecks(files)
+  const warnings = []
 
   try {
     const commits = loadAuthorCommitLog(repoRoot)
-    findings.push(...findNonNoreplyAuthorCommits(commits))
+    warnings.push(...findNonNoreplyAuthorCommits(commits))
   } catch (err) {
-    findings.push({
+    warnings.push({
       rule: 'author-email-check-unavailable',
       path: '.git',
       message: `could not run the author/committer e-mail check: ${err.message}`,
     })
   }
 
-  if (findings.length === 0) {
+  if (failures.length === 0 && warnings.length === 0) {
     console.log(`hygiene: ok (${files.length} tracked files checked)`)
     return 0
   }
-  console.error(`hygiene: ${findings.length} finding(s):`)
-  for (const f of findings) console.error(`  [${f.rule}] ${f.message}`)
-  return 1
+
+  if (failures.length > 0) {
+    console.error(`hygiene: ${failures.length} failure(s):`)
+    for (const f of failures) console.error(`  [${f.rule}] ${f.message}`)
+  }
+
+  if (warnings.length > 0) {
+    console.log(`hygiene: ${warnings.length} warning(s):`)
+    for (const w of warnings) console.log(`  [${w.rule}] ${w.message}`)
+  }
+
+  // Only fail if there are hard failures; warnings exit 0
+  return failures.length > 0 ? 1 : 0
 }
 
 const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`

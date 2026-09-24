@@ -210,11 +210,16 @@ describe('findNonNoreplyAuthorCommits', () => {
     expect(findings[0].message).toContain('016c9fe')
   })
 
-  it('fails on a non-noreply committer e-mail even when the author is compliant', () => {
+  it('allows noreply@github.com (GitHub web editor) as a valid committer e-mail', () => {
     const commits = [commit('2aa2e5c', 'jane.doe@users.noreply.github.com', 'noreply@github.com')]
+    expect(findNonNoreplyAuthorCommits(commits)).toEqual([])
+  })
+
+  it('reports a non-noreply committer e-mail when it is not noreply@github.com', () => {
+    const commits = [commit('2aa2e5d', 'jane.doe@users.noreply.github.com', 'jane.doe@gmail.com')]
     const findings = findNonNoreplyAuthorCommits(commits)
     expect(findings).toHaveLength(1)
-    expect(findings[0].message).toContain('2aa2e5c')
+    expect(findings[0].message).toContain('2aa2e5d')
   })
 
   it('reports one finding per non-compliant commit', () => {
