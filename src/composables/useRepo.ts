@@ -20,8 +20,8 @@ import type { CommentCost, GitHubLoader, IssueStateFilter, LoadProgress } from '
 import { GitHubHttpError, IssuesDisabledError, NotFoundError, RateLimitedError } from '../adapters/github/errors'
 import { createAnalysis, mergeRefetch } from '../domain/analysis'
 import type { FetchedData } from '../domain/analysis'
-import { loadAnalysis } from '../adapters/storage/analysisStore'
 import { getAppStorage } from '../adapters/storage/appStorage'
+import { getAnalysisDb } from '../adapters/storage/analysisDb'
 import { useAnalysis } from './useAnalysis'
 import { useAnalyses } from './useAnalyses'
 
@@ -458,10 +458,11 @@ function findExisting(ref: RepoRef, stateFilter: IssueStateFilter): AnalysisSumm
   return null
 }
 
-function getAnalysisForRefresh(id: string): Analysis | null {
+async function getAnalysisForRefresh(id: string): Promise<Analysis | null> {
   const current = useAnalysis().current.value
   if (current && current.id === id) return current
-  const result = loadAnalysis(getAppStorage(), id)
+  // Saved analyses live in IndexedDB (analysisDb.ts), not localStorage.
+  const result = await getAnalysisDb().loadAnalysis(id)
   return result.ok ? result.analysis : null
 }
 
@@ -472,11 +473,11 @@ function startNew(ref: RepoRef, stateFilter: IssueStateFilter, rawText?: string)
 }
 
 /** Re-fetches an existing analysis (current or saved) and merges the result (SPEC §2.3 step 7). */
-function refresh(analysisId: string): Promise<void> {
-  const target = getAnalysisForRefresh(analysisId)
+async function refresh(analysisId: string): Promise<void> {
+  const target = await getAnalysisForRefresh(analysisId)
   if (!target) {
     Object.assign(state, freshState(), { phase: 'error' as const, error: 'This analysis could not be loaded.' })
-    return Promise.resolve()
+    return
   }
   return runPending(newRun(target.repo.ref, target.stateFilter, 'refresh', target))
 }

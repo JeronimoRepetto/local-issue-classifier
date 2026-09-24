@@ -447,6 +447,31 @@ describe('refresh (SPEC §2.3 step 7)', () => {
     expect(byNumber.get(3)?.sourceStatus).toBe('missing')
     expect(byNumber.get(4)?.issue.title).toBe('New issue')
   })
+
+  it('loads the target from the database (IndexedDB) when it is not the current analysis', async () => {
+    const first = fakeGitHub({ totalPages: 1, perPage: 1 })
+    setup(first, { fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+    await repo.startNew(ref, 'open')
+    const id = repo.state.analysisId!
+    await analysesMod.useAnalyses().settled() // the analysis is durably saved in IndexedDB
+
+    // Back to Home: nothing current, so refresh must load the saved analysis itself.
+    analysisMod.useAnalysis().discard()
+    expect(analysisMod.useAnalysis().current.value).toBeNull()
+
+    const second = fakeGitHub({
+      totalPages: 1,
+      pages: { 1: [rawIssue(1, { updated_at: '2026-02-01T00:00:00Z', title: 'Renamed while closed' })] },
+    })
+    setup(second, { fetchComments: 'never' })
+    await repo.refresh(id)
+
+    expect(repo.state.phase).toBe('done')
+    const merged = analysisMod.useAnalysis().current.value!
+    expect(merged.id).toBe(id)
+    expect(merged.rows.find((r) => r.issue.number === 1)?.issue.title).toBe('Renamed while closed')
+  })
 })
 
 describe('cancel', () => {
