@@ -1,10 +1,24 @@
+<script lang="ts">
+import { ref } from 'vue'
+import { unknownHardwareReport } from '../../domain/hardware'
+import type { HardwareReport } from '../../domain/hardware'
+
+// Detection runs once per page load (morning-feedback FB-1): this module
+// scope is shared by every mount of the component, so navigating away from
+// Settings and back does not re-run it. A hard page reload clears it because
+// the module is re-evaluated from scratch.
+const cachedReport = ref<HardwareReport | null>(null)
+let cachedDetection: Promise<HardwareReport> | null = null
+</script>
+
 <script setup lang="ts">
 // Hardware fit for local Jev-compatible models (docs/hardware-fit.md).
 // Presentational: detection is injected through the `detect` prop (the wiring
 // container passes adapters/hardware/detect.ts's detectHardware), and the
 // manual override is a v-model the container persists in
-// Preferences.hardwareOverride. Detected values live only in this component.
-import { computed, ref, watch } from 'vue'
+// Preferences.hardwareOverride. Detected values live only in this component
+// (cached at module scope above, once per page load).
+import { computed, onMounted, watch } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
@@ -15,9 +29,8 @@ import {
   applyHardwareOverride,
   fitTiers,
   sanitizeHardwareOverride,
-  unknownHardwareReport,
 } from '../../domain/hardware'
-import type { HardwareOverride, HardwareReport, TierVerdict, TierVerdictKind } from '../../domain/hardware'
+import type { HardwareOverride, TierVerdict, TierVerdictKind } from '../../domain/hardware'
 
 const props = defineProps<{
   /** Passive detection; never benchmarks. */
@@ -26,19 +39,26 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:override': [value: HardwareOverride | null] }>()
 
-const detected = ref<HardwareReport | null>(null)
-const detecting = ref(false)
+const detected = cachedReport
+const detecting = ref(cachedReport.value === null)
 
+/** Always runs a fresh detection (used both for the first auto-run and "Detect again"). */
 async function runDetect() {
   detecting.value = true
+  const promise = props.detect().catch(() => unknownHardwareReport())
+  cachedDetection = promise
   try {
-    detected.value = await props.detect()
-  } catch {
-    detected.value = unknownHardwareReport()
+    detected.value = await promise
   } finally {
     detecting.value = false
   }
 }
+
+onMounted(() => {
+  // Only the first mount of a page load triggers detection; a later mount
+  // (switching views) sees `cachedDetection` already set and reuses it.
+  if (!cachedDetection) void runDetect()
+})
 
 const effective = computed<HardwareReport | null>(() => {
   if (!detected.value && !props.override) return null
@@ -124,10 +144,11 @@ const recommendationText = computed(() => {
     <header class="hardware-fit__header">
       <h3 id="hardware-fit-title" class="hardware-fit__title">Can this machine run a local model?</h3>
       <UiButton data-test="detect" variant="secondary" :loading="detecting" @click="runDetect">
-        Detect hardware
+        {{ detected ? 'Detect again' : 'Detect hardware' }}
       </UiButton>
     </header>
     <p class="hardware-fit__note">Detection runs in your browser, nothing is sent. No benchmark is run.</p>
+    <p v-if="detecting" class="hardware-fit__muted" data-test="detecting" role="status">Detecting…</p>
 
     <dl v-if="effective" class="hardware-fit__report" data-test="report">
       <div>
