@@ -294,7 +294,7 @@ export function buildExportModel(analysis: Analysis, options: ExportOptions, now
   const filterSuffix = filterParts.length > 0 ? ` (filters: ${filterParts.join(', ')})` : ''
 
   return {
-    title: 'local-issue-classifier report',
+    title: 'Issue Classifier report',
     repository: `${repoLine}${nameSuffix}`,
     generated: formatGenerated(now),
     modelLine,

@@ -55,7 +55,7 @@ describe('KitPage', () => {
   it('carries the product name in its wordmark', async () => {
     const wrapper = mount(KitPage, { attachTo: document.body })
     await nextTick()
-    expect(wrapper.get('.kit__title').text()).toContain('local-issue-classifier')
+    expect(wrapper.get('.kit__title').text()).toContain('Issue Classifier')
     expect(wrapper.text()).not.toContain('issue-criticity')
     wrapper.unmount()
   })

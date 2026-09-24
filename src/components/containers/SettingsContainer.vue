@@ -30,7 +30,7 @@ import { useRuntime } from '../../composables/useRuntime'
 import type { ProviderConfig } from '../../domain/provider'
 
 const ABOUT_TEXT =
-  'local-issue-classifier is MIT-licensed. The UI icons are original line icons and the logo ' +
+  'Issue Classifier is MIT-licensed. The UI icons are original line icons and the logo ' +
   'and illustration are original pixel art (MIT). Fonts: Geist, Geist Mono and Geist Pixel, ' +
   'under the SIL Open Font License 1.1. Full notices in THIRD_PARTY_NOTICES.md. Visual ' +
   "direction and the browser-side hardware detection approach are inspired by midudev's " +

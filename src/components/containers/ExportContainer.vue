@@ -43,7 +43,7 @@ function onCheckbox(field: keyof ExportOptions, event: Event): void {
   <UiDialog
     :open="open"
     title="Export issues"
-    description="Builds a plain-text report from this analysis. See docs/export-format.md."
+    description="Builds a report of this analysis in your chosen format below: Text, Markdown or HTML."
     @close="emit('close')"
   >
     <div class="export-container__body">

@@ -108,7 +108,7 @@ const labelOptions = [
       <h2>Typography</h2>
       <p class="kit-logo" data-kit-type="pixel">
         <component :is="icons.IconLogo" class="kit-logo__mark" />
-        <span class="u-pixel-font">local-issue-classifier</span>
+        <span class="u-pixel-font">Issue Classifier</span>
         <span class="kit-muted">Geist Pixel · wordmark, one page heading</span>
       </p>
       <p data-kit-type="sans" class="kit-type-body">Geist Sans · prose, titles and controls</p>

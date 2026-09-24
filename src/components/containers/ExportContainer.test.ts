@@ -78,8 +78,18 @@ describe('ExportContainer', () => {
 
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
     expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain(
-      'local-issue-classifier report',
+      'Issue Classifier report',
     )
+  })
+
+  it('describes the dialog format-neutrally: no "plain-text" wording and no repo-internal doc path', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(ExportContainer, { props: { open: true }, attachTo: document.body })
+    await flush()
+
+    const description = document.querySelector('.ui-dialog__description')?.textContent ?? ''
+    expect(description).not.toMatch(/plain-text/i)
+    expect(description).not.toMatch(/docs\//)
   })
 
   it('lays the dialog out as labelled rows: scope, include, format, order and preview', async () => {
@@ -166,7 +176,7 @@ describe('ExportContainer', () => {
 
     ;(document.querySelector('[data-test="export-download"]') as HTMLButtonElement).click()
     expect(downloadMod.downloadText).toHaveBeenCalledWith(
-      expect.stringContaining('local-issue-classifier report'),
+      expect.stringContaining('Issue Classifier report'),
       'acme-widgets-issues-20260923-1405.txt',
     )
   })
@@ -183,7 +193,7 @@ describe('ExportContainer', () => {
 
     expect(analysisMod.useAnalysis().current.value?.working.exportOptions.format).toBe('markdown')
     expect(document.querySelector('[data-test="export-preview-text"]')?.textContent).toContain(
-      '# local-issue-classifier report',
+      '# Issue Classifier report',
     )
     expect(document.querySelector('[data-test="export-preview-note"]')?.textContent).toContain('Markdown')
   })

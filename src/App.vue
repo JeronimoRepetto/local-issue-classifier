@@ -147,7 +147,7 @@ const KOFI_PROFILE_URL = 'https://ko-fi.com/jeronimorepetto'
     <header class="app-shell__top-bar">
       <button class="app-shell__brand" type="button" data-test="brand" @click="view.goHome()">
         <IconLogo class="app-shell__logo" />
-        <span class="app-shell__wordmark u-pixel-font">local-issue-classifier</span>
+        <span class="app-shell__wordmark u-pixel-font">Issue Classifier</span>
       </button>
       <nav class="app-shell__nav" aria-label="Main">
         <button

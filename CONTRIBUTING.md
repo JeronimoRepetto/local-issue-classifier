@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in local-issue-classifier. This is a small local-first tool; the bar for
+Thanks for your interest in Issue Classifier. This is a small local-first tool; the bar for
 a change is that it is well-tested, keeps the architecture rules, and does one thing per commit.
 
 ## Setup

@@ -1,4 +1,4 @@
-# local-issue-classifier
+# Issue Classifier
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)
@@ -9,10 +9,16 @@
 [![Node >= 22.13](https://img.shields.io/badge/node-%3E%3D22.13-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![CI](https://github.com/JeronimoRepetto/local-issue-classifier/actions/workflows/ci.yml/badge.svg)](https://github.com/JeronimoRepetto/local-issue-classifier/actions/workflows/ci.yml)
 
+**Try it: <https://issueclassifier.com>** — no install, paste a public repository URL and a Jev key
+to start. Everything below also runs locally with `pnpm dev`.
+
 Local-first web app that pulls a GitHub repo's issues and README, then asks Jev (TypeSafe AI's
 decision model) to rate each issue by complexity, criticality, effort and relevance. Filter,
-dismiss, sort by weighted priority and export as plain text. Keys stay in memory; results stay in
-your browser.
+dismiss, sort by weighted priority and export as Text, Markdown or HTML. Keys stay in memory;
+results stay in your browser.
+
+See the [v0.1.0 release](https://github.com/JeronimoRepetto/local-issue-classifier/releases/tag/v0.1.0)
+for what shipped first; [`CONTRIBUTING.md`](CONTRIBUTING.md) covers how to propose a change.
 
 ## How it works
 
@@ -27,7 +33,7 @@ your browser.
    [`docs/batching.md`](docs/batching.md) for how batching fits issues into a request.
 4. The table shows every issue with its scores. Filter, sort (including by a weighted
    **Priority** score), dismiss what you don't care about, and **Export** the current view as a
-   plain-text report.
+   Text, Markdown or HTML report.
 
 All deterministic work — fetching, trimming, sorting, filtering and exporting — stays in code;
 Jev only makes the four judgments. See [`docs/jev-questions.md`](docs/jev-questions.md) for what
@@ -35,9 +41,13 @@ each question asks and how its answer becomes a value.
 
 ## Screenshots
 
-![Home screen, dark theme: the saved-analyses list with a storage meter and flat analysis cards](docs/redesign/after-home-dark.png)
+![Home screen, dark theme: the "Where should the AI run?" onboarding card with Cloud, On this computer and In this browser choices, the detected hardware (GPU, RAM, CPU threads) with a per-tier Fits/Won't fit verdict, a Jev API key field kept in memory only, and the repository URL and issue-state inputs below.](docs/screenshots/home-dark.png)
 
-![Analysis screen, dark theme: the issues table with filters, classify bar and priority column](docs/redesign/after-analysis-dark.png)
+![Analysis screen, dark theme: the repository header with fetch status, the classify bar with its provider switcher (Jev, Kev, JevK5, Laya, in-browser), collapsed "Search and filters" and "Relevance and confidence ranges" sections, and the issues table sorted by relevance.](docs/screenshots/analysis-dark.png)
+
+![Issues table close-up, dark theme: rows with priority, criticality and effort levels, a relevance score, status and last-updated columns for several classified issues.](docs/screenshots/issues-table-dark.png)
+
+![Export dialog, dark theme: scope and include options, a Text/Markdown/HTML format selector, and a live Markdown preview of the generated report.](docs/screenshots/export-dialog-dark.png)
 
 ## Requirements
 
@@ -84,7 +94,7 @@ Home tracks this the first time and disappears once each step has happened once:
 1. Sign in to the TypeSafe console and open the API keys dashboard at
    <https://console.typesafe.ai/keys>.
 2. Create a key.
-3. Paste it into local-issue-classifier's Settings. It is kept in memory only: a reload or
+3. Paste it into Issue Classifier's Settings. It is kept in memory only: a reload or
    **Clear keys** forgets it, and it is never written to disk, `localStorage` or the export.
 
 What the Jev docs do not cover: account sign-up, key scopes, key rotation, spending limits and
@@ -98,7 +108,7 @@ issues costs roughly $0.03–0.06.
 A token is optional. Without one, public repositories load at 60 requests/hour and comments are skipped by default. With one, the limit is 5 000 requests/hour.
 
 1. On GitHub, open **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
-2. Name it (for example `local-issue-classifier`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
+2. Name it (for example `Issue Classifier`), pick a short **expiration**, and pick the **resource owner** that owns the repositories.
 3. Under **Repository access**, choose **Public repositories** (read-only) or **Only select repositories** for the private repos you want to analyse.
 4. Under **Permissions → Repository permissions**, set:
    - **Issues: Read-only**, for issues and their comments;
@@ -115,11 +125,14 @@ pnpm test        # vitest run
 pnpm test:watch  # vitest watch mode
 pnpm typecheck   # vue-tsc -p tsconfig.json && tsc -p tsconfig.node.json
 pnpm hygiene     # public-repo hygiene checks (secrets, personal data, stray assets)
+pnpm build:check # builds, then asserts the Cloudflare Pages dist/ tree has what it needs and ships nothing it must not
 ```
 
-`pnpm icons` regenerates the icon components from `design/icons/`. The dev-only component kit
-is at http://localhost:5200/?kit — it shows every component in both themes side by side, with a
-switch to force reduced motion.
+`pnpm icons` regenerates the icon components from `design/icons/`. `pnpm favicons` and
+`pnpm og-image` regenerate the committed favicon PNGs and the Open Graph/Twitter card image from
+their sources under `design/`; see [Link preview](docs/architecture.md#link-preview). The dev-only
+component kit is at http://localhost:5200/?kit — it shows every component in both themes side by
+side, with a switch to force reduced motion.
 
 This project is developed with **strict TDD**: a test is written first and confirmed to fail for
 the expected reason (RED), then the minimum implementation is added (GREEN), then refactored.
@@ -130,7 +143,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full convention and the archite
 
 ## Keys
 
-local-issue-classifier uses two keys, both entered in **Settings**:
+Issue Classifier uses two keys, both entered in **Settings**:
 
 - **Jev API key** — required to classify issues. See
   [Getting a Jev API key](#getting-a-jev-api-key).
@@ -146,7 +159,7 @@ wipes both immediately, and so does **Clear all local data**.
 
 ## Local data and privacy
 
-local-issue-classifier is local-only: everything below lives in this browser profile. Nothing is
+Issue Classifier is local-only: everything below lives in this browser profile. Nothing is
 ever sent anywhere except GitHub (`api.github.com`, for the repository you analyse) and, when you
 classify issues, the local Jev proxy.
 
@@ -376,7 +389,7 @@ MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own lic
 
 ## Support the project
 
-If local-issue-classifier is useful to you, consider supporting its development on Ko-fi:
+If Issue Classifier is useful to you, consider supporting its development on Ko-fi:
 
 <a href="https://ko-fi.com/jeronimorepetto" target="_blank" rel="noopener noreferrer">
   <img height="36" src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" />
@@ -389,9 +402,11 @@ If local-issue-classifier is useful to you, consider supporting its development 
   by canirun.ai. 
 - **TypeSafe AI** — makers of Jev, the decision model this app sends issues to for classification.
   See ["Getting a Jev API key"](#getting-a-jev-api-key).
-- **[jaredpalmer/kev](https://github.com/jaredpalmer/kev)** and
-  **[allebee/jevk5](https://github.com/allebee/jevk5)** — authors of the local, Jev-compatible
-  servers this app can point to instead of the TypeSafe cloud. See ["Local providers"](#local-providers).
+- **[jaredpalmer/kev](https://github.com/jaredpalmer/kev)**,
+  **[allebee/jevk5](https://github.com/allebee/jevk5)** and
+  **[NandhaKishorM/laya](https://github.com/NandhaKishorM/laya)** — authors of the local,
+  Jev-compatible servers this app can point to instead of the TypeSafe cloud. See
+  ["Local providers"](#local-providers).
 - **Vercel** — designers of the Geist typeface family (Geist Sans, Geist Mono, Geist Pixel) under
   the SIL Open Font License 1.1; see "Credits" above for the exact license text and how the fonts
   are bundled.

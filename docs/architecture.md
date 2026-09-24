@@ -1,6 +1,6 @@
 # Architecture
 
-local-issue-classifier is a client-only Vue 3 app plus one small Node-only proxy module
+Issue Classifier is a client-only Vue 3 app plus one small Node-only proxy module
 (`server/jevProxy.ts`). There is no backend: state lives in memory (secrets), in the browser's
 IndexedDB (saved analyses) or in its `localStorage` (preferences), see "Storage layout" below.
 
@@ -108,9 +108,11 @@ platform reads to render a rich card for `https://issueclassifier.com` (title, d
 `public/og-image.png`, a 1200x630 PNG). `tests/linkPreview.test.ts` checks the tags are present,
 consistent (`og:title`/`og:description` mirrored into `twitter:*`, absolute `https://` image URL)
 and that the image is committed at the right pixel size and under its size budget. The
-document `<title>` is this marketing copy, not the PWA identity: `site.webmanifest`'s `name` and
-the top-bar wordmark stay `local-issue-classifier` on purpose (see `tests/favicon.test.ts` and
-`src/App.test.ts`), so the two are checked separately rather than required to match.
+document `<title>` is this marketing copy; `site.webmanifest`'s `name` and the top-bar wordmark
+both read `Issue Classifier` too (see `tests/favicon.test.ts` and `src/App.test.ts`). The
+repository and package slug, `local-issue-classifier`, stays a separate internal identifier — the
+npm package name, the Cloudflare project name, the IndexedDB database name and the
+`localStorage` key prefix — that a user never sees.
 
 The image is generated from `design/og/og-image.svg` (a hand-edited source, colors and radii
 copied from `src/ui/tokens.ts`'s dark theme) by `scripts/build-og-image.mjs` — run `pnpm og-image`

@@ -169,7 +169,7 @@ describe('useExport — previewText and scopeCount', () => {
   it('builds the preview text with the pure formatter and the injected clock', () => {
     analysisMod.useAnalysis().setCurrent(analysis())
     const { previewText } = exportMod.useExport()
-    expect(previewText.value).toContain('local-issue-classifier report')
+    expect(previewText.value).toContain('Issue Classifier report')
     expect(previewText.value).toContain('Generated  : 2026-09-23 14:05 (local time)')
   })
 
@@ -208,7 +208,7 @@ describe('useExport — format: markdown/html previews and downloads (see docs/e
     const { options, setOptions, previewText } = exportMod.useExport()
     setOptions({ format: 'markdown' })
     expect(options.value.format).toBe('markdown')
-    expect(previewText.value.startsWith('# local-issue-classifier report')).toBe(true)
+    expect(previewText.value.startsWith('# Issue Classifier report')).toBe(true)
     expect(previewText.value).toContain('- **Repository:**')
   })
 

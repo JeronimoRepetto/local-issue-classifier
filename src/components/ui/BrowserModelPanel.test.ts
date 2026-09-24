@@ -27,6 +27,11 @@ describe('BrowserModelPanel', () => {
     expect(text).toMatch(/not Jev/i)
   })
 
+  it('lists every real provider the placeholder is not, including Laya', () => {
+    const text = mountPanel().text()
+    expect(text).toMatch(/not Jev, JevK5, Kev or Laya/i)
+  })
+
   it('says WebGPU runs on the GPU', () => {
     expect(mountPanel().get('[data-test="browser-support"]').text()).toMatch(/WebGPU/)
   })

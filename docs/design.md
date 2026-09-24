@@ -22,7 +22,7 @@ The look is a clean technical one, inspired by canirun.ai but not copied from it
 
 Pixel art is the product's identity, kept small. It appears in exactly three places:
 
-- the logo mark and the `local-issue-classifier` wordmark in the top bar;
+- the logo mark and the `Issue Classifier` wordmark in the top bar;
 - one page heading, the Home H1, in Geist Pixel;
 - the empty-state illustration (`IconEmptyBox`).
 

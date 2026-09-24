@@ -48,7 +48,7 @@ describe('buildExportModel — header metadata', () => {
     )
     const model = buildExportModel(analysis, analysis.working.exportOptions, NOW)
 
-    expect(model.title).toBe('local-issue-classifier report')
+    expect(model.title).toBe('Issue Classifier report')
     expect(model.repository).toBe('acme/widgets (open issues)')
     expect(model.generated).toBe('2026-09-23 14:05 (local time)')
     expect(model.order).toBe('Priority (high→low), Effort (low→high)')
