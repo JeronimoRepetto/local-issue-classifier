@@ -1,8 +1,8 @@
 # Architecture
 
 local-issue-classifier is a client-only Vue 3 app plus one small Node-only proxy module
-(`server/jevProxy.ts`). There is no backend and no database: state lives in memory (secrets) or
-in the browser's `localStorage` (everything else, see "Storage layout" below).
+(`server/jevProxy.ts`). There is no backend: state lives in memory (secrets), in the browser's
+IndexedDB (saved analyses) or in its `localStorage` (preferences), see "Storage layout" below.
 
 ## Folder tree
 
@@ -13,7 +13,9 @@ src/
     github/       GitHub REST client, pagination, mappers, typed errors.
     jev/          Jev transport, client, request/response mapping, the concurrency pool
                   and the classification runner.
-    storage/      Thin localStorage read/write for preferences and analyses.
+    storage/      Thin browser-storage adapters: localStorage for preferences (and the
+                  legacy analysis layout), IndexedDB for saved analyses (analysisDb.ts), and
+                  the one-time migration between them (analysisMigration.ts).
     download.ts   Anchor-based file download helper.
   composables/    Vue composition functions: wire domain + adapters into reactive state.
   components/
@@ -48,8 +50,9 @@ import turns the test suite red instead of relying on code review:
 - `src/components/ui/**` may not import `adapters`.
 - `src/composables/useSecrets.ts` may import only the dedicated `adapters/storage/secretsStore.ts`
   (no other storage adapter, no web-storage API), and only `useSecrets.ts` may import that store.
-- `sessionStorage` may be referenced only by `src/adapters/storage/secretsStore.ts` (an exact
-  allowlist); no file under `src/` may reference `indexedDB` or `document.cookie`.
+- `sessionStorage` may be referenced only by `src/adapters/storage/secretsStore.ts`, and `indexedDB`
+  only by `src/adapters/storage/analysisDb.ts` (both exact allowlists: the test also fails if that
+  one file stops using it); no file under `src/` may reference `document.cookie`.
 
 ## Key composables
 
@@ -57,8 +60,8 @@ import turns the test suite red instead of relying on code review:
 |---|---|
 | `useSecrets` | Store for the Jev API key, GitHub token and local key (§8): in memory by default, opt-in tab/device persistence through `secretsStore.ts` only. |
 | `usePreferences` | Loads/saves `Preferences` through `adapters/storage/preferencesStore.ts`. |
-| `useAnalyses` | The analysis index: list, create, delete, `clearAll`. |
-| `useAnalysis` | The current analysis: load, debounced/coalesced save, `updateWorking`. |
+| `useAnalyses` | The analysis index: `boot` (migration, then the first listing), list, rename, delete, `clearAll`, storage usage/quota and the persistence state. |
+| `useAnalysis` | The current analysis: async load, debounced/coalesced async save, `updateWorking`, `restoreLastOpened`. |
 | `useRepo` | Drives a new-analysis or refresh fetch through the GitHub adapter, then
   `createAnalysis`/`mergeRefetch` into `useAnalysis`. |
 | `useClassifier` | Runs a classification scope through the Jev pool/runner and applies results
@@ -73,18 +76,71 @@ every call within a module instance) — there is no external store library.
 
 ## Storage layout
 
-All non-secret state lives in `localStorage`, under keys prefixed with
-`local-issue-classifier:` (`STORAGE_PREFIX` / `STORAGE_KEYS` in `src/domain/types.ts`):
+Saved analyses live in **IndexedDB**; every other non-secret value stays in `localStorage`.
+Analyses moved (FB IndexedDB lane, 2026-09-24) because real ones hit localStorage's ~5 MB
+per-origin quota.
+
+### IndexedDB: saved analyses
+
+`adapters/storage/analysisDb.ts` is the only module that touches `indexedDB`. Database
+`local-issue-classifier`, version 1, with two object stores, both keyed by analysis id:
+
+| Store | Holds |
+|---|---|
+| `analyses` | One full `Analysis` (repo metadata, project context, issue rows, classifications and working state) as its serialized JSON text: byte-for-byte what the legacy `localStorage` entry held, `schemaVersion` included. One parser (`analysisStore.parseAnalysis`) validates both, and a Vue proxy can never hit a `DataCloneError`. |
+| `summaries` | The `AnalysisSummary` for the Home list, written in the **same transaction** as its analysis, so the two cannot drift. |
+
+- The adapter is async and never throws or rejects. Results are typed exactly like the legacy
+  store's (`LoadResult`, `SaveResult`, `IndexEntry`, `{ ok: false, reason: 'quota' | 'unavailable' }`).
+  Every operation is queued and runs in call order: a later save always wins, and a delete or
+  Clear all is never overtaken by an earlier save.
+- A record with no summary is recovered by parsing it; one that does not parse (garbage, or an
+  unknown `schemaVersion`) is listed as **unreadable** (Delete only). Orphan summaries are dropped.
+- `usage()` uses `navigator.storage.estimate()` when the browser reports usage and quota, and
+  otherwise sums serialized sizes (plus the app's localStorage keys) with an unknown quota. The
+  storage meter reads "Local storage used: 12.3 MB of 48.2 GB available", or the usage alone.
+- No database (blocked site data, some private modes): reads are empty and writes fail as
+  `unavailable`. A failed open is retried by the next call (e.g. **Retry save**).
+- Persistence: the first successful save of a session calls `navigator.storage.persist()`, unless
+  storage is already persistent. Settings → Local data shows the state (`persisted()`, read-only).
+
+`useAnalysis` changes the in-memory analysis synchronously and saves asynchronously: working
+state is debounced 500 ms, classification results are coalesced to one save per second plus
+`flush()` at the end of a run, and fetch/refresh results are saved immediately. A save clears the
+dirty flag only if nothing changed while it was in flight. `App.vue` renders a loading state until
+boot (migration, then `restoreLastOpened()`) has finished.
+
+### localStorage: preferences (and the legacy layout)
+
+Keys prefixed with `local-issue-classifier:` (`STORAGE_PREFIX` / `STORAGE_KEYS` in
+`src/domain/types.ts`):
 
 | Key | Holds |
 |---|---|
-| `local-issue-classifier:preferences:v1` | `Preferences` — last repo, last analysis id, defaults, theme, onboarding flags. |
-| `local-issue-classifier:analyses:v1` | `AnalysisSummary[]` — the Home list index. |
-| `local-issue-classifier:analysis:v1:{id}` | One full `Analysis` — repo metadata, project context, issue rows, classifications and working state (filter, sort, dismissed, export options, priority weights). |
+| `local-issue-classifier:preferences:v1` | `Preferences`: last repo, last analysis id (`lastAnalysisId`), defaults, theme, onboarding flags. |
+| `local-issue-classifier:secrets:v1` | Only with the opt-in `device` secrets level (see "Secrets policy"). Never in IndexedDB. |
+| `local-issue-classifier:analyses:v1` | **Legacy** `AnalysisSummary[]` index. Removed by the migration. |
+| `local-issue-classifier:analysis:v1:{id}` | **Legacy** full `Analysis`. Removed by the migration once copied. |
 
-`adapters/storage/analysisStore.ts`'s `clearAll()` and `usage()` operate on `STORAGE_PREFIX` only,
-so they never touch an unrelated key that merely starts with the same characters without the
-trailing colon (see the "not our prefix" case in `analysisStore.test.ts`).
+`adapters/storage/analysisStore.ts` keeps the legacy reader (for the migration), the shared parser
+and result types, and `clearAll()` / `usage()`, which operate on `STORAGE_PREFIX` only, so they
+never touch an unrelated key that merely starts with the same characters without the trailing
+colon (see the "not our prefix" case in `analysisStore.test.ts`).
+
+### One-time migration
+
+`adapters/storage/analysisMigration.ts` runs on every boot (`useAnalyses().boot()`) and is
+idempotent: once the legacy keys are gone there is nothing left to move. For each legacy
+`analysis:v1:{id}` key it writes the entry to IndexedDB, **reads it back and compares** it, and only
+then deletes the key. A readable entry becomes a normal record; an unreadable one is copied as-is,
+so Home keeps listing it as unreadable instead of dropping it silently. A failed copy keeps its
+legacy key for the next boot, and a readable database copy (an interrupted earlier run) is never
+overwritten. The legacy index key goes once no legacy entry is left. `App.vue` shows a one-line
+toast: "Moved N analyses to the larger local database." Preferences, `lastAnalysisId` and the
+secrets entry are never touched.
+
+**Clear all local data** removes every app-prefixed localStorage key (synchronously, first), then
+empties both IndexedDB stores.
 
 ## Secrets policy
 

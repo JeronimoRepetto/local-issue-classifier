@@ -134,19 +134,31 @@ wipes both immediately, and so does **Clear all local data**.
 
 ## Local data and privacy
 
-local-issue-classifier is local-only: everything below lives in this browser profile, under
-`localStorage` keys prefixed with `local-issue-classifier:`. Nothing is ever sent anywhere except
-GitHub (`api.github.com`, for the repository you analyse) and, when you classify issues, the
-local Jev proxy.
+local-issue-classifier is local-only: everything below lives in this browser profile. Nothing is
+ever sent anywhere except GitHub (`api.github.com`, for the repository you analyse) and, when you
+classify issues, the local Jev proxy.
 
-**What is stored, and where.** All of it is non-secret and lives in `localStorage`:
+**What is stored, and where.** All of it is non-secret:
 
-- **Preferences**: the last repository you entered, the last analysis you had open, and your
-  defaults (max issues to load, max comments per issue, theme, and so on).
-- **Saved analyses**, one entry per analysis: the repository's metadata and project context
+- **Saved analyses** live in the browser's **IndexedDB**, in a database named
+  `local-issue-classifier`, one record per analysis: the repository's metadata and project context
   (README/CONTRIBUTING excerpts, manifest, `docs/` names), issue titles, trimmed bodies and a
   selection of comments, labels, authors and dates, any classifications, and your working state
-  (filters, sort, dismissed issues).
+  (filters, sort, dismissed issues). IndexedDB's quota is a share of your free disk space, far
+  above `localStorage`'s ~5 MB; the meter on Home shows usage against the quota the browser
+  reports.
+- **Preferences** stay in `localStorage`, under keys prefixed with `local-issue-classifier:`: the
+  last repository you entered, the last analysis you had open, and your defaults (max issues to
+  load, max comments per issue, theme, and so on).
+- **Older versions** kept analyses in `localStorage`. The first load after upgrading moves them
+  into IndexedDB, checks each copy, then deletes the old entries, and says so once ("Moved N
+  analyses to the larger local database"). Entries that could not be read are moved too and stay
+  listed as unreadable, so you can delete them yourself.
+
+**Eviction.** Browsers may clear a site's data when the disk runs low unless its storage is
+marked persistent. The app asks for persistent storage (`navigator.storage.persist()`) once, on
+the first save; **Settings → Local data** shows whether the browser granted it. If it did not,
+export anything you need to keep.
 
 **What is never stored.** Your Jev API key and GitHub token live only in memory for the current
 tab. They are never written to `localStorage`, `sessionStorage`, cookies, IndexedDB, a URL, or
@@ -156,11 +168,12 @@ the export file — a reload or **Clear keys** in Settings loses them, by design
 
 - **Delete** on an analysis card (Home) removes just that one analysis and its entry in the list,
   after a confirmation.
-- **Clear all local data**, at the bottom of Home, removes every `local-issue-classifier:*` key —
-  every saved analysis and your preferences — after you type "delete" to confirm. It also clears
-  your keys from memory. This cannot be undone.
+- **Clear all local data**, at the bottom of Home (and in Settings → Local data), empties the
+  IndexedDB database of saved analyses and removes every `local-issue-classifier:*`
+  `localStorage` key (your preferences), after you type "delete" to confirm. It also clears your
+  keys from memory. This cannot be undone.
 - You can also wipe everything at once from your browser's own settings, under site data for
-  `localhost:5200`.
+  `localhost:5200` (this covers both IndexedDB and `localStorage`).
 - If saving ever fails because the browser's storage is full, the analysis stays open for that
   session and a notice offers **Retry save** — delete older analyses, or lower "Max issues to
   load" in preferences, then retry.
