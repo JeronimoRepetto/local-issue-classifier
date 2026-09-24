@@ -22,28 +22,52 @@
 // - The card is no longer dismissible ("Not now" removed): it is the one
 //   place to choose/see the provider, so it always stays on Home, and once a
 //   provider is configured it reflects that as the active choice below.
+//
+// Local-runtime gating (bugfix, 2026-09-24): whether "On this computer"
+// renders at all is now `useRuntime().isLocal`, not the old `isDev`-only
+// check, which incorrectly showed the "hosted page" hint even on a plain
+// localhost dev server (see domain/runtime.ts, useRuntime.ts). In a genuinely
+// hosted deployment the local card is not just hint-adjusted, it is removed
+// entirely (`v-if`, no placeholder) — Kev/JevK5 stay reachable from Settings'
+// ProviderSelector, which keeps every provider option regardless of runtime.
+// `.provider-onboarding__choices` is an `auto-fit` grid so however many
+// cards render (1 here in hosted mode, 2 in local mode — a third,
+// browser-inference card is a parallel lane's addition) always share the
+// full width in equal columns, with no empty slot.
 import { computed, onMounted, ref } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSecretInput from '../../ui/UiSecretInput.vue'
+import UiSegmented from '../../ui/UiSegmented.vue'
+import UiCallout from '../../ui/UiCallout.vue'
+import CopyCommandLine from '../ui/CopyCommandLine.vue'
 import { useProvider } from '../../composables/useProvider'
 import { usePreferences } from '../../composables/usePreferences'
 import { useSecrets } from '../../composables/useSecrets'
 import { useView } from '../../composables/useView'
 import { useHardwareDetection } from '../../composables/useHardwareDetection'
-import { useClipboardCopy } from '../../composables/useClipboardCopy'
+import { useRuntime } from '../../composables/useRuntime'
 import { detectHardware } from '../../adapters/hardware/detect'
 import { defaultLocalProviderConfig } from '../../domain/provider'
 import type { ProviderProbeResult } from '../../domain/provider'
 import { fitTiers, LOCAL_TIERS } from '../../domain/hardware'
 import type { TierId, TierVerdict } from '../../domain/hardware'
-import { kevCommands } from '../../domain/localCommands'
-import type { KevCommandStep } from '../../domain/localCommands'
+import {
+  KEV_GPU_OPTIONAL_NOTE,
+  KEV_OS_OPTIONS,
+  KEV_PREREQS_NOTE,
+  KEV_UNSUPPORTED_NOTE,
+  detectOs,
+  kevCommands,
+} from '../../domain/localCommands'
+import type { KevCommandStep, KevOs } from '../../domain/localCommands'
 
 const props = defineProps<{
-  /** Injectable for tests; defaults to Vite's import.meta.env.DEV. The
-   *  `pnpm local:kev` shortcut only works from this repo's own dev server —
-   *  a hosted/production build shows a hint instead (see hostedHint below). */
+  /** Test override for useRuntime's `dev` check; defaults to import.meta.env.DEV. */
   isDev?: boolean
+  /** Test override for useRuntime's `hostname` check; defaults to location.hostname. */
+  hostname?: string
+  /** Test override for the OS toggle's initial value; defaults to detectOs(navigator). */
+  initialOs?: KevOs
 }>()
 
 const provider = useProvider()
@@ -51,6 +75,7 @@ const prefs = usePreferences()
 const secrets = useSecrets()
 const view = useView()
 const hw = useHardwareDetection()
+const runtime = useRuntime({ dev: props.isDev, hostname: props.hostname })
 
 onMounted(() => {
   // Passive only: reuses whichever detection already ran (HardwareFitPanel in
@@ -99,6 +124,10 @@ const configuredChoice = computed<Choice>(() => {
 })
 
 const choice = computed<Choice>(() => manualChoice.value ?? configuredChoice.value)
+/** The local panel needs both the choice AND the card to still be offered —
+ *  in hosted mode it never renders, even for an already-configured local
+ *  provider from an earlier local session (see the file header). */
+const showLocalPanel = computed(() => choice.value === 'local' && runtime.isLocal.value)
 
 function chooseCloud(): void {
   manualChoice.value = 'cloud'
@@ -140,13 +169,19 @@ const PROBE_TEXT: Record<ProviderProbeResult['status'], string> = {
 // Condensed setup summary. The commands themselves come from
 // domain/localCommands.ts's kevCommands() — the same function
 // LocalSetupGuide.vue uses — so this card can no longer drift from the full
-// guide the way it previously did (fixed kev-0.8b model, missing --no-sync,
-// no copy buttons). docs/local-providers.md documents the same commands.
+// guide the way it previously did. docs/local-providers.md documents the
+// same commands. Only the CUDA step stays Settings-only (LocalSetupGuide):
+// this summary never mentions the GPU-acceleration install itself, only the
+// GPU-optional callout below.
 const KEV_MODEL_LABEL: Record<string, string> = Object.fromEntries(LOCAL_TIERS.map((t) => [t.id, t.label]))
 const DEFAULT_PORT = 8009 // LOCAL_PRESETS[0] (Kev), src/domain/provider.ts
+const PROJECT_FOLDER_COMMAND = 'cd local-issue-classifier'
 
-/** `pnpm local:kev` only works from this repo's own dev server, not a hosted build. */
-const isDevMode = computed(() => props.isDev ?? import.meta.env.DEV)
+/** `pnpm local:kev` (and the project-folder step before it) only make sense
+ *  from this repo's own dev server, not a hosted or statically-served build. */
+const isDevMode = computed(() => runtime.dev)
+
+const os = ref<KevOs>(props.initialOs ?? detectOs(navigator))
 
 function fits(verdict: TierVerdict | undefined): boolean {
   return verdict?.verdict === 'ok' || verdict?.verdict === 'tight'
@@ -168,20 +203,29 @@ const recommendedLine = computed(() => {
   return unknown ? `Recommended for your GPU: ${label} (smallest; detection unknown)` : `Recommended for your GPU: ${label}`
 })
 
-/** Only the lines this condensed summary shows; the full CUDA step and OS
- *  picker stay in Settings' LocalSetupGuide. */
+/** Only the lines this condensed summary shows; the full CUDA step stays in
+ *  Settings' LocalSetupGuide. A synthetic "From the project folder" step
+ *  precedes the shortcut in dev mode (the shortcut only works when actually
+ *  run from this repo's checkout). */
 const summarySteps = computed<KevCommandStep[]>(() => {
-  const shown = new Set(['shortcut', 'clone', 'sync', 'serve'])
-  return kevCommands({ model: recommendedModel.value.id, port: DEFAULT_PORT, shortcut: isDevMode.value }).filter(
-    (step) => shown.has(step.id),
-  )
+  const shown = new Set(['clone', 'cd', 'sync', 'serve', 'shortcut'])
+  const steps = kevCommands({
+    model: recommendedModel.value.id,
+    port: DEFAULT_PORT,
+    os: os.value,
+    shortcut: isDevMode.value,
+  }).filter((step) => shown.has(step.id))
+  if (!isDevMode.value) return steps
+
+  const shortcutIndex = steps.findIndex((step) => step.id === 'shortcut')
+  const withProjectFolder = [...steps]
+  withProjectFolder.splice(shortcutIndex, 0, {
+    id: 'project-folder',
+    label: 'From the project folder',
+    command: PROJECT_FOLDER_COMMAND,
+  })
+  return withProjectFolder
 })
-
-const { copiedId, copy: copyText } = useClipboardCopy()
-
-function copyStep(step: KevCommandStep): Promise<void> {
-  return copyText(step.id, step.command)
-}
 </script>
 
 <template>
@@ -206,6 +250,7 @@ function copyStep(step: KevCommandStep): Promise<void> {
         <span class="provider-onboarding__choice-desc">Needs an API key. About 3s for 20 issues.</span>
       </button>
       <button
+        v-if="runtime.isLocal.value"
         type="button"
         class="provider-onboarding__choice"
         :class="{ 'provider-onboarding__choice--active': choice === 'local' }"
@@ -217,6 +262,11 @@ function copyStep(step: KevCommandStep): Promise<void> {
         <span class="provider-onboarding__fit" data-test="hardware-fit-line">{{ fitLine }}</span>
       </button>
     </div>
+
+    <p v-if="!runtime.isLocal.value" class="provider-onboarding__note" data-test="local-in-settings-hint">
+      Have a Kev/JevK5 server on your machine?
+      <button type="button" class="provider-onboarding__link" @click="openSettings">Configure it in Settings</button>
+    </p>
 
     <div v-if="choice === 'cloud'" class="provider-onboarding__panel" data-test="cloud-panel">
       <div data-test="jev-key-field">
@@ -232,24 +282,20 @@ function copyStep(step: KevCommandStep): Promise<void> {
       </UiButton>
     </div>
 
-    <div v-if="choice === 'local'" class="provider-onboarding__panel" data-test="local-panel">
+    <div v-if="showLocalPanel" class="provider-onboarding__panel" data-test="local-panel">
+      <div class="provider-onboarding__callouts">
+        <UiCallout tone="warning" title="Prerequisites" data-test="callout-prereqs">{{ KEV_PREREQS_NOTE }}</UiCallout>
+        <UiCallout tone="warning" title="GPU is optional" data-test="callout-gpu-optional">{{ KEV_GPU_OPTIONAL_NOTE }}</UiCallout>
+        <UiCallout tone="danger" title="Won't work" data-test="callout-unsupported">{{ KEV_UNSUPPORTED_NOTE }}</UiCallout>
+      </div>
       <div class="provider-onboarding__summary" data-test="local-setup-summary">
         <p class="provider-onboarding__recommend" data-test="recommended-model-line">{{ recommendedLine }}</p>
-        <div v-for="step in summarySteps" :key="step.id" class="provider-onboarding__command">
-          <pre :data-test="`command-${step.id}`">{{ step.command }}</pre>
-          <UiButton
-            size="compact"
-            variant="ghost"
-            :data-test="`copy-${step.id}`"
-            :aria-label="`Copy: ${step.label}`"
-            @click="copyStep(step)"
-          >
-            {{ copiedId === step.id ? 'Copied' : 'Copy' }}
-          </UiButton>
+        <UiSegmented label="Operating system" size="compact" :options="KEV_OS_OPTIONS" v-model="os" />
+        <div v-for="step in summarySteps" :key="step.id" class="provider-onboarding__command-step">
+          <p class="provider-onboarding__command-label">{{ step.label }}</p>
+          <CopyCommandLine v-if="step.command" :id="step.id" :command="step.command" />
+          <p v-if="step.note" class="provider-onboarding__note">{{ step.note }}</p>
         </div>
-        <p v-if="!isDevMode" class="provider-onboarding__note" data-test="hosted-hint">
-          Running from a hosted page? Clone the repo or run Kev manually with the commands below.
-        </p>
       </div>
       <div class="provider-onboarding__test">
         <UiButton data-test="test-connection" :loading="checking" @click="testConnection">Test connection</UiButton>
@@ -265,8 +311,7 @@ function copyStep(step: KevCommandStep): Promise<void> {
 </template>
 
 <style scoped>
-p,
-pre {
+p {
   margin: 0;
 }
 
@@ -293,24 +338,17 @@ pre {
   font-weight: var(--weight-medium);
 }
 
-/* Equal-size choice cards (user decisions 2026-09-24): a fixed 2-column grid
-   with equal minmax(0, 1fr) tracks and align-items: stretch, so both cards
-   share one width and one height regardless of which has more text; each
-   card aligns its own content to the top (see .provider-onboarding__choice's
-   align-content below) so a longer hardware-fit sentence never changes the
-   card size. Stacks to one column on narrow viewports, same 40em breakpoint
-   App.vue uses elsewhere for this kind of mobile stacking. */
+/* Equal-size choice cards (user decisions 2026-09-24; widened 2026-09-24 for
+   a third, parallel-lane card): `auto-fit` with a `14rem` minimum means
+   however many cards render — 1 in hosted mode, 2 here, a third from the
+   browser-inference lane elsewhere — they always share the full row in
+   equal `1fr` columns, with no empty slot and no overflow, wrapping to
+   fewer columns as the viewport narrows instead of a fixed breakpoint. */
 .provider-onboarding__choices {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   align-items: stretch;
   gap: var(--space-2);
-}
-
-@media (max-width: 40em) {
-  .provider-onboarding__choices {
-    grid-template-columns: 1fr;
-  }
 }
 
 .provider-onboarding__choice {
@@ -353,11 +391,26 @@ pre {
   color: var(--color-text-muted);
 }
 
+.provider-onboarding__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .provider-onboarding__panel {
   display: grid;
   gap: var(--space-2h);
   padding-top: var(--space-2h);
   border-top: var(--line-thin) solid var(--color-border);
+}
+
+.provider-onboarding__callouts {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .provider-onboarding__summary {
@@ -371,24 +424,15 @@ pre {
   color: var(--color-text-muted);
 }
 
-.provider-onboarding__command {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+.provider-onboarding__command-step {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-.provider-onboarding__command pre {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: var(--space-2);
-  overflow-x: auto;
-  border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-  font-family: var(--font-mono);
+.provider-onboarding__command-label {
   font-size: var(--text-caption-size);
-  white-space: pre;
+  font-weight: var(--weight-medium);
 }
 
 .provider-onboarding__note {

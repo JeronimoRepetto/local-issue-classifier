@@ -6,19 +6,33 @@
 // decides whether it starts collapsed. The Kev commands themselves come from
 // domain/localCommands.ts's kevCommands(), the single source of truth shared
 // with Home's condensed summary in ProviderOnboardingCard.vue, so the two can
-// never drift apart again — keep this file's prereqs/uv-install/JevK5 steps
-// and docs/local-providers.md in sync by hand.
+// never drift apart again — keep this file's JevK5 steps and
+// docs/local-providers.md in sync by hand.
+//
+// Critical-information callouts (FB local-setup UX task, item 2): four notes
+// — prerequisites, the GPU-optional caveat, the CUDA/--no-sync reminder, and
+// what plainly will not work — render through UiCallout instead of plain
+// text. CALLOUT_TONE below maps a step id to its tone; a step with a note but
+// no mapped tone (the shortcut's --dir hint, macOS's "not applicable" aside)
+// still renders as plain text, unchanged.
 import { computed, ref, watch } from 'vue'
-import UiButton from '../../ui/UiButton.vue'
 import UiSegmented from '../../ui/UiSegmented.vue'
 import type { SegmentedOption } from '../../ui/UiSegmented.vue'
 import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
+import UiCallout from '../../ui/UiCallout.vue'
+import type { CalloutTone } from '../../ui/UiCallout.vue'
+import CopyCommandLine from './CopyCommandLine.vue'
 import { LOCAL_TIERS } from '../../domain/hardware'
 import type { ProviderProbeResult } from '../../domain/provider'
-import { kevCommands } from '../../domain/localCommands'
+import {
+  KEV_GPU_OPTIONAL_NOTE,
+  KEV_OS_OPTIONS,
+  KEV_PREREQS_NOTE,
+  KEV_UNSUPPORTED_NOTE,
+  kevCommands,
+} from '../../domain/localCommands'
 import type { KevOs } from '../../domain/localCommands'
-import { useClipboardCopy } from '../../composables/useClipboardCopy'
 
 const props = defineProps<{
   /** The last connection-test result, or null before one runs. */
@@ -32,12 +46,6 @@ const PROVIDER_OPTIONS: SegmentedOption[] = [
   { value: 'jevk5', label: 'JevK5' },
 ]
 
-const OS_OPTIONS: SegmentedOption[] = [
-  { value: 'windows', label: 'Windows' },
-  { value: 'macos', label: 'macOS' },
-  { value: 'linux', label: 'Linux' },
-]
-
 // Kev ships three sizes (LOCAL_TIERS, docs/hardware-fit.md); JevK5 is one model.
 const KEV_MODEL_OPTIONS: SelectOption[] = LOCAL_TIERS.filter((t) => t.id !== 'jevk5').map((t) => ({
   value: t.id,
@@ -45,17 +53,20 @@ const KEV_MODEL_OPTIONS: SelectOption[] = LOCAL_TIERS.filter((t) => t.id !== 'je
 }))
 const JEVK5_TIER = LOCAL_TIERS.find((t) => t.id === 'jevk5')!
 
-const UV_INSTALL: Record<KevOs, string> = {
-  windows: 'winget install astral-sh.uv',
-  macos: 'curl -LsSf https://astral.sh/uv/install.sh | sh',
-  linux: 'curl -LsSf https://astral.sh/uv/install.sh | sh',
-}
-
 interface GuideStep {
   id: string
   label: string
   command: string | null
   note?: string
+}
+
+/** Which step ids render their `note` as a UiCallout (and its tone), instead
+ *  of plain text. See the file header. */
+const CALLOUT_TONE: Partial<Record<string, CalloutTone>> = {
+  prereqs: 'warning',
+  'gpu-optional': 'warning',
+  unsupported: 'danger',
+  cuda: 'warning',
 }
 
 const provider = ref<GuideProvider>('kev')
@@ -79,13 +90,9 @@ function onToggle(event: Event): void {
 }
 
 const kevSteps = computed<GuideStep[]>(() => [
-  {
-    id: 'prereqs',
-    label: 'Prerequisites',
-    command: null,
-    note: 'Git, Python 3.12 or 3.13, and uv. An NVIDIA GPU is optional; without one Kev runs on the CPU (slow).',
-  },
-  { id: 'uv-install', label: "Install uv (skip if you already have it)", command: UV_INSTALL[os.value] },
+  { id: 'prereqs', label: 'Prerequisites', command: null, note: KEV_PREREQS_NOTE },
+  { id: 'gpu-optional', label: 'GPU is optional', command: null, note: KEV_GPU_OPTIONAL_NOTE },
+  { id: 'unsupported', label: "Won't work", command: null, note: KEV_UNSUPPORTED_NOTE },
   ...kevCommands({ model: kevModel.value, port: 8009, os: os.value, shortcut: true }),
 ])
 
@@ -105,12 +112,6 @@ const jevk5Steps: GuideStep[] = [
 ]
 
 const steps = computed<GuideStep[]>(() => (provider.value === 'kev' ? kevSteps.value : jevk5Steps))
-
-const { copiedId, copy: copyText } = useClipboardCopy()
-
-function copy(step: GuideStep): Promise<void> {
-  return copyText(step.id, step.command)
-}
 </script>
 
 <template>
@@ -118,7 +119,7 @@ function copy(step: GuideStep): Promise<void> {
     <summary>Set up a local server</summary>
     <div class="local-setup-guide__body">
       <UiSegmented label="Local server" :options="PROVIDER_OPTIONS" v-model="provider" />
-      <UiSegmented label="Operating system" size="compact" :options="OS_OPTIONS" v-model="os" />
+      <UiSegmented label="Operating system" size="compact" :options="KEV_OS_OPTIONS" v-model="os" />
 
       <UiSelect
         v-if="provider === 'kev'"
@@ -133,20 +134,19 @@ function copy(step: GuideStep): Promise<void> {
 
       <ol class="local-setup-guide__steps">
         <li v-for="step in steps" :key="step.id" class="local-setup-guide__step">
-          <p class="local-setup-guide__step-label">{{ step.label }}</p>
-          <div v-if="step.command" class="local-setup-guide__command">
-            <pre :data-test="`command-${step.id}`">{{ step.command }}</pre>
-            <UiButton
-              size="compact"
-              variant="ghost"
-              :data-test="`copy-${step.id}`"
-              :aria-label="`Copy: ${step.label}`"
-              @click="copy(step)"
-            >
-              {{ copiedId === step.id ? 'Copied' : 'Copy' }}
-            </UiButton>
-          </div>
-          <p v-if="step.note" class="local-setup-guide__note">{{ step.note }}</p>
+          <template v-if="!step.command && CALLOUT_TONE[step.id]">
+            <UiCallout :tone="CALLOUT_TONE[step.id]!" :title="step.label" :data-test="`callout-${step.id}`">
+              {{ step.note }}
+            </UiCallout>
+          </template>
+          <template v-else>
+            <p class="local-setup-guide__step-label">{{ step.label }}</p>
+            <CopyCommandLine v-if="step.command" :id="step.id" :command="step.command" />
+            <UiCallout v-if="step.note && CALLOUT_TONE[step.id]" :tone="CALLOUT_TONE[step.id]!" :data-test="`callout-${step.id}`">
+              {{ step.note }}
+            </UiCallout>
+            <p v-else-if="step.note" class="local-setup-guide__note">{{ step.note }}</p>
+          </template>
         </li>
       </ol>
 
@@ -158,8 +158,7 @@ function copy(step: GuideStep): Promise<void> {
 </template>
 
 <style scoped>
-p,
-pre {
+p {
   margin: 0;
 }
 
@@ -197,26 +196,6 @@ pre {
 .local-setup-guide__step-label {
   font-size: var(--text-table-size);
   font-weight: var(--weight-medium);
-}
-
-.local-setup-guide__command {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.local-setup-guide__command pre {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: var(--space-2);
-  overflow-x: auto;
-  border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption-size);
-  white-space: pre;
 }
 
 .local-setup-guide__note {
