@@ -33,7 +33,7 @@ describe('KitPage', () => {
         '.ui-toast--error',
         '.level-badge--high',
         '.level-badge--stale',
-        '.confidence-badge--low',
+        '.confidence-badge',
         '.score-bar',
         '.filter-chip--active',
         '.empty-state',

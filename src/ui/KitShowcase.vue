@@ -204,9 +204,12 @@ const labelOptions = [
         <LevelBadge level="low" dimension="Cost" stale />
       </div>
       <div class="kit-row">
-        <ConfidenceBadge :confidence="0.91" :probabilities="{ high: 0.91, medium: 0.07, low: 0.02 }" />
-        <ConfidenceBadge :confidence="0.64" :probabilities="{ high: 0.64, medium: 0.3, low: 0.06 }" />
-        <ConfidenceBadge :confidence="0.38" :probabilities="{ high: 0.38, medium: 0.35, low: 0.27 }" />
+        <!-- User decision 2026-09-24: shown only at confidence <= 0.50, warning→danger gradient. -->
+        <ConfidenceBadge :confidence="0.5" :probabilities="{ high: 0.1, medium: 0.4, low: 0.5 }" />
+        <ConfidenceBadge :confidence="0.25" :probabilities="{ high: 0.05, medium: 0.2, low: 0.75 }" />
+        <ConfidenceBadge :confidence="0.01" :probabilities="{ high: 0.0, medium: 0.01, low: 0.99 }" />
+        <ConfidenceBadge :confidence="0.51" :probabilities="{ high: 0.75, medium: 0.2, low: 0.05 }" />
+        <span class="kit-muted u-mono">0.51 → hidden</span>
       </div>
       <div class="kit-bars">
         <ScoreBar v-for="v in [0, 15, 38, 55, 82, 100]" :key="v" :value="v" label="Priority" />
