@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Home screen (SPEC §2.2): the saved-analyses list, New analysis
+// The Home screen: the saved-analyses list, New analysis
 // (RepoLoaderContainer), the storage meter, Clear all local data and the
 // first-run checklist. The single primary action on this screen is New
 // analysis, inside RepoLoaderContainer's RepoInput.
@@ -30,7 +30,7 @@ import RepoLoaderContainer from './RepoLoaderContainer.vue'
 import SaveFailedNotice from '../ui/SaveFailedNotice.vue'
 import StorageMeter from '../ui/StorageMeter.vue'
 
-/** Task 4's useSecrets clears the in-memory keys on Clear all (SPEC §8); wired by the integration task. */
+/** Task 4's useSecrets clears the in-memory keys on Clear all; wired by the integration task. */
 const props = withDefaults(defineProps<{ onClearAll?: () => void }>(), { onClearAll: () => {} })
 
 const analyses = useAnalyses()

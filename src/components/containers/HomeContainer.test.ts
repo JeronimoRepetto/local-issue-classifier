@@ -1,6 +1,6 @@
 // Wiring tests: AnalysisList/AnalysisCard/ConfirmDialog are unit-tested on
 // their own, so these check that HomeContainer routes each event to the
-// right composable call and reacts to shared state (SPEC §2.2 / §8).
+// right composable call and reacts to shared state.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createAnalysis } from '../../domain/analysis'
