@@ -204,4 +204,96 @@ describe('HomeContainer', () => {
     expect(html.indexOf('provider-onboarding-card')).toBeGreaterThan(-1)
     expect(html.indexOf('provider-onboarding-card')).toBeLessThan(html.indexOf('data-test="repo-input"'))
   })
+
+  it('derives "Keys" step from provider.ready (true when Jev key or local base URL is set)', async () => {
+    const providerMod = await import('../../composables/useProvider')
+    const secretsMod = await import('../../composables/useSecrets')
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+
+    const keysStep = () => wrapper.findAll('.onboarding-checklist__item')[0]
+    expect(keysStep().text()).toContain('Keys')
+    expect(keysStep().classes()).not.toContain('onboarding-checklist__item--done')
+
+    // Set a Jev key
+    secretsMod.useSecrets().setJevKey('test-key')
+    await wrapper.vm.$nextTick()
+
+    expect(keysStep().classes()).toContain('onboarding-checklist__item--done')
+  })
+
+  it('derives "Repository" step from saved analyses or current analysis', async () => {
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+
+    const repoStep = () => wrapper.findAll('.onboarding-checklist__item')[1]
+    expect(repoStep().text()).toContain('Repository')
+    expect(repoStep().classes()).not.toContain('onboarding-checklist__item--done')
+
+    // Add a saved analysis
+    analysisStoreMod.saveAnalysis(storage, analysis('a1', '2026-01-01T00:00:00Z'))
+    analysesMod.useAnalyses().refresh()
+    await wrapper.vm.$nextTick()
+
+    expect(repoStep().classes()).toContain('onboarding-checklist__item--done')
+  })
+
+  it('derives "Classify" step from classified issues in saved analyses or current analysis', async () => {
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+
+    const classifyStep = () => wrapper.findAll('.onboarding-checklist__item')[2]
+    expect(classifyStep().text()).toContain('Classify')
+    expect(classifyStep().classes()).not.toContain('onboarding-checklist__item--done')
+
+    // Create an analysis with a classified issue
+    const testAnalysis = analysis('a1', '2026-01-01T00:00:00Z')
+    testAnalysis.rows[0].classification = {
+      complexity: { level: 'low', score: 0.5, probabilities: [0.8, 0.15, 0.05] },
+      criticality: { level: 'medium', score: 1, probabilities: [0.2, 0.7, 0.1] },
+      effort: { level: 'high', score: 2, probabilities: [0.1, 0.2, 0.7] },
+      relevance: { value: 50, score: 2, probabilities: [0.2, 0.3, 0.3, 0.1, 0.1] },
+      kind: { choice: 'bug' },
+      model: 'jev-1.0.0',
+      questionsVersion: 1,
+      issueUpdatedAt: '2026-01-01T00:00:00Z',
+      classifiedAt: '2026-01-01T00:00:00Z',
+      inputTokens: 100,
+    }
+    testAnalysis.rows[0].status = 'done'
+    analysisStoreMod.saveAnalysis(storage, testAnalysis)
+    analysesMod.useAnalyses().refresh()
+    await wrapper.vm.$nextTick()
+
+    expect(classifyStep().classes()).toContain('onboarding-checklist__item--done')
+  })
+
+  it('hides the checklist when all three steps are done', async () => {
+    const secretsMod = await import('../../composables/useSecrets')
+    const preferenceMod = await import('../../composables/usePreferences')
+
+    // Set provider ready
+    secretsMod.useSecrets().setJevKey('test-key')
+    // Add saved analysis with classification
+    const testAnalysis = analysis('a1', '2026-01-01T00:00:00Z')
+    testAnalysis.rows[0].classification = {
+      complexity: { level: 'low', score: 0.5, probabilities: [0.8, 0.15, 0.05] },
+      criticality: { level: 'medium', score: 1, probabilities: [0.2, 0.7, 0.1] },
+      effort: { level: 'high', score: 2, probabilities: [0.1, 0.2, 0.7] },
+      relevance: { value: 50, score: 2, probabilities: [0.2, 0.3, 0.3, 0.1, 0.1] },
+      kind: { choice: 'bug' },
+      model: 'jev-1.0.0',
+      questionsVersion: 1,
+      issueUpdatedAt: '2026-01-01T00:00:00Z',
+      classifiedAt: '2026-01-01T00:00:00Z',
+      inputTokens: 100,
+    }
+    testAnalysis.rows[0].status = 'done'
+    analysisStoreMod.saveAnalysis(storage, testAnalysis)
+
+    const wrapper = mount(HomeContainer)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-test="onboarding-checklist"]').exists()).toBe(false)
+  })
 })

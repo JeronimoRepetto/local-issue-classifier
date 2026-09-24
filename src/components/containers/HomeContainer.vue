@@ -3,11 +3,18 @@
 // (RepoLoaderContainer), the storage meter, Clear all local data and the
 // first-run checklist. The single primary action on this screen is New
 // analysis, inside RepoLoaderContainer's RepoInput.
-import { computed, onMounted, ref, watch } from 'vue'
-import { readStoredPreferences, useRepo } from '../../composables/useRepo'
+//
+// The first-run checklist is now derived from live state instead of persisted
+// flags (see fb-checklist branch): keys come from useProvider().ready, repo
+// from saved/current analyses, and classify from actual classified issues.
+// The onboarding preference and completeOnboardingStep() remain (unused) for
+// backward compatibility with stored data; the checklist never persists state.
+import { computed, onMounted, ref } from 'vue'
+import { useRepo } from '../../composables/useRepo'
 import { useAnalyses } from '../../composables/useAnalyses'
 import { useAnalysis } from '../../composables/useAnalysis'
 import { useView } from '../../composables/useView'
+import { useProvider } from '../../composables/useProvider'
 import UiButton from '../../ui/UiButton.vue'
 import AnalysisList from '../ui/AnalysisList.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
@@ -25,30 +32,45 @@ const analyses = useAnalyses()
 const analysis = useAnalysis()
 const repo = useRepo()
 const view = useView()
+const provider = useProvider()
 
-const onboarding = ref<OnboardingSteps>(readStoredPreferences().onboarding)
 const clearingAll = ref(false)
 
-function refreshOnboarding(): void {
-  onboarding.value = readStoredPreferences().onboarding
-}
+/** Derive the onboarding checklist from live state:
+ * - keys: provider is ready (Jev key set or local base URL configured)
+ * - repo: at least one saved analysis exists OR a current analysis is loaded
+ * - classify: at least one saved analysis has classified issues OR current has a classification
+ */
+const onboarding = computed<OnboardingSteps>(() => {
+  // Keys: check if the provider is ready
+  const keys = provider.ready.value
+
+  // Repo: check for saved analyses or current analysis
+  const repo = analyses.state.entries.length > 0 || analysis.current.value !== null
+
+  // Classify: check for classified issues in saved analyses or current analysis
+  let classify = false
+  if (analyses.state.entries.length > 0) {
+    // At least one saved analysis with classified issues
+    classify = analyses.state.entries.some((entry) => {
+      if (entry.status === 'ok') return entry.summary.counts.classified > 0
+      return false
+    })
+  }
+  if (!classify && analysis.current.value) {
+    // Current analysis has at least one classified issue
+    classify = analysis.current.value.rows.some((row) => row.classification !== null)
+  }
+
+  return { keys, repo, classify }
+})
 
 onMounted(() => {
   analyses.refresh()
   // A finished ('done' or 'error') load from a previous visit should not
   // linger (incl. the one-time private-repo notice) once Home is shown again.
   repo.dismiss()
-  refreshOnboarding()
 })
-
-// The "2 Repository" step is marked done by useRepo right before a new
-// analysis is saved (SPEC §10.1); pick that up as soon as a load finishes.
-watch(
-  () => repo.state.phase,
-  (phase) => {
-    if (phase === 'done') refreshOnboarding()
-  },
-)
 
 function onOpen(id: string): void {
   view.openAnalysis(id)
@@ -70,7 +92,6 @@ function confirmClearAll(): void {
   clearingAll.value = false
   analyses.clearAll()
   props.onClearAll()
-  refreshOnboarding()
 }
 
 const saveFailed = computed(() => (analysis.status.save === 'failed' ? analysis.status.failure : null))
