@@ -348,6 +348,3 @@ MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own lic
 <a href="https://github.com/Gentleman-Programming/gentle-ai">
   <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
 </a>
-
-No official canirun.ai badge or "built with" asset was found in its repository (its README and
-`public/` tree were checked on 2026-09-24), so no canirun.ai badge is shown here.
