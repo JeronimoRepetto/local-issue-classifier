@@ -86,6 +86,29 @@ describe('setCurrent and open', () => {
     expect(mod.useAnalysis().current.value?.id).toBe('a1')
   })
 
+  // Regression (found via odd/tasks/home-provider-onboarding.md): a caller
+  // that re-opens the analysis setCurrent() just made current (e.g.
+  // RepoLoaderContainer's watcher, right after a new analysis finishes
+  // loading) used to reload from storage and call lastOpened.write() a
+  // second time. That second write is harmless with the default
+  // preferencesKeyHook (a targeted read-modify-write of one field), but once
+  // usePreferences' reactive lastOpened hook is wired in (App.vue, and Home's
+  // ProviderOnboardingCard), the second persist() writes the whole in-memory
+  // Preferences snapshot and can clobber a concurrent direct-storage writer
+  // (useRepo's onboarding-checklist flag). open() now short-circuits instead.
+  it('open() on the analysis that is already current is a no-op: no reload, no second lastOpened write', () => {
+    const write = vi.fn()
+    mod.configureAnalysis({ lastOpened: { read: () => null, write } })
+    const store = mod.useAnalysis()
+    store.setCurrent(analysis('a1'))
+    write.mockClear()
+
+    const result = store.open('a1')
+
+    expect(result).toEqual({ ok: true, analysis: store.current.value })
+    expect(write).not.toHaveBeenCalled()
+  })
+
   it('accepts an injected last-opened hook instead of the preferences key', () => {
     const write = vi.fn()
     mod.configureAnalysis({ lastOpened: { read: () => null, write } })
