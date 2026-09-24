@@ -12,6 +12,7 @@
       name="description"
       content="Rate GitHub issues by criticality, effort and relevance — a local-first AI triage tool. Runs entirely in your browser; nothing leaves your machine."
     />
+    <link rel="canonical" href="https://issueclassifier.com/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -45,9 +46,55 @@
       name="twitter:image:alt"
       content="Issue Classifier: a dark app screenshot showing three GitHub issues rated High, Medium and Low priority."
     />
+
+    <!-- Structured data (GitHub issue #8, docs/architecture.md "SEO"). A `type="application/ld+json"`
+         script is a non-executable data island, not JavaScript, so the CSP `script-src` above
+         (which only governs sources that could execute as script) does not apply to it. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Issue Classifier",
+        "url": "https://issueclassifier.com/",
+        "description": "Rate GitHub issues by criticality, effort and relevance — a local-first AI triage tool. Runs entirely in your browser; nothing leaves your machine.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Web browser",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "isAccessibleForFree": true,
+        "license": "https://opensource.org/licenses/MIT",
+        "codeRepository": "https://github.com/JeronimoRepetto/local-issue-classifier",
+        "sameAs": "https://github.com/JeronimoRepetto/local-issue-classifier"
+      }
+    </script>
   </head>
   <body>
-    <div id="app"></div>
+    <!-- Static, crawlable fallback (GitHub issue #8, docs/architecture.md "SEO"). Vue's
+         `createApp(App).mount('#app')` (src/main.ts) replaces this markup on mount — it is not
+         a hydration call, so this is only ever seen by a client that skips the module script, or
+         for the brief moment before it runs. Keep this plain (no inline style/handlers, no
+         nested <div>, exactly one <h1>): src/App.test.ts has the regression test that a real
+         mount leaves exactly one <h1> (HomeContainer's) once the app has painted. -->
+    <div id="app">
+      <h1>Triage GitHub issues, rated by an AI you control.</h1>
+      <p>
+        Issue Classifier pulls a GitHub repository's open issues and README, then rates each one
+        by criticality, complexity, effort and relevance to your project.
+      </p>
+      <p>
+        Ratings come from Jev (TypeSafe AI's decision model), a local model server such as Kev, or
+        a model running entirely inside your browser. Your GitHub token and API keys are kept in
+        this browser tab and sent only to GitHub's API and to the model you choose.
+      </p>
+      <ul>
+        <li>Filter and sort issues by weighted priority</li>
+        <li>Dismiss issues that do not need attention</li>
+        <li>Export the results as plain text, Markdown or HTML</li>
+      </ul>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

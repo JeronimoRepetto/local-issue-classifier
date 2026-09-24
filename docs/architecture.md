@@ -125,6 +125,49 @@ page as `data:` URIs before rendering, so the result never depends on a font bei
 the machine that runs the script and never fetches anything over the network. The output PNG is
 committed, same convention as `pnpm favicons` and `pnpm icons`.
 
+## SEO
+
+GitHub issue #8. Everything here is static (no server, no build-time generation) except where
+noted.
+
+- **`public/robots.txt`** allows every crawler and points at the sitemap.
+- **`public/sitemap.xml`** lists the single production URL. Its `<lastmod>` is a plain
+  `yyyy-mm-dd` date, hand-set (not derived from a commit or the build clock) — bump it when the
+  page's content meaningfully changes, e.g. `pnpm dev`-free: open `public/sitemap.xml` and edit
+  the date. There is only one URL because the app has no path-based routing (see below), so
+  there is nothing else to list.
+- **`<link rel="canonical">`** in `index.html` pins `https://issueclassifier.com/` as the
+  canonical URL, regardless of which host actually served the page (custom domain, the
+  `*.pages.dev` alias, or a preview subdomain).
+- **`public/_headers`** adds `X-Robots-Tag: noindex` on the `*.pages.dev` production alias and on
+  per-branch/per-deployment preview subdomains, using Cloudflare's own documented placeholder
+  syntax (`:project`, `:version` — developers.cloudflare.com/pages/configuration/headers/), so
+  only the custom domain is ever indexed. This is additive to the existing `/*` block (both
+  match and both sets of headers are sent); the CSP mirrored on `/*` is untouched.
+- **JSON-LD structured data** (`<script type="application/ld+json">` in `index.html`) describes
+  the app as a free `SoftwareApplication`, reusing the same description already used for
+  `og:description`/`<meta name="description">` (tests/linkPreview.test.ts). A
+  `type="application/ld+json"` script is a data island, not executable script, so the CSP
+  `script-src 'self' 'wasm-unsafe-eval'` (which only governs sources that could execute as
+  script) does not apply to it and needed no change — see
+  tests/structuredData.test.ts.
+- **Static fallback content inside `<div id="app">`** (a heading, two short paragraphs and a
+  list) is what a crawler that does not run JavaScript sees, and what a human sees for the brief
+  moment before `src/main.ts`'s `createApp(App).mount('#app')` replaces it — Vue's own docs are
+  explicit that a plain mount "is not a hydration call" and "the container's content will be
+  replaced". `src/App.test.ts` has the regression test that a real mount over this exact markup
+  leaves exactly one `<h1>` (HomeContainer's own).
+- **`public/404.html`**: the app has no path-based routing (no `vue-router`, no History API
+  navigation — `src/composables/useView.ts` is in-memory view state, always at `/`). Without a
+  top-level `404.html`, Cloudflare Pages assumes a single-page app and serves `index.html` (200)
+  for any unmatched path; a top-level `404.html` disables that fallback and Pages returns a real
+  404 instead (developers.cloudflare.com/pages/configuration/serving-pages/). This is also why
+  `robots.txt` and `sitemap.xml` used to fall through to the SPA's `index.html` before this task:
+  neither file existed under `public/`, so both requests hit the same SPA fallback.
+- `scripts/build-check.mjs`'s `REQUIRED_DIST_FILES` requires `robots.txt`, `sitemap.xml` and
+  `404.html` to ship in the Cloudflare Pages build output, same as `index.html`/`_headers`/
+  `og-image.png`.
+
 ## Storage layout
 
 Saved analyses live in **IndexedDB**; every other non-secret value stays in `localStorage`.

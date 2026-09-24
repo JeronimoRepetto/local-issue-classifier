@@ -19,7 +19,7 @@ import {
 
 describe('REQUIRED_DIST_FILES / REQUIRED_DIST_DIRS', () => {
   it('names what a Cloudflare Pages deployment of this app needs', () => {
-    expect(REQUIRED_DIST_FILES).toEqual(['index.html', '_headers', 'og-image.png'])
+    expect(REQUIRED_DIST_FILES).toEqual(['index.html', '_headers', 'og-image.png', 'robots.txt', 'sitemap.xml', '404.html'])
     expect(REQUIRED_DIST_DIRS).toEqual(['ort', 'launchers'])
   })
 })
@@ -29,6 +29,9 @@ describe('checkDistEntries', () => {
     'index.html',
     '_headers',
     'og-image.png',
+    'robots.txt',
+    'sitemap.xml',
+    '404.html',
     'assets/index-abc123.js',
     'ort/ort-wasm-simd-threaded.jsep.mjs',
     'ort/ort-wasm-simd-threaded.jsep.wasm',
@@ -56,6 +59,24 @@ describe('checkDistEntries', () => {
     const findings = checkDistEntries(CLEAN_TREE.filter((e) => e !== 'og-image.png'))
     expect(findings).toHaveLength(1)
     expect(findings[0]).toMatchObject({ rule: 'missing-required-file', path: 'og-image.png' })
+  })
+
+  it('fails when robots.txt is missing', () => {
+    const findings = checkDistEntries(CLEAN_TREE.filter((e) => e !== 'robots.txt'))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ rule: 'missing-required-file', path: 'robots.txt' })
+  })
+
+  it('fails when sitemap.xml is missing', () => {
+    const findings = checkDistEntries(CLEAN_TREE.filter((e) => e !== 'sitemap.xml'))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ rule: 'missing-required-file', path: 'sitemap.xml' })
+  })
+
+  it('fails when 404.html is missing (Pages would fall back to SPA mode for unknown paths)', () => {
+    const findings = checkDistEntries(CLEAN_TREE.filter((e) => e !== '404.html'))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ rule: 'missing-required-file', path: '404.html' })
   })
 
   it('fails when the ort/ tree is empty', () => {
@@ -90,6 +111,9 @@ describe('checkDistEntries', () => {
         'missing-required-file', // index.html
         'missing-required-file', // _headers
         'missing-required-file', // og-image.png
+        'missing-required-file', // robots.txt
+        'missing-required-file', // sitemap.xml
+        'missing-required-file', // 404.html
         'missing-required-dir', // ort
         'missing-required-dir', // launchers
         'forbidden-entry', // functions/

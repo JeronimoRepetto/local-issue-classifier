@@ -33,3 +33,17 @@
 # is ever needed, is to add a content hash to these two filenames.
 /ort/*
   Cache-Control: public, max-age=31536000, immutable
+
+# SEO (GitHub issue #8, docs/architecture.md "SEO"): keep the project's permanent
+# *.pages.dev alias and every per-branch/per-deployment preview subdomain out of
+# search results, so only https://issueclassifier.com ranks. `:project`/`:version`
+# are Cloudflare's own placeholder names from its docs example, not this project's
+# literal name (developers.cloudflare.com/pages/configuration/headers/, "Search
+# Engine Indexing Control"); Cloudflare already applies noindex to preview
+# deployments automatically, but the permanent pages.dev alias does not get that
+# treatment, so both rules are kept here to match the documented example exactly.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex
