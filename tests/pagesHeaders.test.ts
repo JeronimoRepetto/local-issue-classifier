@@ -51,8 +51,14 @@ const blockFor = (pattern: string) => blocks.find((b) => b.pattern === pattern)
 const metaCsp = /http-equiv="Content-Security-Policy"\s+content="([^"]+)"/.exec(HTML)?.[1] ?? ''
 
 describe('public/_headers', () => {
-  it('has exactly the three blocks this app needs, in a stable, non-conflicting set', () => {
-    expect(blocks.map((b) => b.pattern)).toEqual(['/*', '/assets/*', '/ort/*'])
+  it('has exactly the blocks this app needs, in a stable, non-conflicting set', () => {
+    expect(blocks.map((b) => b.pattern)).toEqual([
+      '/*',
+      '/assets/*',
+      '/ort/*',
+      'https://:project.pages.dev/*',
+      'https://:version.:project.pages.dev/*',
+    ])
   })
 
   it('mirrors the index.html Content-Security-Policy meta tag exactly on /*', () => {
@@ -87,5 +93,23 @@ describe('public/_headers', () => {
 
   it('has no rule for /jev/*: the Pages Function there sets its own headers directly', () => {
     expect(blockFor('/jev/*')).toBeUndefined()
+  })
+
+  // GitHub issue #8 (docs/architecture.md "SEO"): the *.pages.dev domain (the project's
+  // permanent alias) and its per-branch/per-deployment preview subdomains must never be
+  // indexed separately from https://issueclassifier.com — the placeholder syntax below is
+  // Cloudflare's own documented example (developers.cloudflare.com/pages/configuration/headers/
+  // "Search Engine Indexing Control"), not this project's literal name.
+  it.each(['https://:project.pages.dev/*', 'https://:version.:project.pages.dev/*'])(
+    'sets X-Robots-Tag: noindex on %s',
+    (pattern) => {
+      expect(blockFor(pattern)?.headers['X-Robots-Tag']).toBe('noindex')
+    },
+  )
+
+  it('adds the two pages.dev noindex rules without touching the CSP mirrored on /*', () => {
+    expect(metaCsp.length).toBeGreaterThan(0)
+    expect(blockFor('/*')?.headers['Content-Security-Policy']).toBe(metaCsp)
+    expect(blockFor('https://:project.pages.dev/*')?.headers['Content-Security-Policy']).toBeUndefined()
   })
 })
