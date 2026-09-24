@@ -120,7 +120,7 @@ Every component takes props and emits events. None uses a store.
 | `UiSegmented` | A pill track radio group (`role="radiogroup"`, roving tabindex, arrow keys wrap). Used for theme and export scope. |
 | `LevelBadge` | A 20 px tinted chip with a lowercase mono label and a CSS three-bar meter (`data-bars`). The stale variant is dashed. |
 | `ScoreBar` | Score pill: a mono number in the heat color, a subtle `/100`, and an optional 3 px bar (`bar=false` for dense cells). |
-| `ConfidenceBadge` | Mono percent. Level cells hide it at high confidence, so only doubt is flagged. Low confidence shows a warning and a `?` icon. |
+| `ConfidenceBadge` | Mono percent with a `?` icon. Owns its own visibility (user decision 2026-09-24): renders only at confidence ≤ 0.50, so callers never pass `hideHigh`. Color is a continuous `color-mix` gradient from warning (0.50) to danger (0.01). The tooltip and `aria-label` state the confidence, the per-level probability breakdown when given, and suggest reviewing the issue. |
 | `FilterChip` | A 28 px mono pill. Active is accent-soft with an accent border. |
 | `UiDialog`, `UiPopover`, `UiTooltip`, `UiToast` | 12 px radius, hairline border, `elev-2`/`elev-3`. The dialog footer sits on a surface band under a hairline. The tooltip is the inverse surface. |
 | `EmptyState` | No frame: 64 px monochrome pixel art in `text-subtle`, a sans title, one sentence, at most one action. |

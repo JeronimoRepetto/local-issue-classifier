@@ -34,27 +34,62 @@ describe('LevelBadge', () => {
 })
 
 describe('ConfidenceBadge', () => {
-  it('shows low confidence with a "?" glyph and the warning style', () => {
-    const wrapper = mount(ConfidenceBadge, { props: { confidence: 0.42 } })
-    const badge = wrapper.get('.confidence-badge')
-    expect(badge.classes()).toContain('confidence-badge--low')
-    expect(wrapper.find('[data-test="question-glyph"]').exists()).toBe(true)
-    expect(badge.attributes('aria-label')).toBe('Confidence 0.42 (low)')
-    expect(badge.text()).toContain('42%')
-  })
-
-  it('hides high confidence when asked to', () => {
-    const wrapper = mount(ConfidenceBadge, { props: { confidence: 0.91, hideHigh: true } })
+  // user decision 2026-09-24: the badge owns its own visibility rule now —
+  // shown only at confidence <= 0.50 — so callers no longer pass `hideHigh`.
+  it('is hidden once confidence is above 0.50', () => {
+    const wrapper = mount(ConfidenceBadge, { props: { confidence: 0.51 } })
     expect(wrapper.find('.confidence-badge').exists()).toBe(false)
   })
 
-  it('lists per-level probabilities in its tooltip', () => {
+  it('is shown at exactly 0.50, with the "?" glyph', () => {
+    const wrapper = mount(ConfidenceBadge, { props: { confidence: 0.5 } })
+    const badge = wrapper.get('.confidence-badge')
+    expect(wrapper.find('[data-test="question-glyph"]').exists()).toBe(true)
+    expect(badge.text()).toContain('50%')
+  })
+
+  it('stays visible down to the lowest confidence', () => {
+    const wrapper = mount(ConfidenceBadge, { props: { confidence: 0.01 } })
+    expect(wrapper.find('.confidence-badge').exists()).toBe(true)
+  })
+
+  it.each([
+    [0.5, 0],
+    [0.25, 51],
+    [0.01, 100],
+  ])('sets --confidence-mix to %s%% for confidence %s (danger share of the warning→danger gradient)', (
+    confidence,
+    expectedPercent,
+  ) => {
+    const wrapper = mount(ConfidenceBadge, { props: { confidence } })
+    const badge = wrapper.get('.confidence-badge')
+    expect(badge.attributes('style')).toContain(`--confidence-mix: ${expectedPercent}%`)
+  })
+
+  it('explains the confidence and the probability breakdown in its tooltip', () => {
     const wrapper = mount(ConfidenceBadge, {
-      props: { confidence: 0.6, probabilities: { high: 0.6, medium: 0.3, low: 0.1 } },
+      props: { confidence: 0.39, probabilities: { low: 0.12, medium: 0.18, high: 0.7 } },
     })
     const tooltip = wrapper.get('[role="tooltip"]')
-    expect(tooltip.text()).toContain('high 60%')
-    expect(tooltip.text()).toContain('low 10%')
+    expect(tooltip.text()).toBe(
+      "Jev's confidence in this answer: 39%. It is separate from the probabilities: low 12% · medium 18% · high 70%. Consider reviewing this issue.",
+    )
+  })
+
+  it('drops the probability sentence when none are given', () => {
+    const wrapper = mount(ConfidenceBadge, { props: { confidence: 0.39 } })
+    const tooltip = wrapper.get('[role="tooltip"]')
+    expect(tooltip.text()).toBe("Jev's confidence in this answer: 39%. Consider reviewing this issue.")
+  })
+
+  it('carries the same explanation in aria-label for screen readers', () => {
+    const wrapper = mount(ConfidenceBadge, {
+      props: { confidence: 0.39, probabilities: { low: 0.12, medium: 0.18, high: 0.7 } },
+    })
+    const badge = wrapper.get('.confidence-badge')
+    expect(badge.attributes('aria-label')).toBe(
+      "Jev's confidence in this answer: 39%. It is separate from the probabilities: low 12% · medium 18% · high 70%. Consider reviewing this issue.",
+    )
   })
 })
 

@@ -15,7 +15,13 @@ export function levelLabel(level: Level): string {
   return level[0].toUpperCase() + level.slice(1)
 }
 
-/** SPEC §10.4: high ≥ 0.8, medium 0.5–0.8, low < 0.5. */
+/**
+ * SPEC §10.4: high ≥ 0.8, medium 0.5–0.8, low < 0.5. Used by the min-confidence
+ * filter and by export (`includeConfidence`), which both band a numeric score
+ * into these three levels. `ConfidenceBadge` no longer uses this: since the
+ * user decision of 2026-09-24 it renders on a continuous 0–0.50 scale (a
+ * gradient plus its own hide/show rule) instead of this three-way split.
+ */
 export function confidenceLevel(confidence: number): Level {
   if (confidence >= 0.8) return 'high'
   if (confidence >= 0.5) return 'medium'

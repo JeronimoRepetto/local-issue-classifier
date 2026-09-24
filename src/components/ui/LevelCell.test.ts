@@ -19,11 +19,21 @@ describe('LevelCell', () => {
     expect(wrapper.text()).not.toContain('91%')
   })
 
-  it('shows the confidence badge when confidence is below high', () => {
+  it('keeps a medium (but not low-enough) confidence quiet too (badge shows only at <= 0.50)', () => {
     const wrapper = mount(LevelCell, {
       props: { dimension: 'Criticality', value: { ...scoreDimension, confidence: 0.62 } },
     })
-    expect(wrapper.text()).toContain('62%')
+    expect(wrapper.text()).not.toContain('62%')
+    expect(wrapper.find('.confidence-badge').exists()).toBe(false)
+  })
+
+  it('shows the confidence badge once confidence drops to 0.50 or below, without passing hideHigh', () => {
+    const wrapper = mount(LevelCell, {
+      props: { dimension: 'Criticality', value: { ...scoreDimension, confidence: 0.39 } },
+    })
+    expect(wrapper.text()).toContain('39%')
+    expect(wrapper.find('.confidence-badge').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('hide-high')
   })
 
   it('marks the level badge stale when the row is stale', () => {
