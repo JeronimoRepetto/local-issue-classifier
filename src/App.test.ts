@@ -111,7 +111,7 @@ describe('App', () => {
   it('the Settings gear switches to Settings (SettingsContainer), and the brand returns home', async () => {
     const wrapper = mount(App, { attachTo: document.body })
     await wrapper.get('[data-test="open-settings"]').trigger('click')
-    expect(wrapper.find('[data-test="clear-keys"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="forget-keys"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(false)
 
     await wrapper.get('[data-test="brand"]').trigger('click')

@@ -93,15 +93,20 @@ describe('SettingsContainer', () => {
     )
   })
 
-  it('Clear keys empties both in-memory secrets', async () => {
+  it('SecretsPersistenceToggle mounts in the Keys section and Forget keys clears secrets', async () => {
     const { useSecrets } = await import('../../composables/useSecrets')
     useSecrets().setJevKey('sk-test')
     useSecrets().setGitHubToken('ghp_test')
 
     const { default: SettingsContainer } = await import('./SettingsContainer.vue')
     const wrapper = mount(SettingsContainer)
-    await wrapper.get('[data-test="clear-keys"]').trigger('click')
 
+    // Verify the toggle renders in the Keys section
+    expect(wrapper.find('[data-test="secrets-note"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="forget-keys"]').exists()).toBe(true)
+
+    // Verify Forget keys clears the secrets
+    await wrapper.get('[data-test="forget-keys"]').trigger('click')
     expect(useSecrets().state.jevApiKey).toBe('')
     expect(useSecrets().state.githubToken).toBe('')
   })

@@ -14,7 +14,9 @@ import KeyStatus from '../ui/KeyStatus.vue'
 import PreferencesForm from '../ui/PreferencesForm.vue'
 import ProviderSelector from '../ui/ProviderSelector.vue'
 import HardwareFitPanel from '../ui/HardwareFitPanel.vue'
+import SecretsPersistenceToggle from '../ui/SecretsPersistenceToggle.vue'
 import { useSecrets } from '../../composables/useSecrets'
+import { useSecretsPersistence } from '../../composables/useSecrets'
 import { usePreferences } from '../../composables/usePreferences'
 import { useAnalyses } from '../../composables/useAnalyses'
 import { useProvider } from '../../composables/useProvider'
@@ -28,6 +30,7 @@ const ABOUT_TEXT =
   'under the SIL Open Font License 1.1. Full notices in THIRD_PARTY_NOTICES.md.'
 
 const secrets = useSecrets()
+const { level: secretsLevel, forget: forgetKeys } = useSecretsPersistence()
 const prefs = usePreferences()
 const analyses = useAnalyses()
 const provider = useProvider()
@@ -137,15 +140,13 @@ onBeforeUnmount(() => stopTheme?.())
         </UiSecretInput>
       </div>
 
+      <SecretsPersistenceToggle v-model="secretsLevel" @forget="forgetKeys()" />
+
       <p class="settings__notice">
         Issue content of the repositories you classify is sent to TypeSafe AI. Neither key is
         ever saved to disk — only non-secret preferences and your saved analyses live in this
         browser's storage.
       </p>
-
-      <div class="settings__actions">
-        <UiButton data-test="clear-keys" variant="secondary" @click="secrets.clearKeys()">Clear keys</UiButton>
-      </div>
       </div>
     </section>
 
