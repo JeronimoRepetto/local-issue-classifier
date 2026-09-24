@@ -10,6 +10,9 @@ issues never leave your machine or LAN.
 | [jaredpalmer/kev](https://github.com/jaredpalmer/kev) | Apache-2.0 | `python -m kev.serve` | `http://localhost:8009` | `kev-latest` |
 | [allebee/jevk5](https://github.com/allebee/jevk5) | Apache-2.0 | `jevk5-serve` | `http://localhost:8090` | `alibiserikbay/JevK5` |
 
+To run a model with no server at all, see [In-browser inference](browser-inference.md)
+(experimental: a small placeholder model for now).
+
 Both are presets in Settings. The facts here come from each project's README (checked 2026-09-23).
 Check them again before you rely on them.
 

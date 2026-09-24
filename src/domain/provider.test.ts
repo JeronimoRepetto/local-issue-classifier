@@ -2,8 +2,12 @@
 // provider model, the local base URL guard and the tolerant sanitizer.
 import { describe, expect, it } from 'vitest'
 import {
+  BROWSER_MODELS,
   LOCAL_PRESETS,
+  defaultBrowserProviderConfig,
   defaultProviderConfig,
+  findBrowserModel,
+  findPreset,
   parseModelNames,
   providerKey,
   providerLabel,
@@ -132,5 +136,39 @@ describe('parseModelNames', () => {
 
   it('returns null for anything else', () => {
     for (const body of [null, 'x', {}, { models: 'x' }, { models: [{}] }]) expect(parseModelNames(body)).toBeNull()
+  })
+})
+
+// Phase A of in-browser inference (docs/browser-inference.md): a third kind.
+describe('browser provider kind', () => {
+  it('ships one small placeholder model with its download sizes', () => {
+    const [model] = BROWSER_MODELS
+    expect(model.id).toBe('onnx-community/Qwen3-0.6B-ONNX')
+    expect(model.placeholder).toBe(true)
+    expect(model.downloadBytes.webgpu).toBeLessThan(model.downloadBytes.wasm)
+    expect(model.downloadBytes.wasm).toBeLessThan(1_000_000_000)
+    expect(defaultBrowserProviderConfig()).toEqual({ kind: 'browser', modelId: model.id })
+  })
+
+  it('keeps a stored browser config and only its model id', () => {
+    expect(sanitizeProviderConfig({ kind: 'browser', modelId: 'org/other', apiKey: 'x' })).toEqual({
+      kind: 'browser',
+      modelId: 'org/other',
+    })
+    expect(sanitizeProviderConfig({ kind: 'browser', modelId: '  ' })).toEqual(defaultBrowserProviderConfig())
+    expect(sanitizeProviderConfig({ kind: 'browser' })).toEqual(defaultBrowserProviderConfig())
+  })
+
+  it('labels and keys it by model', () => {
+    const config = defaultBrowserProviderConfig()
+    expect(providerLabel(config)).toBe('In this browser (Qwen3 0.6B, experimental)')
+    expect(providerLabel({ kind: 'browser', modelId: 'org/custom' })).toBe('In this browser (org/custom, experimental)')
+    expect(providerKey(config)).toBe('browser:onnx-community/Qwen3-0.6B-ONNX')
+    expect(findBrowserModel('org/custom')).toBeNull()
+    expect(findBrowserModel(config.modelId)?.label).toBe('Qwen3 0.6B')
+  })
+
+  it('has no local preset', () => {
+    expect(findPreset(defaultBrowserProviderConfig())).toBeNull()
   })
 })

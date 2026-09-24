@@ -261,6 +261,13 @@ issue text on your machine or LAN, and needs no key by default. See
 [`docs/local-providers.md`](docs/local-providers.md) for the exact commands, the CORS/proxy
 fallback and troubleshooting.
 
+**In this browser (experimental).** A third choice runs a small model inside the page with
+transformers.js on WebGPU (WebAssembly as a slow fallback): no install, no key, no server. The
+weights (~579 MB) are downloaded once from the Hugging Face Hub and kept in the browser cache
+(Settings → Local data shows the size and removes it). It runs one issue at a time and costs
+nothing. For now the model is a generic Qwen3 0.6B, **not** Jev, so its answers are placeholders
+until JevK5 weights are exported to ONNX. See [`docs/browser-inference.md`](docs/browser-inference.md).
+
 ## Hardware fit
 
 Settings → **Hardware** answers "can this machine run a local model, and which size?" by reading

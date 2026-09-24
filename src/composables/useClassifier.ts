@@ -99,7 +99,12 @@ function counts(filteredNumbers?: readonly number[]): ScopeCounts | null {
 // Preferences.classifyMode and trimmingFloor are exposed in Settings (ProviderSelector's
 // Advanced disclosure, WIRE-2). Showing estimate.profile / progress.profile in the
 // Classify bar itself ("1 request, compact profile") is not wired up yet.
-const classifyMode = (): ClassifyMode => (prefs.state.classifyMode === 'per-issue' ? 'per-issue' : 'batched')
+// A browser provider always runs per issue, one at a time (docs/browser-inference.md):
+// a batched state is too large for the page's attention buffers, and a second
+// concurrent forward pass would only compete for the same GPU.
+const classifyMode = (): ClassifyMode =>
+  provider.isBrowser.value || prefs.state.classifyMode === 'per-issue' ? 'per-issue' : 'batched'
+const concurrency = (): number => (provider.isBrowser.value ? 1 : prefs.state.concurrency)
 
 /**
  * §4.7. Batched: the fitter's plan, each request's tokens counted once.
@@ -115,8 +120,8 @@ function estimate(request: ClassifyRequest = {}): ClassifyEstimate | null {
   })
   const run =
     classifyMode() === 'batched' ? estimateBatched(issues, a.projectContext) : estimatePerIssue(issues, a.projectContext)
-  // A local server costs nothing per token; requests and latency still apply (T16).
-  return provider.isLocal.value ? { ...run, costUsd: 0 } : run
+  // A local server or the browser costs nothing per token; requests and latency still apply (T16).
+  return provider.isLocal.value || provider.isBrowser.value ? { ...run, costUsd: 0 } : run
 }
 
 function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): ClassifyEstimate {
@@ -131,7 +136,7 @@ function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): Classif
     ...run,
     mode: 'batched',
     profile: plan.batches.length > 0 ? plan.profile : null,
-    seconds: estimateBatchedSeconds(run.requests, prefs.state.concurrency),
+    seconds: estimateBatchedSeconds(run.requests, concurrency()),
     tooLarge: plan.tooLarge.length,
   }
 }
@@ -152,7 +157,7 @@ function estimatePerIssue(issues: readonly Issue[], ctx: ProjectContext): Classi
     ...run,
     mode: 'per-issue',
     profile: null,
-    seconds: estimateSeconds(run.requests, prefs.state.concurrency),
+    seconds: estimateSeconds(run.requests, concurrency()),
     tooLarge,
   }
 }
@@ -174,7 +179,7 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
   controller = run
   state.phase = 'running'
   state.summary = null
-  state.progress = { done: 0, total: issues.length, failed: 0, rateLimited: 0, concurrency: prefs.state.concurrency }
+  state.progress = { done: 0, total: issues.length, failed: 0, rateLimited: 0, concurrency: concurrency() }
   setRunActive(true)
 
   let summary: RunSummary
@@ -183,7 +188,7 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
       issues,
       projectContext: current.projectContext,
       client: config.createClient({ getApiKey: provider.getApiKey, model: provider.model() }),
-      concurrency: prefs.state.concurrency,
+      concurrency: concurrency(),
       mode: classifyMode(),
       trimmingFloor: prefs.state.trimmingFloor,
       questionsVersion: QUESTIONS_VERSION,

@@ -19,3 +19,10 @@ coverage
 
 # pnpm local:kev's Kev checkout (FB-4, scripts/local-kev.mjs)
 .local/
+
+# In-browser model files (docs/browser-inference.md): the browser keeps them in its
+# Cache API; a Node run of transformers.js or a phase-B export would write here.
+.cache/
+models/
+*.onnx
+*.onnx_data

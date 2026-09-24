@@ -2,6 +2,7 @@
 // renderer string, a small hand-maintained GPU → VRAM table, and a verdict per
 // local Jev-compatible model tier. Nothing here measures anything: the inputs
 // are strings and numbers the browser already exposes, or what the user types.
+import { BROWSER_MODELS } from './provider'
 
 export type GpuVendor = 'nvidia' | 'amd' | 'intel' | 'apple' | 'qualcomm' | 'arm' | 'unknown'
 export type GpuSource = 'webgl' | 'webgpu' | 'manual' | 'unknown'
@@ -325,8 +326,12 @@ export function applyHardwareOverride(report: HardwareReport, override: Hardware
   return { ...report, gpu, unifiedMemory, confidence: known ? 'high' : report.confidence }
 }
 
+function round1(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
 // ── Tier fit ─────────────────────────────────────────────────────────
-export type TierId = 'kev-0.8b' | 'kev-4b' | 'jevk5' | 'kev-9b'
+export type TierId = 'kev-0.8b' | 'kev-4b' | 'jevk5' | 'kev-9b' | 'browser-small'
 export type TierVerdictKind = 'ok' | 'tight' | 'no' | 'unknown'
 
 export interface LocalTier {
@@ -348,6 +353,20 @@ export const LOCAL_TIERS: readonly LocalTier[] = [
   { id: 'kev-9b', label: 'Kev 9B', requiredGb: 20 },
 ]
 
+/** An in-browser model needs about this multiple of its download (weights + activations + KV cache). */
+export const BROWSER_MEMORY_FACTOR = 1.5
+
+/**
+ * The in-browser tier (docs/browser-inference.md): the default browser model's
+ * WebGPU download × 1.5, in GB. Judged on its own (FitResult.browser) so it
+ * never changes the local-server recommendation.
+ */
+export const BROWSER_TIER: LocalTier = {
+  id: 'browser-small',
+  label: `In-browser ${BROWSER_MODELS[0].label}`,
+  requiredGb: round1((BROWSER_MODELS[0].downloadBytes.webgpu * BROWSER_MEMORY_FACTOR) / 1e9),
+}
+
 /** A tier is "ok" when it uses at most this share of the available memory. */
 export const OK_HEADROOM = 0.85
 /** Unified memory keeps this share of RAM for the OS and the browser... */
@@ -363,6 +382,8 @@ export interface TierVerdict extends LocalTier {
 export interface FitResult {
   memory: { availableGb: number | null; basis: 'vram' | 'unified' | 'none'; lowerBound: boolean }
   tiers: TierVerdict[]
+  /** The in-browser tier: VRAM (WebGPU) when known, otherwise RAM (the WASM fallback runs on the CPU). */
+  browser: TierVerdict
   recommendation: { tier: TierId | 'cloud'; reason: string }
   cloud: string
 }
@@ -372,9 +393,6 @@ export const CLOUD_FALLBACK =
 
 const MANUAL_HINT = 'Pick your GPU or enter its memory manually below.'
 
-function round1(value: number): number {
-  return Math.round(value * 10) / 10
-}
 
 function availableMemory(report: HardwareReport): FitResult['memory'] {
   if (report.unifiedMemory) {
@@ -392,7 +410,17 @@ function availableMemory(report: HardwareReport): FitResult['memory'] {
   return { availableGb: report.gpu.vramGb, basis: 'vram', lowerBound: false }
 }
 
-function judge(tier: LocalTier, memory: FitResult['memory'], report: HardwareReport): TierVerdict {
+type MemoryBasis = FitResult['memory']['basis'] | 'ram'
+type Memory = { availableGb: number | null; basis: MemoryBasis; lowerBound: boolean }
+
+const POOL_TEXT: Record<MemoryBasis, string> = {
+  vram: 'VRAM',
+  unified: 'usable unified memory (RAM minus a reserve)',
+  ram: 'RAM (the browser falls back to the CPU)',
+  none: 'VRAM',
+}
+
+function judge(tier: LocalTier, memory: Memory, report: HardwareReport): TierVerdict {
   const { availableGb, basis, lowerBound } = memory
   if (availableGb === null) {
     const why = report.unifiedMemory
@@ -400,7 +428,7 @@ function judge(tier: LocalTier, memory: FitResult['memory'], report: HardwareRep
       : "Your GPU's memory could not be determined."
     return { ...tier, verdict: 'unknown', reasons: [why, MANUAL_HINT] }
   }
-  const pool = basis === 'unified' ? 'usable unified memory (RAM minus a reserve)' : 'VRAM'
+  const pool = POOL_TEXT[basis]
   const needs = `Needs ~${tier.requiredGb} GB; ${availableGb} GB of ${pool} available.`
   if (tier.requiredGb <= availableGb * OK_HEADROOM) return { ...tier, verdict: 'ok', reasons: [needs] }
   if (tier.requiredGb <= availableGb) {
@@ -433,5 +461,10 @@ export function fitTiers(report: HardwareReport): FitResult {
             ? `No local verdict without a memory figure. ${MANUAL_HINT}`
             : 'No local model fits this hardware; use the cloud API.',
       }
-  return { memory, tiers, recommendation, cloud: CLOUD_FALLBACK }
+  const browserMemory: Memory =
+    memory.availableGb === null && report.ramGb !== null
+      ? { availableGb: report.ramGb, basis: 'ram', lowerBound: report.ramIsLowerBound }
+      : memory
+  const browser = judge(BROWSER_TIER, browserMemory, report)
+  return { memory, tiers, browser, recommendation, cloud: CLOUD_FALLBACK }
 }

@@ -220,3 +220,151 @@ describe('useProvider: local server routing', () => {
     expect(secrets.state.jevApiKey).toBe('jev-test')
   })
 })
+
+// In-browser inference, phase A (docs/browser-inference.md): the model runs in
+// this page. The loader, the support check and the cache are fakes here.
+describe('useProvider: browser provider', () => {
+  const BROWSER: ProviderConfig = { kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' }
+
+  type LoadOptions = {
+    modelId: string
+    backend: 'webgpu' | 'wasm'
+    onProgress?: (e: { file: string; loaded: number; total: number }) => void
+  }
+
+  function fakeBrowser(options: { support?: 'webgpu' | 'wasm' | 'none'; fail?: boolean } = {}) {
+    let resolveLoad!: () => void
+    const gate = new Promise<void>((r) => (resolveLoad = r))
+    const loadModel = vi.fn(async (opts: LoadOptions) => {
+      opts.onProgress?.({ file: 'onnx/model_q4f16.onnx', loaded: 25, total: 100 })
+      opts.onProgress?.({ file: 'tokenizer.json', loaded: 0, total: 100 })
+      await gate
+      if (options.fail) throw new Error('WebGPU device lost')
+      return {
+        id: opts.modelId,
+        device: opts.backend,
+        encode: (text: string) => [text.length],
+        letterTokenIds: (letters: readonly string[]) => letters.map((_, i) => i),
+        logitsAt: async (_t: readonly number[], ids: readonly number[]) => ids.map((_, i) => i * 10),
+        dispose: vi.fn(async () => {}),
+      }
+    })
+    let cached = 0
+    const removeCached = vi.fn(async () => {
+      cached = 0
+      return 3
+    })
+    mods.provider.configureProvider({
+      browser: {
+        detectSupport: async () => options.support ?? 'webgpu',
+        loadModel,
+        cachedBytes: async () => cached,
+        removeCached,
+      },
+    })
+    return {
+      loadModel,
+      removeCached,
+      finish: () => {
+        cached = 578_917_626
+        resolveLoad()
+      },
+    }
+  }
+
+  const issueState = {
+    project: { name: 'acme/widgets', description: null, topics: [], package: null, readme_excerpt: null, contributing_excerpt: null, docs_index: [] },
+    issue: { number: 1, title: 't', body: 'b' },
+  } as never
+
+  it('is not ready until the model is downloaded, and has no key and no probe', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    fakeBrowser()
+    const provider = mods.provider.useProvider()
+    expect(provider.isBrowser.value).toBe(true)
+    expect(provider.isLocal.value).toBe(false)
+    expect(provider.ready.value).toBe(false)
+    expect(provider.browserStatus.phase).toBe('idle')
+    expect(provider.model()).toBe(BROWSER.modelId)
+    expect(provider.getApiKey()).toBe('')
+    expect(await provider.probe()).toEqual({ status: 'unreachable', models: null })
+    expect(seen).toEqual([])
+  })
+
+  it('downloads with progress, then is ready on the backend the browser offers', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    const browser = fakeBrowser({ support: 'webgpu' })
+    const provider = mods.provider.useProvider()
+    const done = provider.downloadBrowserModel()
+    await vi.waitFor(() => expect(provider.browserStatus.phase).toBe('downloading'))
+    await vi.waitFor(() => expect(provider.browserStatus.progress).toBeCloseTo(0.125, 5))
+    expect(provider.ready.value).toBe(false)
+    browser.finish()
+    await done
+    expect(provider.browserStatus).toMatchObject({ phase: 'ready', device: 'webgpu', support: 'webgpu', error: null })
+    expect(provider.browserStatus.cachedBytes).toBe(578_917_626)
+    expect(provider.ready.value).toBe(true)
+    expect(browser.loadModel).toHaveBeenCalledWith(expect.objectContaining({ modelId: BROWSER.modelId, backend: 'webgpu' }))
+  })
+
+  it('uses WASM (slow) when the browser has no WebGPU', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    const browser = fakeBrowser({ support: 'wasm' })
+    const provider = mods.provider.useProvider()
+    browser.finish()
+    await provider.downloadBrowserModel()
+    expect(provider.browserStatus).toMatchObject({ phase: 'ready', device: 'wasm', support: 'wasm' })
+  })
+
+  it('is unsupported without WebGPU or WebAssembly, and never downloads', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    const browser = fakeBrowser({ support: 'none' })
+    const provider = mods.provider.useProvider()
+    await provider.downloadBrowserModel()
+    expect(provider.browserStatus.phase).toBe('unsupported')
+    expect(browser.loadModel).not.toHaveBeenCalled()
+    expect(provider.ready.value).toBe(false)
+  })
+
+  it('reports a failed load as an error', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    const browser = fakeBrowser({ fail: true })
+    const provider = mods.provider.useProvider()
+    browser.finish()
+    await provider.downloadBrowserModel()
+    expect(provider.browserStatus.phase).toBe('error')
+    expect(provider.browserStatus.error).toMatch(/WebGPU device lost/)
+    expect(provider.ready.value).toBe(false)
+  })
+
+  it('classifies in-process through the browser transport, with no network call', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    const browser = fakeBrowser()
+    const provider = mods.provider.useProvider()
+    browser.finish()
+    await provider.downloadBrowserModel()
+    const result = await provider.createClient().classify(issueState)
+    expect(result.ok).toBe(true)
+    expect(Object.keys((result.body as { answers: object }).answers)).toEqual([
+      'complexity',
+      'criticality',
+      'effort',
+      'relevance',
+      'kind',
+    ])
+    expect(seen).toEqual([])
+  })
+
+  it('removes the downloaded model and goes back to idle', async () => {
+    await load(() => json(MODELS), { provider: BROWSER })
+    const browser = fakeBrowser()
+    const provider = mods.provider.useProvider()
+    browser.finish()
+    await provider.downloadBrowserModel()
+    await provider.removeBrowserModel()
+    expect(browser.removeCached).toHaveBeenCalledWith(BROWSER.modelId)
+    expect(provider.browserStatus.phase).toBe('idle')
+    expect(provider.browserStatus.cachedBytes).toBe(0)
+    expect(provider.ready.value).toBe(false)
+  })
+})

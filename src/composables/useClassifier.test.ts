@@ -336,3 +336,59 @@ describe('useClassifier: local provider (T16)', () => {
     expect(secrets.state.jevApiKey).toBe('jev-test')
   })
 })
+
+describe('useClassifier: browser provider (docs/browser-inference.md)', () => {
+  const BROWSER = { kind: 'browser' as const, modelId: 'onnx-community/Qwen3-0.6B-ONNX' }
+
+  async function loadBrowser() {
+    // Batched and 4 in parallel are the preferences here; the browser provider overrides both.
+    await load(() => ok(), { classifyMode: 'batched', concurrency: 4, provider: BROWSER })
+    const { configureProvider, useProvider } = await import('./useProvider')
+    configureProvider({
+      browser: {
+        detectSupport: async () => 'webgpu',
+        loadModel: async (opts) => ({
+          id: opts.modelId,
+          device: opts.backend,
+          encode: () => [1],
+          letterTokenIds: (letters) => letters.map((_, i) => i),
+          logitsAt: async (_t, ids) => ids.map(() => 0),
+          dispose: async () => {},
+        }),
+        cachedBytes: async () => 0,
+        removeCached: async () => 0,
+      },
+    })
+    return useProvider()
+  }
+
+  it('cannot classify before the model is downloaded', async () => {
+    await loadBrowser()
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    expect(mods.classifier.useClassifier().canClassify.value).toBe(false)
+  })
+
+  it('estimates per-issue requests at no cost, whatever the preferred mode', async () => {
+    await loadBrowser()
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    expect(mods.classifier.useClassifier().estimate({ scope: 'unclassified' })).toMatchObject({
+      mode: 'per-issue',
+      requests: 2,
+      costUsd: 0,
+      profile: null,
+    })
+  })
+
+  it('runs one issue at a time, per issue, never batched', async () => {
+    const provider = await loadBrowser()
+    await provider.downloadBrowserModel()
+    mods.analysis.useAnalysis().setCurrent(analysis())
+    const classifier = mods.classifier.useClassifier()
+    expect(classifier.canClassify.value).toBe(true)
+    const summary = await classifier.start()
+    expect(summary).toMatchObject({ status: 'completed', classified: 2, profile: null })
+    expect(client.batches).toEqual([])
+    expect(client.calls.map((c) => c.issue).sort()).toEqual([1, 4])
+    expect(classifier.state.progress?.concurrency).toBe(1)
+  })
+})
