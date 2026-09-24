@@ -9,16 +9,30 @@
 // user may opt in to 'tab' (sessionStorage) or 'device' (localStorage); the
 // secrets then live under ONE dedicated key in that one storage, and never in
 // preferences, analyses or the other storage.
+//
+// FB IndexedDB lane (2026-09-24): saved analyses moved to IndexedDB, so every
+// scan below also reads every store of the (fake, per-test) database, and the
+// analysis must really be in it for the scan to count.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAnalysis } from '../src/domain/analysis'
 import { defaultPreferences, defaultProjectContext } from '../src/domain/types'
 import { fakeClassification, fakeIssue, fakeRepo } from './fakes/domainFixtures'
+import { globalFactory, rawDump } from './fakes/idb'
 
 const JEV_KEY = 'jev-secret-key-7f3a9c'
 const GITHUB_TOKEN = 'github_pat_fake_secret_4b2d8e'
 
-function everyPersistedValue(): string[] {
-  const values: string[] = []
+/** Every key and value in every IndexedDB store, as text. */
+async function everyDatabaseValue(): Promise<string[]> {
+  return (await rawDump(globalFactory())).flatMap((r) => [
+    r.store,
+    r.key,
+    typeof r.value === 'string' ? r.value : JSON.stringify(r.value),
+  ])
+}
+
+async function everyPersistedValue(): Promise<string[]> {
+  const values: string[] = [...(await everyDatabaseValue())]
   for (const store of [localStorage, sessionStorage]) {
     for (let i = 0; i < store.length; i++) {
       const key = store.key(i) as string
@@ -51,7 +65,7 @@ describe('secrets are never persisted (§7.3)', () => {
 
     const { useAnalysis } = await import('../src/composables/useAnalysis')
     const store = useAnalysis()
-    store.setCurrent(
+    await store.setCurrent(
       createAnalysis({
         id: 'a1',
         repo: fakeRepo(),
@@ -64,13 +78,16 @@ describe('secrets are never persisted (§7.3)', () => {
       }),
     )
     store.applyResult(1, { ok: true, classification: fakeClassification() })
-    store.flush()
+    await store.flush()
     store.dismiss([2])
     store.updateWorking({ priorityWeights: { criticality: 50, relevance: 50, complexity: 0, effort: 0 } })
-    store.flush()
+    await store.flush()
 
-    // 2. No persisted value anywhere contains either secret.
-    const persisted = everyPersistedValue()
+    // 2. No persisted value anywhere (localStorage, sessionStorage, cookies,
+    //    every IndexedDB store) contains either secret.
+    const database = await everyDatabaseValue()
+    expect(database.some((value) => value.includes('"id":"a1"'))).toBe(true)
+    const persisted = await everyPersistedValue()
     expect(persisted.length).toBeGreaterThan(1)
     for (const value of persisted) {
       expect(value).not.toContain(JEV_KEY)
@@ -90,7 +107,7 @@ describe('secrets are never persisted (§7.3)', () => {
     const reloaded = await import('../src/composables/useAnalysis')
     const fresh = reloaded.useAnalysis()
     expect(fresh.current.value).toBeNull()
-    expect(fresh.restoreLastOpened()).toBe(true)
+    expect(await fresh.restoreLastOpened()).toBe(true)
     const restored = fresh.current.value
     expect(restored?.id).toBe('a1')
     expect(restored?.rows[0]).toMatchObject({ status: 'done', classification: fakeClassification() })
@@ -108,8 +125,8 @@ const ALL_KEYS = { jevApiKey: JEV_KEY, githubToken: GITHUB_TOKEN, localApiKey: L
 type Level = 'memory' | 'tab' | 'device'
 
 /** Every persisted key/value EXCEPT the dedicated secrets entry. */
-function everyNonSecretValue(): string[] {
-  const values: string[] = []
+async function everyNonSecretValue(): Promise<string[]> {
+  const values: string[] = [...(await everyDatabaseValue())]
   for (const store of [localStorage, sessionStorage]) {
     for (let i = 0; i < store.length; i++) {
       const key = store.key(i) as string
@@ -157,7 +174,7 @@ describe('opt-in secrets persistence (FB-2)', () => {
     secrets.setLocalApiKey(LOCAL_KEY)
     expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
     expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
-    expectNoSecretIn(everyPersistedValue())
+    expectNoSecretIn(await everyPersistedValue())
 
     vi.resetModules()
     expect((await freshSecrets()).state).toEqual(NO_KEYS)
@@ -167,7 +184,7 @@ describe('opt-in secrets persistence (FB-2)', () => {
     await withAllKeys('tab')
     expect(storedSecrets(sessionStorage)).toEqual(ALL_KEYS)
     expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
-    expectNoSecretIn(everyNonSecretValue())
+    expectNoSecretIn(await everyNonSecretValue())
 
     vi.resetModules()
     const reloaded = await freshSecrets()
@@ -188,7 +205,7 @@ describe('opt-in secrets persistence (FB-2)', () => {
     await withAllKeys('device')
     expect(storedSecrets(localStorage)).toEqual(ALL_KEYS)
     expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
-    expectNoSecretIn(everyNonSecretValue())
+    expectNoSecretIn(await everyNonSecretValue())
 
     vi.resetModules()
     const reloaded = await freshSecrets()
@@ -212,13 +229,13 @@ describe('opt-in secrets persistence (FB-2)', () => {
     const secrets = await withAllKeys('device')
     secrets.setPersistence('memory')
     expect(secrets.state).toEqual(ALL_KEYS) // still usable this session
-    expectNoSecretIn(everyPersistedValue())
+    expectNoSecretIn(await everyPersistedValue())
 
     vi.resetModules()
     const reloaded = await freshSecrets()
     expect(reloaded.persistence.value).toBe('memory')
     expect(reloaded.state).toEqual(NO_KEYS)
-    expectNoSecretIn(everyPersistedValue())
+    expectNoSecretIn(await everyPersistedValue())
   })
 
   it('a stale copy in a storage the chosen level does not use is wiped on load', async () => {
@@ -237,7 +254,7 @@ describe('opt-in secrets persistence (FB-2)', () => {
     const reloaded = await freshSecrets()
     expect(reloaded.persistence.value).toBe('memory')
     expect(reloaded.state).toEqual(NO_KEYS)
-    expectNoSecretIn(everyPersistedValue())
+    expectNoSecretIn(await everyPersistedValue())
   })
 
   it.each<Level>(['tab', 'device'])('clearKeys ("Forget keys") wipes memory and both storages (%s)', async (level) => {
@@ -248,7 +265,7 @@ describe('opt-in secrets persistence (FB-2)', () => {
     expect(secrets.state).toEqual(NO_KEYS)
     expect(localStorage.getItem(SECRETS_KEY)).toBeNull()
     expect(sessionStorage.getItem(SECRETS_KEY)).toBeNull()
-    expectNoSecretIn(everyPersistedValue())
+    expectNoSecretIn(await everyPersistedValue())
   })
 
   it.each<Level>(['tab', 'device'])('a key dropped after a 401 is dropped from storage too (%s)', async (level) => {
@@ -274,7 +291,7 @@ describe('opt-in secrets persistence (FB-2)', () => {
     const { useAnalysis } = await import('../src/composables/useAnalysis')
     const { usePreferences } = await import('../src/composables/usePreferences')
     const store = useAnalysis()
-    store.setCurrent(
+    await store.setCurrent(
       createAnalysis({
         id: `a-${level}`,
         repo: fakeRepo(),
@@ -287,12 +304,17 @@ describe('opt-in secrets persistence (FB-2)', () => {
       }),
     )
     store.applyResult(1, { ok: true, classification: fakeClassification() })
-    store.flush()
+    await store.flush()
     usePreferences().update({ lastRepo: 'acme/widgets' })
+
+    // The analysis really is in IndexedDB, and no store of it holds a secret.
+    const database = await everyDatabaseValue()
+    expect(database.some((value) => value.includes(`"id":"a-${level}"`))).toBe(true)
+    expectNoSecretIn(database)
 
     const prefs = JSON.parse(localStorage.getItem(PREFERENCES_KEY) as string) as Record<string, unknown>
     expect(prefs.secretsPersistence).toBe(level)
-    const nonSecret = everyNonSecretValue()
+    const nonSecret = await everyNonSecretValue()
     expect(nonSecret.length).toBeGreaterThan(2)
     expectNoSecretIn(nonSecret)
   })

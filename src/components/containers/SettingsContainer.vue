@@ -4,7 +4,7 @@
 // "a full view while in the 'Keys required' state" (§6.1), so it owns the
 // banner, both key fields, the preferences form, the danger-zone actions and
 // the About / credits block.
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import UiSecretInput from '../../ui/UiSecretInput.vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiDialog from '../../ui/UiDialog.vue'
@@ -40,10 +40,26 @@ const provider = useProvider()
 const clearAllOpen = ref(false)
 
 function onClearAllConfirm(): void {
-  analyses.clearAll()
+  // Preferences are cleared synchronously; the database finishes in the background.
+  void analyses.clearAll()
   secrets.clearKeys()
   clearAllOpen.value = false
 }
+
+// Whether the browser may evict saved analyses under storage pressure. The
+// request itself (navigator.storage.persist) happens once, on the first save.
+onMounted(() => {
+  void analyses.checkPersistence()
+})
+const PERSISTENCE_TEXT = {
+  unknown: 'Persistent storage: checking…',
+  persisted: 'Persistent storage: on. The browser will not clear saved analyses to free up space.',
+  'best-effort':
+    'Persistent storage: not granted. The browser may clear saved analyses when the disk runs low; export anything you need to keep.',
+  unsupported:
+    'Persistent storage: not supported by this browser. Saved analyses may be cleared when the disk runs low.',
+} as const
+const persistenceText = computed(() => PERSISTENCE_TEXT[analyses.state.persistence])
 
 // T16, WIRE-2: which server classifies, and, for a local one, the cached probe route.
 const STATUS_LABEL: Record<ProviderRouteStatus, string> = {
@@ -213,8 +229,12 @@ onBeforeUnmount(() => stopTheme?.())
         <p class="settings__lede">Every saved analysis and preference in this browser.</p>
       </div>
       <div class="settings__body">
+        <p class="settings__persistence" data-test="storage-persistence">{{ persistenceText }}</p>
         <div class="settings__danger">
-          <p>Removes all saved analyses and preferences, and clears your keys. This cannot be undone.</p>
+          <p>
+            Removes all saved analyses (this browser's local database) and preferences, and clears your keys. This
+            cannot be undone.
+          </p>
           <UiButton data-test="clear-all" variant="danger" @click="clearAllOpen = true">
             Clear all local data
           </UiButton>
@@ -225,7 +245,7 @@ onBeforeUnmount(() => stopTheme?.())
     <UiDialog
       :open="clearAllOpen"
       title="Clear all local data"
-      description="This removes every saved analysis and preference from this browser, and clears your in-memory keys. This cannot be undone."
+      description="This removes every saved analysis (the browser's local database) and preference from this browser, and clears your in-memory keys. This cannot be undone."
       confirm-phrase="delete"
       confirm-label="Clear all data"
       @close="clearAllOpen = false"
@@ -340,6 +360,13 @@ onBeforeUnmount(() => stopTheme?.())
   padding: var(--space-2h) var(--space-3);
   border: var(--line-thin) solid var(--color-border);
   border-radius: var(--radius-md);
+}
+
+.settings__persistence {
+  margin: 0 0 var(--space-2h);
+  color: var(--color-text-muted);
+  font-size: var(--text-table-size);
+  line-height: var(--text-table-line);
 }
 
 .settings__danger p {

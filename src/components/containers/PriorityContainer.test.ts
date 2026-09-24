@@ -61,7 +61,7 @@ function numberValue(wrapper: VueWrapper<any>, testId: string): string {
 
 describe('PriorityContainer', () => {
   beforeEach(async () => {
-    vi.useFakeTimers()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }) // the fake IndexedDB needs a real setImmediate
     await freshEnv()
   })
 
@@ -108,8 +108,9 @@ describe('PriorityContainer', () => {
     })
 
     vi.advanceTimersByTime(600) // past the 500 ms working-state save debounce
-    const stored = JSON.parse(storage.getItem('local-issue-classifier:analysis:v1:a1') as string)
-    expect(stored.working.priorityWeights.criticality).toBe(60)
+    await analysisMod.useAnalysis().settled()
+    const saved = await (await import('../../adapters/storage/analysisDb')).getAnalysisDb().loadAnalysis('a1')
+    expect(saved.ok && saved.analysis.working.priorityWeights.criticality).toBe(60)
   })
 
   it('Reset restores the defaults through the same popover', async () => {

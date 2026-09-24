@@ -79,8 +79,12 @@ async function load(handler: Handler, prefs: Partial<Preferences> = { classifyMo
   })
 }
 
-function stored(): Analysis {
-  return JSON.parse(storage.getItem(STORAGE_KEYS.analysis('a1')) as string) as Analysis
+/** The saved copy in IndexedDB (the per-test fake), once pending saves have landed. */
+async function stored(): Promise<Analysis | null> {
+  await mods.analysis.useAnalysis().settled()
+  const { getAnalysisDb } = await import('../adapters/storage/analysisDb')
+  const result = await getAnalysisDb().loadAnalysis('a1')
+  return result.ok ? result.analysis : null
 }
 
 const row = (a: Analysis | null, n: number) => a?.rows.find((r) => r.issue.number === n)
@@ -143,7 +147,8 @@ describe('useClassifier: incremental apply and run guard', () => {
     const store = mods.analysis.useAnalysis()
     store.setCurrent(analysis())
     mods.secrets.useSecrets().setJevKey('jev-test')
-    const writesBefore = storage.setCalls
+    await store.settled()
+    const save = vi.spyOn((await import('../adapters/storage/analysisDb')).getAnalysisDb(), 'saveAnalysis')
 
     const run = mods.classifier.useClassifier().start()
     await vi.waitFor(() => expect(gates.size).toBe(2))
@@ -154,15 +159,15 @@ describe('useClassifier: incremental apply and run guard', () => {
     await vi.waitFor(() => expect(row(store.current.value, 1)?.status).toBe('done'))
     expect(row(store.current.value, 4)?.status).toBe('unclassified')
     // Saved by the coalesced timer, not on every result.
-    expect(storage.setCalls).toBe(writesBefore)
+    expect(save).not.toHaveBeenCalled()
     expect(timers).toHaveLength(1)
     timers[0]()
-    expect(row(stored(), 1)?.status).toBe('done')
+    expect(row(await stored(), 1)?.status).toBe('done')
 
     gates.get(4)?.()
     await run
     expect(mods.runGuard.isRunActive()).toBe(false)
-    expect(row(stored(), 4)?.status).toBe('done') // flushed at the end of the run
+    expect(row(await stored(), 4)?.status).toBe('done') // flushed at the end of the run
   })
 })
 
@@ -205,8 +210,8 @@ describe('useClassifier: cancel, retry failed, resume', () => {
     const summary = await run
 
     expect(summary).toMatchObject({ status: 'cancelled', classified: 1, skipped: 1 })
-    expect(row(stored(), 1)?.status).toBe('done')
-    expect(row(stored(), 4)?.status).toBe('unclassified')
+    expect(row(await stored(), 1)?.status).toBe('done')
+    expect(row(await stored(), 4)?.status).toBe('unclassified')
     expect(classifier.state.phase).toBe('finished')
   })
 
@@ -239,11 +244,12 @@ describe('useClassifier: cancel, retry failed, resume', () => {
     timers[0]() // the coalesced save lands before the "reload"
     mods.classifier.useClassifier().cancel()
     await run
+    await store.settled()
 
     vi.resetModules()
     await load(() => ok())
     expect(mods.secrets.useSecrets().hasJevKey.value).toBe(false)
-    expect(mods.analysis.useAnalysis().restoreLastOpened()).toBe(true)
+    expect(await mods.analysis.useAnalysis().restoreLastOpened()).toBe(true)
     mods.secrets.useSecrets().setJevKey('jev-test')
     await mods.classifier.useClassifier().start()
     expect(client.calls.map((c) => c.issue)).toEqual([4])

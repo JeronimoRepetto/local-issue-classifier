@@ -100,7 +100,7 @@ const resetAtText = computed(() =>
 
     <SaveFailedNotice v-if="showSaveFailed && saveFailed" :reason="saveFailed" @retry="analysis.retrySave()">
       <template #meter>
-        <StorageMeter :used-bytes="analyses.state.usageBytes" />
+        <StorageMeter :used-bytes="analyses.state.usageBytes" :quota-bytes="analyses.state.quotaBytes" />
       </template>
     </SaveFailedNotice>
   </div>

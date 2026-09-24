@@ -28,7 +28,7 @@ function analysis(id = 'a1') {
 }
 
 beforeEach(async () => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }) // the fake IndexedDB needs a real setImmediate
   vi.resetModules()
   storage = new MemoryStorage()
   ;(await import('../adapters/storage/appStorage')).setAppStorage(storage)
@@ -62,12 +62,13 @@ describe('useColumns', () => {
     columnsMod.useColumns().toggle('confidence')
     columnsMod.useColumns().toggle('kind')
     vi.advanceTimersByTime(500)
+    await analysisMod.useAnalysis().settled()
 
     vi.resetModules()
     ;(await import('../adapters/storage/appStorage')).setAppStorage(storage)
     const reloadedAnalysis: AnalysisModule = await import('./useAnalysis')
     const reloadedColumns: ColumnsModule = await import('./useColumns')
-    reloadedAnalysis.useAnalysis().open('a1')
+    await reloadedAnalysis.useAnalysis().open('a1')
 
     const visible = reloadedColumns.useColumns().visible.value
     expect(visible).toContain('confidence')

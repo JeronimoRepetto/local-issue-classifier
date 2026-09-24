@@ -408,6 +408,7 @@ describe('findExisting (SPEC §2.3 step 5)', () => {
     setup(server, { fetchComments: 'never' })
     const repo = repoMod.useRepo()
     await repo.startNew(ref, 'open')
+    await analysesMod.useAnalyses().settled() // the saved list refreshes once the IndexedDB write lands
 
     expect(repo.findExisting({ owner: 'Acme', repo: 'Widgets' }, 'open')).toMatchObject({ id: 'a1' })
     expect(repo.findExisting({ owner: 'acme', repo: 'widgets' }, 'closed')).toBeNull()

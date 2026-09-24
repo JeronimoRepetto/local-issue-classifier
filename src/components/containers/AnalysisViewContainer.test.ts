@@ -443,15 +443,17 @@ describe('AnalysisViewContainer', () => {
     })
 
     it('shows the save-failed notice with Retry save when the refreshed analysis fails to persist', async () => {
-      storage.quotaBytes = 10
-      analysisMod.useAnalysis().setCurrent(seedAnalysis('a1'))
+      vi.spyOn((await import('../../adapters/storage/analysisDb')).getAnalysisDb(), 'saveAnalysis').mockResolvedValueOnce(
+        { ok: false, reason: 'quota' },
+      )
+      await analysisMod.useAnalysis().setCurrent(seedAnalysis('a1'))
       expect(analysisMod.useAnalysis().status.save).toBe('failed')
       const wrapper = mount(AnalysisViewContainer, { attachTo: document.body })
       await flush()
 
       expect(wrapper.find('[data-test="save-failed-notice"]').exists()).toBe(true)
-      storage.quotaBytes = Infinity
       await wrapper.get('[data-test="retry-save"]').trigger('click')
+      await analysisMod.useAnalysis().settled()
       expect(analysisMod.useAnalysis().status.save).toBe('saved')
       wrapper.unmount()
     })

@@ -35,7 +35,7 @@ function analysis(id = 'a1'): Analysis {
 }
 
 beforeEach(async () => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }) // the fake IndexedDB needs a real setImmediate
   vi.resetModules()
   storage = new MemoryStorage()
   const storageModule = await import('../adapters/storage/appStorage')
@@ -116,14 +116,15 @@ describe('useExport — setOptions/setOrder persist into working state', () => {
     expect(options.value.scope).toBe('filtered') // untouched
   })
 
-  it('persists per analysis and survives a reload', () => {
+  it('persists per analysis and survives a reload', async () => {
     const store = analysisMod.useAnalysis()
     store.setCurrent(analysis('a1'))
     exportMod.useExport().setOptions({ scope: 'all', includeDismissed: true })
     vi.advanceTimersByTime(500)
 
     store.close()
-    expect(store.open('a1')).toMatchObject({ ok: true })
+    await store.settled()
+    expect(await store.open('a1')).toMatchObject({ ok: true })
 
     expect(exportMod.useExport().options.value).toMatchObject({ scope: 'all', includeDismissed: true })
   })

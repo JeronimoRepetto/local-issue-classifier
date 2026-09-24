@@ -10,6 +10,7 @@ import type { RepoRef } from '../../domain/types'
 import type { AnalysisSummary } from '../../domain/types'
 import { readStoredPreferences, useRepo } from '../../composables/useRepo'
 import { useView } from '../../composables/useView'
+import { useAnalyses } from '../../composables/useAnalyses'
 import ExistingAnalysisPrompt from '../ui/ExistingAnalysisPrompt.vue'
 import RepoInput from '../ui/RepoInput.vue'
 import type { StateFilter } from '../ui/RepoInput.vue'
@@ -17,6 +18,7 @@ import RepoLoadFeedback from './RepoLoadFeedback.vue'
 
 const repo = useRepo()
 const view = useView()
+const analyses = useAnalyses()
 
 type Submission = { ref: RepoRef; stateFilter: StateFilter; raw: string }
 type LastAction = { kind: 'new'; submission: Submission } | { kind: 'refresh'; id: string }
@@ -41,10 +43,10 @@ function onExistingDecision(decision: 'open' | 'refresh' | 'create'): void {
   existingPrompt.value = null
   if (!prompt) return
   if (decision === 'open') {
-    view.openAnalysis(prompt.summary.id)
+    void view.openAnalysis(prompt.summary.id)
   } else if (decision === 'refresh') {
     lastAction.value = { kind: 'refresh', id: prompt.summary.id }
-    repo.refresh(prompt.summary.id)
+    void refreshSaved(prompt.summary.id)
   } else {
     lastAction.value = { kind: 'new', submission: prompt.submission }
     repo.startNew(prompt.submission.ref, prompt.submission.stateFilter, prompt.submission.raw)
@@ -55,7 +57,15 @@ function retry(): void {
   const action = lastAction.value
   if (!action) return
   if (action.kind === 'new') repo.startNew(action.submission.ref, action.submission.stateFilter, action.submission.raw)
-  else repo.refresh(action.id)
+  else void refreshSaved(action.id)
+}
+
+// useRepo().refresh(id) finds its target among the current analysis first;
+// saved analyses now live in IndexedDB (async), so load it as current before
+// refreshing. The merged result becomes current on completion anyway.
+async function refreshSaved(id: string): Promise<void> {
+  await analyses.open(id)
+  await repo.refresh(id)
 }
 
 // Switches to the analysis view on completion, but does NOT dismiss() the
@@ -66,7 +76,7 @@ watch(
   () => repo.state.phase,
   (phase) => {
     if (phase === 'done' && repo.state.analysisId) {
-      view.openAnalysis(repo.state.analysisId)
+      void view.openAnalysis(repo.state.analysisId)
     }
   },
 )

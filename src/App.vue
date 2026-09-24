@@ -8,13 +8,15 @@
 // isolation by the other tasks: usePreferences is imported first so its
 // lastOpened hook is in place before restoreLastOpened() runs below;
 // configureRepo() binds the GitHub loader to the in-memory secrets; the
-// keys-required banner is shown on Home/Analysis; and the last-opened
-// analysis is restored once, on boot.
+// keys-required banner is shown on Home/Analysis; and, once on boot, legacy
+// localStorage analyses are moved to IndexedDB and the last-opened analysis is
+// restored (both async, behind a loading state, before any view renders).
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { isKitRequested } from './ui/kitRoute'
 import { useView } from './composables/useView'
 import { usePreferences } from './composables/usePreferences'
 import { useAnalysis } from './composables/useAnalysis'
+import { migrationNotice, useAnalyses } from './composables/useAnalyses'
 import { useSecrets } from './composables/useSecrets'
 import { useProvider } from './composables/useProvider'
 import { configureRepo } from './composables/useRepo'
@@ -49,6 +51,7 @@ const prefs = usePreferences()
 const secrets = useSecrets()
 const provider = useProvider()
 const analysis = useAnalysis()
+const analyses = useAnalyses()
 
 let toastId = 0
 const toasts = ref<ToastItem[]>([])
@@ -81,8 +84,21 @@ watch(
 )
 onBeforeUnmount(() => stopTheme())
 
-// Restores Preferences.lastAnalysisId once, on boot (SPEC §2.2 item 2).
-if (analysis.restoreLastOpened()) view.state.view = 'analysis'
+// Boot (SPEC §2.2 item 2): move any legacy localStorage analyses into
+// IndexedDB (one-line notice when something moved), then restore
+// Preferences.lastAnalysisId. No view renders until this finishes.
+const booting = ref(true)
+async function boot(): Promise<void> {
+  try {
+    const moved = await analyses.boot()
+    const notice = migrationNotice(moved)
+    if (notice) pushToast(moved.failed > 0 ? 'warning' : 'info', notice)
+    if (await analysis.restoreLastOpened()) view.state.view = 'analysis'
+  } finally {
+    booting.value = false
+  }
+}
+void boot()
 
 // Top-bar theme toggle: cycles the persisted preference (system → light → dark).
 const themeLabel = computed(() => {
@@ -177,8 +193,9 @@ const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
         </button>
       </nav>
     </header>
-    <main class="app-shell__body">
-      <template v-if="view.state.view === 'home'">
+    <main class="app-shell__body" :aria-busy="booting">
+      <p v-if="booting" class="app-shell__loading" data-test="app-loading" role="status">Loading saved analyses…</p>
+      <template v-else-if="view.state.view === 'home'">
         <div v-if="showKeysBanner" class="app-shell__banner">
           <KeysRequiredBanner @dismiss="prefs.dismissKeysBanner()" />
         </div>
@@ -310,6 +327,15 @@ const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
 .app-shell__social-link :deep(svg) {
   width: var(--icon-md);
   height: var(--icon-md);
+}
+
+.app-shell__loading {
+  max-width: var(--measure-page);
+  margin: var(--space-6) auto 0;
+  padding: 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
 }
 
 .app-shell__banner {

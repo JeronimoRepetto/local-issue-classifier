@@ -63,6 +63,14 @@ const flush = async () => {
   await nextTick()
 }
 
+/** Mounts the shell and waits for its async boot (migration + restore) to finish. */
+async function mountApp(options: Parameters<typeof mount>[1] = {}) {
+  const wrapper = mount(App, options)
+  await vi.waitFor(() => expect(wrapper.find('[data-test="app-loading"]').exists()).toBe(false))
+  await flush()
+  return wrapper
+}
+
 beforeEach(async () => {
   await freshEnv()
 })
@@ -73,21 +81,21 @@ afterEach(() => {
 })
 
 describe('App', () => {
-  it('mounts and shows the wordmark, with Home as the default view', () => {
-    const wrapper = mount(App)
+  it('mounts and shows the wordmark, with Home as the default view', async () => {
+    const wrapper = await mountApp()
     expect(wrapper.text()).toContain('local-issue-classifier')
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true)
   })
 
-  it('names the product local-issue-classifier in the wordmark and the document title', () => {
-    const wrapper = mount(App)
+  it('names the product local-issue-classifier in the wordmark and the document title', async () => {
+    const wrapper = await mountApp()
     expect(wrapper.get('[data-test="brand"]').text()).toBe('local-issue-classifier')
     const html = readFileSync(join(__dirname, '..', 'index.html'), 'utf8')
     expect(html).toContain('<title>local-issue-classifier</title>')
   })
 
   it('the top-bar theme toggle cycles system, light and dark and says which is active', async () => {
-    const wrapper = mount(App)
+    const wrapper = await mountApp()
     const toggle = () => wrapper.get('[data-test="theme-toggle"]')
     expect(toggle().attributes('aria-label')).toBe('Theme: system. Switch to light')
     await toggle().trigger('click')
@@ -100,7 +108,7 @@ describe('App', () => {
   })
 
   it('the top-bar nav marks the current view and switches between Analyses and Settings', async () => {
-    const wrapper = mount(App)
+    const wrapper = await mountApp()
     expect(wrapper.get('[data-test="nav-analyses"]').attributes('aria-current')).toBe('page')
     await wrapper.get('[data-test="open-settings"]').trigger('click')
     expect(wrapper.get('[data-test="open-settings"]').attributes('aria-current')).toBe('page')
@@ -109,7 +117,7 @@ describe('App', () => {
   })
 
   it('the Settings gear switches to Settings (SettingsContainer), and the brand returns home', async () => {
-    const wrapper = mount(App, { attachTo: document.body })
+    const wrapper = await mountApp({ attachTo: document.body })
     await wrapper.get('[data-test="open-settings"]').trigger('click')
     expect(wrapper.find('[data-test="forget-keys"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="home-container"]').exists()).toBe(false)
@@ -122,7 +130,7 @@ describe('App', () => {
   it('shows the analysis view (AnalysisViewContainer) once an analysis is opened', async () => {
     analysisMod.useAnalysis().setCurrent(seedAnalysis())
     viewMod.useView().state.view = 'analysis'
-    const wrapper = mount(App, { attachTo: document.body })
+    const wrapper = await mountApp({ attachTo: document.body })
     await flush()
     expect(wrapper.find('[data-test="issue-count"]').exists()).toBe(true)
     expect(wrapper.find('[data-test="classify-start"]').exists()).toBe(true)
@@ -164,7 +172,7 @@ describe('App', () => {
       })
 
       await freshEnv()
-      const wrapper = mount(App)
+      const wrapper = await mountApp()
       await flush()
 
       expect(order).toContain('usePreferences:module-evaluated')
@@ -180,7 +188,7 @@ describe('App', () => {
       saveAnalysis(storage, seedAnalysis('a1'))
       prefsMod.usePreferences().update({ lastAnalysisId: 'a1' })
 
-      const wrapper = mount(App, { attachTo: document.body })
+      const wrapper = await mountApp({ attachTo: document.body })
       await flush()
       expect(viewMod.useView().state.view).toBe('analysis')
       expect(analysisMod.useAnalysis().current.value?.id).toBe('a1')
@@ -189,9 +197,39 @@ describe('App', () => {
     })
   })
 
+  describe('boot: IndexedDB migration and loading state (FB IndexedDB lane)', () => {
+    it('shows a loading state until the saved analyses are ready, then Home', async () => {
+      const wrapper = mount(App)
+      expect(wrapper.find('[data-test="app-loading"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="home-container"]').exists()).toBe(false)
+      await vi.waitFor(() => expect(wrapper.find('[data-test="home-container"]').exists()).toBe(true))
+      expect(wrapper.find('[data-test="app-loading"]').exists()).toBe(false)
+    })
+
+    it('moves legacy localStorage analyses into the database once, with a one-line notice', async () => {
+      saveAnalysis(storage, seedAnalysis('a1'))
+      saveAnalysis(storage, seedAnalysis('a2'))
+      const wrapper = await mountApp({ attachTo: document.body })
+      expect(document.body.textContent).toContain('Moved 2 analyses to the larger local database.')
+      expect(storage.keys().filter((k) => k.includes(':analysis'))).toEqual([])
+      expect(wrapper.findAll('[data-test="analysis-card"]')).toHaveLength(2)
+      wrapper.unmount()
+
+      // A reload finds nothing left to move: no second notice.
+      document.body.innerHTML = ''
+      vi.resetModules()
+      const { setAppStorage } = await import('./adapters/storage/appStorage')
+      setAppStorage(storage)
+      App = (await import('./App.vue')).default
+      const again = await mountApp({ attachTo: document.body })
+      expect(document.body.textContent).not.toContain('Moved')
+      again.unmount()
+    })
+  })
+
   describe('secrets wiring (configureRepo)', () => {
     it('wires configureRepo to the secrets GitHub-token getter: fetch sees Authorization only once a token is set', async () => {
-      mount(App)
+      await mountApp()
       const authHeaders: (string | undefined)[] = []
       repoMod.configureRepo({
         fetchImpl: (async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -213,7 +251,7 @@ describe('App', () => {
     it('a 401 from GitHub clears only the GitHub token and shows an inline notice, keeping the Jev key', async () => {
       secretsMod.useSecrets().setJevKey('jev-test')
       secretsMod.useSecrets().setGitHubToken('ghp_test')
-      const wrapper = mount(App, { attachTo: document.body })
+      const wrapper = await mountApp({ attachTo: document.body })
 
       repoMod.configureRepo({
         fetchImpl: (async () =>
@@ -234,7 +272,7 @@ describe('App', () => {
     it('also clears the in-memory secrets', async () => {
       secretsMod.useSecrets().setJevKey('jev-test')
       secretsMod.useSecrets().setGitHubToken('ghp_test')
-      const wrapper = mount(App, { attachTo: document.body })
+      const wrapper = await mountApp({ attachTo: document.body })
 
       await wrapper.get('[data-test="clear-all"]').trigger('click')
       await flush()
@@ -254,7 +292,7 @@ describe('App', () => {
 
   describe('Keys required banner', () => {
     it('shows on Home until dismissed, and persists the dismissal', async () => {
-      const wrapper = mount(App)
+      const wrapper = await mountApp()
       expect(wrapper.text()).toContain('Your keys are kept in memory only')
 
       await wrapper.get('[data-test="dismiss-banner"]').trigger('click')
@@ -263,14 +301,14 @@ describe('App', () => {
     })
 
     it('hides once a Jev key is set', async () => {
-      const wrapper = mount(App)
+      const wrapper = await mountApp()
       secretsMod.useSecrets().setJevKey('jev-test')
       await flush()
       expect(wrapper.text()).not.toContain('Your keys are kept in memory only')
     })
 
     it('hides once a local provider with a valid base URL is configured, even without a Jev key (useProvider().ready)', async () => {
-      const wrapper = mount(App)
+      const wrapper = await mountApp()
       expect(wrapper.find('[data-test="dismiss-banner"]').exists()).toBe(true)
       prefsMod.usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
       await flush()
@@ -280,7 +318,7 @@ describe('App', () => {
     it('also shows on the analysis view', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis())
       viewMod.useView().state.view = 'analysis'
-      const wrapper = mount(App, { attachTo: document.body })
+      const wrapper = await mountApp({ attachTo: document.body })
       await flush()
       expect(wrapper.text()).toContain('Your keys are kept in memory only')
       wrapper.unmount()
@@ -291,7 +329,7 @@ describe('App', () => {
     it('only the active view mounts the load feedback: a rate-limited notice appears exactly once', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis('a1'))
       viewMod.useView().state.view = 'analysis'
-      const wrapper = mount(App, { attachTo: document.body })
+      const wrapper = await mountApp({ attachTo: document.body })
       await flush()
 
       // App.vue's v-if/v-else-if means HomeContainer (and its RepoLoaderContainer,
@@ -309,8 +347,8 @@ describe('App', () => {
   })
 
   describe('Social links (app bar)', () => {
-    it('links to the GitHub repo and the LinkedIn profile, safely, before the theme toggle', () => {
-      const wrapper = mount(App)
+    it('links to the GitHub repo and the LinkedIn profile, safely, before the theme toggle', async () => {
+      const wrapper = await mountApp()
       const github = wrapper.get('[data-test="social-github"]')
       const linkedin = wrapper.get('[data-test="social-linkedin"]')
 
@@ -330,15 +368,15 @@ describe('App', () => {
       expect(links.indexOf(linkedin.element)).toBeLessThan(links.indexOf(wrapper.get('[data-test="theme-toggle"]').element))
     })
 
-    it('keeps GitHub on the shared --color-icon-social token color (24-grid currentColor mark)', () => {
-      const wrapper = mount(App)
+    it('keeps GitHub on the shared --color-icon-social token color (24-grid currentColor mark)', async () => {
+      const wrapper = await mountApp()
       const github = wrapper.get('[data-test="social-github"]')
       expect(github.classes()).toContain('app-shell__social-link')
       expect(github.get('svg').attributes('viewBox')).toBe('0 0 24 24')
     })
 
-    it("renders LinkedIn's official [in] Logo mark, unaltered, in place of the generic external-link icon", () => {
-      const wrapper = mount(App)
+    it("renders LinkedIn's official [in] Logo mark, unaltered, in place of the generic external-link icon", async () => {
+      const wrapper = await mountApp()
       const linkedin = wrapper.get('[data-test="social-linkedin"]')
       expect(linkedin.classes()).toContain('app-shell__social-link')
 
@@ -357,7 +395,7 @@ describe('App', () => {
     it('"?" opens the shortcuts help dialog in the analysis view, ignored while typing', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis())
       viewMod.useView().state.view = 'analysis'
-      const wrapper = mount(App, { attachTo: document.body })
+      const wrapper = await mountApp({ attachTo: document.body })
       await flush()
 
       const input = document.createElement('input')

@@ -4,15 +4,18 @@
 //   - classification results: coalesced to at most one save per second, plus
 //     flush() when a run ends;
 //   - fetch / refresh results (setCurrent): saved immediately.
-// A failed save keeps the analysis in memory and exposes status.failure plus
-// retrySave(). Nothing secret ever reaches this module.
+// Saves go to IndexedDB (adapters/storage/analysisDb.ts) and are async: the
+// in-memory analysis changes synchronously, the write lands later, and writes
+// are applied in call order. A save only clears `dirty` when nothing changed
+// while it was in flight. A failed save keeps the analysis in memory and
+// exposes status.failure plus retrySave(). Nothing secret ever reaches this module.
 import { reactive, shallowRef } from 'vue'
 import * as domain from '../domain/analysis'
 import type { ClassificationOutcome } from '../domain/analysis'
 import type { Analysis, AnalysisWorkingState } from '../domain/types'
 import { STORAGE_KEYS, defaultPreferences } from '../domain/types'
-import { loadAnalysis, saveAnalysis } from '../adapters/storage/analysisStore'
 import type { LoadResult, SaveResult } from '../adapters/storage/analysisStore'
+import { getAnalysisDb } from '../adapters/storage/analysisDb'
 import { getAppStorage } from '../adapters/storage/appStorage'
 
 export const WORKING_SAVE_DELAY_MS = 500
@@ -84,6 +87,12 @@ let lastOpened: LastOpenedHook = preferencesKeyHook
 let workingTimer: unknown = null
 let classificationTimer: unknown = null
 let dirty = false
+/** Bumped by every change that needs saving: a save only clears `dirty` if it saw the latest one. */
+let revision = 0
+/** Bumped whenever a different analysis (or none) becomes current: stale results are not applied. */
+let generation = 0
+/** The last save this module started; settled() waits on it. */
+let lastWrite: Promise<unknown> = Promise.resolve()
 const persistedListeners = new Set<(result: SaveResult) => void>()
 
 export interface AnalysisConfig {
@@ -106,27 +115,50 @@ function cancelTimers(): void {
   classificationTimer = null
 }
 
-function persistNow(): SaveResult | null {
+/** Snapshot the current analysis now and write it; the result arrives asynchronously. */
+function persistNow(): Promise<SaveResult | null> {
   cancelTimers()
   const analysis = current.value
-  if (!analysis) return null
-  const result = saveAnalysis(getAppStorage(), analysis)
-  if (result.ok) {
-    dirty = false
-    status.save = 'saved'
-    status.failure = null
-  } else {
-    status.save = 'failed'
-    status.failure = result.reason
-  }
-  for (const listener of persistedListeners) listener(result)
-  return result
+  if (!analysis) return Promise.resolve(null)
+  const savedRevision = revision
+  const savedGeneration = generation
+  status.save = 'pending'
+  const write = getAnalysisDb()
+    .saveAnalysis(analysis)
+    .then((result) => {
+      if (savedGeneration === generation) {
+        if (result.ok) {
+          status.failure = null
+          if (savedRevision === revision) {
+            dirty = false
+            status.save = 'saved'
+          }
+        } else {
+          status.save = 'failed'
+          status.failure = result.reason
+        }
+      }
+      for (const listener of persistedListeners) listener(result)
+      return result
+    })
+  lastWrite = write
+  return write
+}
+
+/** Resolves once every save started so far (and anything they triggered) has finished. */
+async function settled(): Promise<void> {
+  let seen: Promise<unknown>
+  do {
+    seen = lastWrite
+    await seen
+  } while (seen !== lastWrite)
 }
 
 function schedule(kind: SaveKind): void {
   dirty = true
+  revision++
   if (kind === 'immediate') {
-    persistNow()
+    void persistNow()
     return
   }
   status.save = 'pending'
@@ -145,18 +177,21 @@ function update(change: (analysis: Analysis, now: string) => Analysis, kind: Sav
   schedule(kind)
 }
 
-/** Make a freshly fetched or refreshed analysis current and save it immediately. */
-function setCurrent(analysis: Analysis): SaveResult | null {
-  if (current.value && current.value.id !== analysis.id && dirty) persistNow()
+/** Make a freshly fetched or refreshed analysis current (synchronously) and save it immediately. */
+function setCurrent(analysis: Analysis): Promise<SaveResult | null> {
+  if (current.value && current.value.id !== analysis.id && dirty) void persistNow()
   cancelTimers()
+  generation++
   current.value = analysis
   status.openError = null
+  status.failure = null
   lastOpened.write(analysis.id)
   dirty = true
+  revision++
   return persistNow()
 }
 
-function open(id: string): LoadResult {
+async function open(id: string): Promise<LoadResult> {
   // Already current (e.g. RepoLoaderContainer's watcher re-opening the
   // analysis setCurrent() just finished loading, in the same tick): skip the
   // redundant storage reload and the second lastOpened.write it would cause.
@@ -169,13 +204,17 @@ function open(id: string): LoadResult {
     status.openError = null
     return { ok: true, analysis: current.value }
   }
-  const result = loadAnalysis(getAppStorage(), id)
+  const requested = generation
+  const result = await getAnalysisDb().loadAnalysis(id)
+  // Something else became current meanwhile (setCurrent, another open, close): it wins.
+  if (requested !== generation) return result
   if (!result.ok) {
     status.openError = result.reason
     return result
   }
-  if (dirty) persistNow()
+  if (dirty) void persistNow()
   cancelTimers()
+  generation++
   current.value = result.analysis
   dirty = false
   status.save = 'idle'
@@ -185,16 +224,19 @@ function open(id: string): LoadResult {
   return result
 }
 
-/** Reopen Preferences.lastAnalysisId after a reload. Returns whether one was opened. */
-function restoreLastOpened(): boolean {
+/** Reopen Preferences.lastAnalysisId after a reload. Resolves to whether one was opened. */
+async function restoreLastOpened(): Promise<boolean> {
   const id = lastOpened.read()
-  return id !== null && open(id).ok
+  if (id === null) return false
+  const result = await open(id)
+  return result.ok && current.value?.id === id
 }
 
 /** Back to Home: pending changes are saved first. */
 function close(): void {
-  if (dirty) persistNow()
+  if (dirty) void persistNow()
   cancelTimers()
+  generation++
   current.value = null
   dirty = false
   status.save = 'idle'
@@ -203,6 +245,7 @@ function close(): void {
 /** Drop the current analysis without saving (delete / clear all). */
 function discard(options: { forget?: boolean } = {}): void {
   cancelTimers()
+  generation++
   current.value = null
   dirty = false
   status.save = 'idle'
@@ -231,8 +274,10 @@ export function useAnalysis() {
     discard,
     update,
     /** Final save, e.g. at the end of a classification run. */
-    flush: () => (dirty ? persistNow() : null),
+    flush: (): Promise<SaveResult | null> => (dirty ? persistNow() : Promise.resolve(null)),
     retrySave: persistNow,
+    /** Waits for every save started so far (tests, and callers that must read after writing). */
+    settled,
     onPersisted,
     applyResult: (issueNumber: number, result: ClassificationOutcome) =>
       update((a, now) => domain.applyClassification(a, issueNumber, result, now), 'classification'),
