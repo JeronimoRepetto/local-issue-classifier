@@ -37,6 +37,31 @@ describe('wrangler.jsonc', () => {
     expect(config.name.length).toBeGreaterThan(0)
   })
 
+  // Regression (2026-09-25): with a Wrangler file present, Cloudflare Pages
+  // ignores variables set in the dashboard ("your Wrangler file is the source
+  // of truth"), so the first deploy's /jev Function failed closed with
+  // "ALLOWED_ORIGINS not configured". The allowlist must live here.
+  describe('ALLOWED_ORIGINS for the /jev Function', () => {
+    const origins = (vars: Record<string, string> | undefined) =>
+      (vars?.ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim())
+    const expected = ['https://issueclassifier.com', `https://${config.name}.pages.dev`]
+
+    it('allows the custom domain and the project pages.dev alias in production', () => {
+      expect(origins(config.vars)).toEqual(expected)
+    })
+
+    it('redefines the same allowlist for preview, since vars are not inherited', () => {
+      expect(origins(config.env?.preview?.vars)).toEqual(expected)
+    })
+
+    it('declares no secret-looking variables (the file is public)', () => {
+      const allowed = ['ALLOWED_ORIGINS', 'JEV_UPSTREAM_URL']
+      for (const vars of [config.vars, config.env?.preview?.vars]) {
+        for (const key of Object.keys(vars ?? {})) expect(allowed).toContain(key)
+      }
+    })
+  })
+
   it('does not enable nodejs_compat: the Pages Function uses only standard fetch APIs', () => {
     const fn = readFileSync(join(ROOT, 'functions', 'jev', '[[path]].ts'), 'utf8')
     expect(fn).not.toMatch(/from ['"]node:/)

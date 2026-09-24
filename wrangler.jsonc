@@ -16,7 +16,23 @@
   // Pins the Workers runtime version this project builds against. Bump this
   // deliberately (not silently on every deploy) and re-run the full test
   // suite plus a preview deploy first.
-  "compatibility_date": "2026-09-24"
+  "compatibility_date": "2026-09-24",
+  // Origins the /jev Function accepts (it fails closed without this). With a
+  // Wrangler file present, Pages ignores variables set in the dashboard: this
+  // file is the source of truth. Not a secret — never put keys here, the file
+  // is public. Preview does not inherit top-level "vars", so it is repeated.
+  // Per-deployment preview URLs (<hash>.<name>.pages.dev) are not listed; test
+  // previews through the stable alias or add the exact origin temporarily.
+  "vars": {
+    "ALLOWED_ORIGINS": "https://issueclassifier.com,https://local-issue-classifier.pages.dev"
+  },
+  "env": {
+    "preview": {
+      "vars": {
+        "ALLOWED_ORIGINS": "https://issueclassifier.com,https://local-issue-classifier.pages.dev"
+      }
+    }
+  }
   // No "compatibility_flags": functions/jev/[[path]].ts and the policy it
   // imports (server/jevProxyPolicy.ts) use only standard fetch APIs (Request,
   // Response, fetch) — no Node builtin, so "nodejs_compat" is not needed.
