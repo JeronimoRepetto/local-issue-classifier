@@ -27,6 +27,7 @@ export const COLOR_ROLES = [
   'inverse-surface',
   'inverse-hover',
   'on-inverse',
+  'icon-social',
   'level-high-fg',
   'level-high-bg',
   'level-medium-fg',
@@ -108,6 +109,9 @@ export const tokens: Tokens = {
       'inverse-surface': '#18181B',
       'inverse-hover': '#3F3F46',
       'on-inverse': '#FAFAFA',
+      // App-bar GitHub/LinkedIn links: same grey in both themes on purpose
+      // (docs/design.md "Icons" — #111113 would vanish on the dark bg).
+      'icon-social': '#7F7F81',
       'level-high-fg': '#B91C1C',
       'level-high-bg': '#FEF2F2',
       'level-medium-fg': '#A15C07',
@@ -142,6 +146,8 @@ export const tokens: Tokens = {
       'inverse-surface': '#EDEDEF',
       'inverse-hover': '#D4D4D8',
       'on-inverse': '#09090B',
+      // Same grey as the light theme, deliberately not `text`/`text-muted`.
+      'icon-social': '#7F7F81',
       'level-high-fg': '#F87171',
       'level-high-bg': '#2A1414',
       'level-medium-fg': '#FBBF24',
@@ -261,6 +267,8 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { fg: 'level-low-fg', bg: 'level-low-bg', kind: 'text' },
   ...SURFACES.map((bg) => ({ fg: 'border-strong' as const, bg, kind: 'ui' as const })),
   ...SURFACES.map((bg) => ({ fg: 'accent' as const, bg, kind: 'ui' as const })),
+  // App-bar social links sit only on the top bar's `bg` background.
+  { fg: 'icon-social', bg: 'bg', kind: 'ui' },
   ...(['scale-1', 'scale-2', 'scale-3', 'scale-4', 'scale-5'] as const).map((fg) => ({
     fg,
     bg: 'surface' as const,

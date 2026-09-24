@@ -308,6 +308,35 @@ describe('App', () => {
     })
   })
 
+  describe('Social links (app bar)', () => {
+    it('links to the GitHub repo and the LinkedIn profile, safely, before the theme toggle', () => {
+      const wrapper = mount(App)
+      const github = wrapper.get('[data-test="social-github"]')
+      const linkedin = wrapper.get('[data-test="social-linkedin"]')
+
+      expect(github.attributes('href')).toBe('https://github.com/JeronimoRepetto/local-issue-classifier')
+      expect(github.attributes('target')).toBe('_blank')
+      expect(github.attributes('rel')).toBe('noopener noreferrer')
+      expect(github.attributes('aria-label')).toBe('Source code on GitHub')
+
+      expect(linkedin.attributes('href')).toBe('https://www.linkedin.com/in/jrepetto92/')
+      expect(linkedin.attributes('target')).toBe('_blank')
+      expect(linkedin.attributes('rel')).toBe('noopener noreferrer')
+      expect(linkedin.attributes('aria-label')).toBe('Author on LinkedIn')
+
+      const nav = wrapper.get('[data-test="open-settings"]').element.parentElement!
+      const links = Array.from(nav.children)
+      expect(links.indexOf(github.element)).toBeLessThan(links.indexOf(wrapper.get('[data-test="theme-toggle"]').element))
+      expect(links.indexOf(linkedin.element)).toBeLessThan(links.indexOf(wrapper.get('[data-test="theme-toggle"]').element))
+    })
+
+    it('renders both social icons in the shared --color-icon-social token color', () => {
+      const wrapper = mount(App)
+      expect(wrapper.get('[data-test="social-github"]').classes()).toContain('app-shell__social-link')
+      expect(wrapper.get('[data-test="social-linkedin"]').classes()).toContain('app-shell__social-link')
+    })
+  })
+
   describe('Shortcuts help', () => {
     it('"?" opens the shortcuts help dialog in the analysis view, ignored while typing', async () => {
       analysisMod.useAnalysis().setCurrent(seedAnalysis())

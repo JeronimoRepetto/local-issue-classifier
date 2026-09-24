@@ -23,6 +23,9 @@ import IconLogo from './assets/icons/IconLogo.vue'
 import IconMoon from './assets/icons/IconMoon.vue'
 import IconSun from './assets/icons/IconSun.vue'
 import IconSettings from './assets/icons/IconSettings.vue'
+import IconExternalLink from './assets/icons/IconExternalLink.vue'
+import GitHubMarkIcon from './ui/GitHubMarkIcon.vue'
+import UiTooltip from './ui/UiTooltip.vue'
 import HomeContainer from './components/containers/HomeContainer.vue'
 import AnalysisViewContainer from './components/containers/AnalysisViewContainer.vue'
 import SettingsContainer from './components/containers/SettingsContainer.vue'
@@ -92,6 +95,13 @@ function cycleTheme(): void {
 
 // T16: ready is a Jev key for TypeSafe, or a valid base URL for a local provider (key optional).
 const showKeysBanner = computed(() => !provider.ready.value && !prefs.state.keysBannerDismissed)
+
+// Author links (requested after the Home provider-card approval). No
+// LinkedIn brand mark is bundled: Simple Icons does not ship one under a
+// free license (see docs/design.md "Icons" and THIRD_PARTY_NOTICES.md), so
+// IconExternalLink stands in for it instead of GitHub's real mark.
+const GITHUB_REPO_URL = 'https://github.com/JeronimoRepetto/local-issue-classifier'
+const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jrepetto92/'
 </script>
 
 <template>
@@ -122,6 +132,36 @@ const showKeysBanner = computed(() => !provider.ready.value && !prefs.state.keys
           <IconSettings aria-hidden="true" />
           settings
         </button>
+        <UiTooltip text="Source code on GitHub">
+          <template #default="{ describedBy }">
+            <a
+              class="app-shell__social-link"
+              data-test="social-github"
+              :href="GITHUB_REPO_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Source code on GitHub"
+              :aria-describedby="describedBy"
+            >
+              <GitHubMarkIcon />
+            </a>
+          </template>
+        </UiTooltip>
+        <UiTooltip text="Author on LinkedIn">
+          <template #default="{ describedBy }">
+            <a
+              class="app-shell__social-link"
+              data-test="social-linkedin"
+              :href="LINKEDIN_PROFILE_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Author on LinkedIn"
+              :aria-describedby="describedBy"
+            >
+              <IconExternalLink />
+            </a>
+          </template>
+        </UiTooltip>
         <button
           class="app-shell__icon-button"
           type="button"
@@ -248,6 +288,27 @@ const showKeysBanner = computed(() => !provider.ready.value && !prefs.state.keys
 .app-shell__system-glyph :deep(svg) {
   width: calc(var(--icon-sm) - var(--space-1));
   height: calc(var(--icon-sm) - var(--space-1));
+}
+
+.app-shell__social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-default);
+  height: var(--size-default);
+  border-radius: var(--radius-md);
+  color: var(--color-icon-social);
+  text-decoration: none;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.app-shell__social-link:hover {
+  color: var(--color-text);
+}
+
+.app-shell__social-link :deep(svg) {
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .app-shell__banner {
