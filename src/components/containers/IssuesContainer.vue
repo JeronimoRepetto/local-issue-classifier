@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Issues screen container (SPEC §2.5, §6.1 screen 3). Wires useAnalysis() and
+// Issues screen container (screen 3). Wires useAnalysis() and
 // useFilters() to the presentational pieces: FilterBar, DismissToggle,
 // IssueTable, the detail drawer, bulk dismiss/undo, and "Remove missing".
 // Refresh/back bubble straight through as props/emits — this file, not just
@@ -37,7 +37,7 @@ const columns = useColumns()
 
 const filterBarRef = ref<{ focusSearch: () => void } | null>(null)
 
-/** The table's `RowSort`: the real multi-key sort (Task 13, SPEC.md §2.5 item 3). */
+/** The table's `RowSort`: the real multi-key sort (Task 13). */
 function applyTableSort(rows: DomainIssueRow[], order: ExportOrder, weights: PriorityWeights): DomainIssueRow[] {
   return sortRowsBy(rows, order, weights)
 }
@@ -205,7 +205,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       </UiButton>
       <!--
         Task 13's "Sort" popover (SortRuleList editing the full multi-key
-        order, SPEC §2.5 item 3) mounts here; `sort` and `setSort` are already
+        order) mounts here; `sort` and `setSort` are already
         wired below so it only needs to replace this fallback trigger.
       -->
       <slot name="sort-popover" :sort="filters.sort.value" :set-sort="filters.setSort" />
@@ -242,7 +242,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       @sort="filters.setSort"
       @shift-sort="filters.addSortKey"
     >
-      <!-- Task 14, SPEC.md §6.3 column 4: the Weights popover trigger next to the Priority header. -->
+      <!-- Task 14 — the Weights popover trigger next to the Priority header. -->
       <template #priority-header>
         <PriorityContainer />
       </template>

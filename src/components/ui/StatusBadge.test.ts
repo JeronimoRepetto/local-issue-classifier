@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §6.3 row 12: unclassified / stale / missing / dismissed.
+// Task 12 — unclassified / stale / missing / dismissed.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import StatusBadge from './StatusBadge.vue'

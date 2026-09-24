@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// SPEC §2.3 step 5: "An analysis of owner/repo (open) exists. Open it / Refresh it / Create a separate one".
+// "An analysis of owner/repo (open) exists. Open it / Refresh it / Create a separate one".
 import UiButton from '../../ui/UiButton.vue'
 
 defineProps<{ repoFullName: string; stateFilter: 'open' | 'closed' | 'all' }>()

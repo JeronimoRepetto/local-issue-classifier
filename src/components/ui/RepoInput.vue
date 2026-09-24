@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Home "New analysis" input (SPEC §2.2 / §2.3): a repo URL/shorthand field,
+// The Home "New analysis" input: a repo URL/shorthand field,
 // the Open/Closed/All state picker, and the screen's one primary action.
 import { ref, watch } from 'vue'
 import { parseRepoRef } from '../../domain/repoRef'

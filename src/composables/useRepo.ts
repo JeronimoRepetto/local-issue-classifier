@@ -1,4 +1,4 @@
-// New analysis / refresh orchestration (SPEC.md §2.3): drives the GitHub
+// New analysis / refresh orchestration: drives the GitHub
 // loader through a small state machine so the UI can show progress and pause
 // for the huge-repo (>20 pages) and comment-cost (80% of remaining quota)
 // confirmations. On completion it builds the Analysis (createAnalysis) or
@@ -25,7 +25,7 @@ import { getAnalysisDb } from '../adapters/storage/analysisDb'
 import { useAnalysis } from './useAnalysis'
 import { useAnalyses } from './useAnalyses'
 
-/** Above this page count, loading pauses for confirmation (SPEC §2.3). */
+/** Above this page count, loading pauses for confirmation. */
 export const HUGE_REPO_PAGE_THRESHOLD = 20
 /** The comment fetch is confirmed when it would use more than this share of the remaining quota. */
 export const COMMENT_COST_QUOTA_RATIO = 0.8
@@ -50,7 +50,7 @@ export interface RepoLoadState {
   error: string | null
   rateLimitResetAt: number | null
   rateLimit: RateLimitInfo | null
-  /** True once, right after a private repo is first seen this session (SPEC §8). */
+  /** True once, right after a private repo is first seen this session. */
   privateRepoNotice: boolean
   analysisId: string | null
 }
@@ -79,7 +79,7 @@ function freshState(): RepoLoadState {
   }
 }
 
-/** Also used by HomeContainer to read the first-run checklist (SPEC §10.1) until Task 4's usePreferences lands. */
+/** Also used by HomeContainer to read the first-run checklist until Task 4's usePreferences lands. */
 export function readStoredPreferences(): Preferences {
   try {
     const raw = getAppStorage().getItem(STORAGE_KEYS.preferences)
@@ -268,7 +268,7 @@ function isHugeRepo(totalPages: number | null, userCap: number): boolean {
 }
 
 /**
- * Issues phase (SPEC §2.3 / §5.5). Fetches one page first so the total page
+ * Issues phase. Fetches one page first so the total page
  * count is known before spending quota on the rest: above
  * HUGE_REPO_PAGE_THRESHOLD it pauses for confirmation. Declining keeps only
  * what was already loaded (a normal, capped completion, not an error).
@@ -447,7 +447,7 @@ function newRun(ref: RepoRef, stateFilter: IssueStateFilter, mode: 'new' | 'refr
   return run
 }
 
-/** A saved analysis for the same repository (case-insensitive) and state filter, if any (SPEC §2.3 step 5). */
+/** A saved analysis for the same repository (case-insensitive) and state filter, if any. */
 function findExisting(ref: RepoRef, stateFilter: IssueStateFilter): AnalysisSummary | null {
   const fullName = `${ref.owner}/${ref.repo}`.toLowerCase()
   for (const entry of useAnalyses().state.entries) {
@@ -472,7 +472,7 @@ function startNew(ref: RepoRef, stateFilter: IssueStateFilter, rawText?: string)
   return runPending(newRun(ref, stateFilter, 'new', null))
 }
 
-/** Re-fetches an existing analysis (current or saved) and merges the result (SPEC §2.3 step 7). */
+/** Re-fetches an existing analysis (current or saved) and merges the result. */
 async function refresh(analysisId: string): Promise<void> {
   const target = await getAnalysisForRefresh(analysisId)
   if (!target) {

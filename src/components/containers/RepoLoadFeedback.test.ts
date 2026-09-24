@@ -1,4 +1,4 @@
-// Task FU — SPEC.md §2.3 edge cases / "Storage full": the refresh-time
+// Task FU — edge cases / "Storage full": the refresh-time
 // confirmations and notices extracted out of RepoLoaderContainer so the
 // analysis view can show the same feedback while refreshing. Driven by
 // useRepo().state (huge-repo / comment-cost / progress / rate-limited /

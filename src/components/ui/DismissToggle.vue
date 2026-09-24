@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// "Show dismissed" toggle (SPEC §2.5 item 4): brings dismissed rows back,
+// "Show dismissed" toggle: brings dismissed rows back,
 // greyed out, each with Restore.
 defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()

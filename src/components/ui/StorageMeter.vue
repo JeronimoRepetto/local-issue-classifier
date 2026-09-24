@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Home's storage meter (SPEC §2.2 / §10.4): "Local storage used: 12.3 MB of 48.2 GB available".
+// Home's storage meter: "Local storage used: 12.3 MB of 48.2 GB available".
 // Saved analyses live in IndexedDB, so the quota is the browser's own figure
 // (navigator.storage.estimate(), passed in by the container). When the browser
 // cannot tell, `quotaBytes` is null and only the usage is shown, with no bar.

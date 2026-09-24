@@ -1,4 +1,4 @@
-// Task 14 — SPEC.md §6.3 column 4, §4.9: Priority, 0-100 with a bar, and a
+// Task 14 — Priority, 0-100 with a bar, and a
 // caption explaining the inversion and the ranking-aid (ordinal) nature.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'

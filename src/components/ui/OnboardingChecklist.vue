@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Home first-run checklist (SPEC §10.1): "1 Keys → 2 Repository → 3
+// The Home first-run checklist: "1 Keys → 2 Repository → 3
 // Classify", stays until each step has been completed once.
 import { computed } from 'vue'
 import IconCheck from '../../assets/icons/IconCheck.vue'

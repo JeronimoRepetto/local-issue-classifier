@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Export dialog (Task 13, SPEC.md §2.6). Wires useExport() to a UiDialog:
+// Export dialog (Task 13; see docs/export-format.md). Wires useExport() to a UiDialog:
 // scope, the four include toggles, the Order segmented control (FB export:
 // "Same as table" (default) vs "Custom" — the shared SortRuleList order
 // editor and "Use current table sort" only show in Custom), a live preview

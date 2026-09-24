@@ -1,4 +1,4 @@
-// Filter, sort and search state for the current analysis (SPEC.md §2.5).
+// Filter, sort and search state for the current analysis.
 // Everything lives in `AnalysisWorkingState`, so it goes through
 // `useAnalysis().updateWorking` and is restored automatically whenever the
 // analysis is reopened (Task 7's debounced, coalesced save/load).
@@ -19,7 +19,7 @@ export function useFilters() {
   const analysis = useAnalysis()
 
   const filter = computed<IssueFilter>(() => analysis.current.value?.working.filter ?? defaultFilter())
-  /** The full multi-key order (Task 13, SPEC.md §2.5 item 3); `[]` when no analysis is current. */
+  /** The full multi-key order (Task 13); `[]` when no analysis is current. */
   const tableSort = computed<SortRule[]>(() => analysis.current.value?.working.tableSort ?? [])
   const sort = computed<SortRule | null>(() => tableSort.value[0] ?? null)
 
@@ -52,7 +52,7 @@ export function useFilters() {
   }
 
   /**
-   * Shift-click on a column header (SPEC.md §2.5 item 3: "Shift-clicking adds
+   * Shift-click on a column header ("Shift-clicking adds
    * the column as the next key"). A no-op when `key` is already part of the
    * order — shift-clicking an existing key does not move or reverse it; the
    * Sort popover's reorder/direction controls own that.

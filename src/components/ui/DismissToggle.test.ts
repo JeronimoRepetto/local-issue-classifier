@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5 item 4: the "Show dismissed" toggle.
+// Task 12 — the "Show dismissed" toggle.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DismissToggle from './DismissToggle.vue'

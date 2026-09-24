@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §6.3 column 6: Relevance, 0-100 with a bar.
+// Task 12 — Relevance, 0-100 with a bar.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RelevanceCell from './RelevanceCell.vue'

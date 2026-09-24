@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The non-secret preferences form (SPEC §2.1 step 5, §10.1 progressive
+// The non-secret preferences form (progressive
 // disclosure). Presentational: it owns no state and no persistence — it takes
 // the current Preferences as modelValue and emits a partial patch per field,
 // so usePreferences() stays the single place that merges and persists.

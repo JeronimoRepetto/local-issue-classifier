@@ -1,4 +1,4 @@
-// Task 8 — SPEC.md §2.3: load state machine (idle → loading → done / rate-limited
+// Task 8 — load state machine (idle → loading → done / rate-limited
 // / error), resume, the huge-repo and comment-cost confirmations, refresh merge
 // and the once-per-session private-repo notice.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -215,7 +215,7 @@ describe('startNew — happy path', () => {
   })
 })
 
-describe('huge-repo confirmation (SPEC §2.3, above 20 pages)', () => {
+describe('huge-repo confirmation (above 20 pages)', () => {
   it('pauses after the first page and, once confirmed, loads the rest up to the cap', async () => {
     const server = fakeGitHub({ totalPages: 25 })
     setup(server, { maxIssuesToLoad: 250, fetchComments: 'never' })
@@ -318,7 +318,7 @@ describe('cursor pagination without rel="last" (GitHub issues list today)', () =
   })
 })
 
-describe('comment-cost confirmation (SPEC §2.3, 80% of remaining quota)', () => {
+describe('comment-cost confirmation (80% of remaining quota)', () => {
   const commentedIssues = () => ({
     totalPages: 1,
     perPage: 2,
@@ -402,7 +402,7 @@ describe('rate limiting and resume', () => {
   })
 })
 
-describe('findExisting (SPEC §2.3 step 5)', () => {
+describe('findExisting', () => {
   it('finds a saved analysis for the same repo and state filter, case-insensitively', async () => {
     const server = fakeGitHub({ totalPages: 1, perPage: 1 })
     setup(server, { fetchComments: 'never' })
@@ -416,7 +416,7 @@ describe('findExisting (SPEC §2.3 step 5)', () => {
   })
 })
 
-describe('refresh (SPEC §2.3 step 7)', () => {
+describe('refresh', () => {
   it('merges new data and preserves working state (dismissed issues)', async () => {
     const first = fakeGitHub({ totalPages: 1, perPage: 3 }) // issues 1, 2, 3
     setup(first, { fetchComments: 'never' })
@@ -443,7 +443,7 @@ describe('refresh (SPEC §2.3 step 7)', () => {
     expect(merged.working.dismissed).toEqual([1])
     const byNumber = new Map(merged.rows.map((r) => [r.issue.number, r]))
     expect(byNumber.get(2)?.issue.title).toBe('Renamed')
-    // Missing issues are kept, flagged, never deleted silently (SPEC §2.3 step 7).
+    // Missing issues are kept, flagged, never deleted silently.
     expect(byNumber.get(3)?.sourceStatus).toBe('missing')
     expect(byNumber.get(4)?.issue.title).toBe('New issue')
   })
@@ -490,7 +490,7 @@ describe('cancel', () => {
   })
 })
 
-describe('private-repo notice (SPEC §8, shown once per session)', () => {
+describe('private-repo notice (shown once per session)', () => {
   it('is set on the first private repo load and not repeated afterwards', async () => {
     const serverA = fakeGitHub({ totalPages: 1, perPage: 1, isPrivate: true })
     setup(serverA, { fetchComments: 'never' })
@@ -505,7 +505,7 @@ describe('private-repo notice (SPEC §8, shown once per session)', () => {
   })
 })
 
-describe('onboarding checklist progression (SPEC §10.1, "2 Repository" step)', () => {
+describe('onboarding checklist progression ("2 Repository" step)', () => {
   it('marks the repo step done in preferences once a new analysis is created', async () => {
     const server = fakeGitHub({ totalPages: 1, perPage: 1 })
     setup(server, { fetchComments: 'never' })

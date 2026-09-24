@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The issues table (SPEC §6.3, §10.7): sticky header, virtual scrolling above
+// The issues table: sticky header, virtual scrolling above
 // 200 rows via @tanstack/vue-virtual, roving-tabindex keyboard navigation
 // (Arrow keys, Enter, D — "/" to focus search is owned by IssuesContainer,
 // since the search input lives in a sibling, FilterBar).
@@ -60,7 +60,7 @@ const emit = defineEmits<{
   restore: [issueNumber: number]
   expand: [issueNumber: number]
   sort: [key: SortKey]
-  /** Shift-click (Task 13, SPEC.md §2.5 item 3): adds the column as the next sort key. */
+  /** Shift-click (Task 13): adds the column as the next sort key. */
   'shift-sort': [key: SortKey]
 }>()
 
@@ -173,8 +173,8 @@ function onKeydown(event: KeyboardEvent) {
             @click="onHeaderClick(column, $event)"
           >
             <!--
-              Task 14's Weights popover button lands next to this label
-              (SPEC §2.5 item 3), without changing the column's sort wiring.
+              Task 14's Weights popover button lands next to this label,
+              without changing the column's sort wiring.
             -->
             <slot v-if="column.key === 'priority'" name="priority-header">
               <span>{{ column.label }}</span>
@@ -200,7 +200,7 @@ function onKeydown(event: KeyboardEvent) {
           @expand="emit('expand', $event)"
         >
           <!--
-            Task 14's Priority cell (SPEC §6.3 column 4) lands here, scoped
+            Task 14's Priority cell lands here, scoped
             to each row: `<template #priority="{ row }">…</template>`.
           -->
           <template #priority>

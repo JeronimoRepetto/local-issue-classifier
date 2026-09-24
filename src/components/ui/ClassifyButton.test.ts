@@ -1,4 +1,4 @@
-// Task 11 — SPEC.md §2.4 / §6.2: the Classify control.
+// Task 11 — the Classify control.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ClassifyButton from './ClassifyButton.vue'

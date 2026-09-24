@@ -1,4 +1,4 @@
-// The beforeunload guard (SPEC.md §2.1 "Reload during a run"): while a run
+// The beforeunload guard ("Reload during a run"): while a run
 // (GitHub loading or Jev classification) is active, reloading or closing the
 // tab loses the in-memory keys and cancels the run, so the browser is asked
 // to confirm first. When idle, no listener is registered at all, so an

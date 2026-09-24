@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The Priority column's Weights popover (Task 14, SPEC.md §2.5 item 3,
-// §4.9). Drop this into IssueTable's `priority-header` slot:
+// The Priority column's Weights popover (Task 14). Drop this into IssueTable's `priority-header` slot:
 //   <IssueTable><template #priority-header><PriorityContainer /></template></IssueTable>
 // It owns useAnalysis() itself to read/write `working.priorityWeights` — the
 // slot needs no scoped props for this — so IssueTable and IssuesContainer
@@ -9,7 +8,7 @@
 //
 // The wrapping `@click.stop` keeps the popover trigger and its panel from
 // bubbling a click up to the column `<th>`, which would otherwise toggle the
-// table's priority sort (SPEC.md §6.3's column-header click behaviour) on
+// table's priority sort (the column-header click behaviour) on
 // every slider interaction.
 import { computed } from 'vue'
 import UiPopover from '../../ui/UiPopover.vue'
@@ -28,7 +27,7 @@ const analysis = useAnalysis()
 
 const weights = computed<PriorityWeights>(() => analysis.current.value?.working.priorityWeights ?? defaultPriorityWeights())
 
-/** The Weights popover's live example (SPEC.md §4.9): the first classified row, if any. */
+/** The Weights popover's live example: the first classified row, if any. */
 const exampleRow = computed<WeightExampleRow | null>(() => {
   const row = analysis.current.value?.rows.find((r) => r.classification)
   return row?.classification ? { number: row.issue.number, classification: row.classification } : null

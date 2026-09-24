@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §6.3: sticky header, virtual scroll above 200 rows,
+// Task 12 — sticky header, virtual scroll above 200 rows,
 // roving-tabindex keyboard navigation (Arrow keys, Enter, D).
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
@@ -86,7 +86,7 @@ describe('IssueTable — sortable column headers', () => {
   })
 })
 
-describe('IssueTable — shift-click adds a sort key (Task 13, SPEC.md §2.5 item 3)', () => {
+describe('IssueTable — shift-click adds a sort key (Task 13)', () => {
   it('emits shift-sort instead of sort when the header is shift-clicked', async () => {
     const wrapper = mountTable([row(1)])
     await wrapper.get('[data-test="sort-relevance"]').trigger('click', { shiftKey: true })

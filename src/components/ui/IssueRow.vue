@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One row of the issues table (SPEC §6.3). Presentational: props/emits only.
+// One row of the issues table. Presentational: props/emits only.
 // The Priority cell is a named slot, left empty for Task 14 to fill in.
 import { computed } from 'vue'
 import LevelCell from './LevelCell.vue'

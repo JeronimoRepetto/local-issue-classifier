@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Detail drawer (SPEC §6.3): the stored, trimmed body and comments, exactly as
+// Detail drawer: the stored, trimmed body and comments, exactly as
 // Jev saw them, in plain text. Never `v-html`: issue bodies and comments are
-// untrusted content (SPEC §8 "Untrusted content"), so everything below is
+// untrusted content ("Untrusted content"), so everything below is
 // plain interpolation, which Vue escapes automatically.
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import UiButton from '../../ui/UiButton.vue'

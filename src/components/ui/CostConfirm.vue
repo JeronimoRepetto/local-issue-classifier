@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The comment-cost confirmation (SPEC §2.3 step 4): "Fetching comments needs ~N
+// The comment-cost confirmation: "Fetching comments needs ~N
 // requests; you have M left. Fetch comments / Skip comments / Cancel".
 import UiButton from '../../ui/UiButton.vue'
 

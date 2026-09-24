@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §2.6: the Export dialog. Wires useExport() to a UiDialog:
+// Task 13 — the Export dialog. Wires useExport() to a UiDialog:
 // scope, include-dismissed/unclassified/confidence/urls, the shared
 // SortRuleList order editor, "Use current table sort", a preview and Download.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

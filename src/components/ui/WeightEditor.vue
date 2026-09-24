@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Weights popover content (SPEC §2.5 item 3, §4.9): four sliders (step 5)
+// Weights popover content: four sliders (step 5)
 // with a paired numeric input each — every slider is keyboard-operable, and
 // its numeric input is always keyboard-focusable regardless of pointer
 // support. A live preview is emitted 150 ms after the last change so a drag
@@ -54,7 +54,7 @@ const emit = defineEmits<{ update: [weights: PriorityWeights] }>()
 
 const titleId = `weight-editor-title-${useId()}`
 
-/** Local draft, seeded and clamped from `weights` (SPEC.md §4.9 "applied on load"). */
+/** Local draft, seeded and clamped from `weights` ("applied on load"). */
 const draft = reactive<PriorityWeights>(clampWeights(props.weights))
 
 watch(

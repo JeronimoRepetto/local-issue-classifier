@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Filter bar (SPEC §2.5 item 1): every dimension combines with AND, applied
+// Filter bar: every dimension combines with AND, applied
 // by domain/filter.ts. Presentational: emits a patch per control, and a
 // `reset` event for "Reset filters". `focusSearch` is exposed for the "/"
 // keyboard shortcut, owned by the parent IssuesContainer.

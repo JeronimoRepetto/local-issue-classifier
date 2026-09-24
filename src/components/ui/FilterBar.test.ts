@@ -1,4 +1,4 @@
-// Task 12 — SPEC.md §2.5 item 1: filters combine with AND; free-text search,
+// Task 12 — filters combine with AND; free-text search,
 // level/kind/status multi-selects, relevance range, minimum confidence.
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'

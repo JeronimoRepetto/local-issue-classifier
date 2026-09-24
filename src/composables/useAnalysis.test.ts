@@ -1,4 +1,4 @@
-// Task 7 — SPEC.md §3.1 / §4.8: current analysis store with debounced and coalesced saves,
+// Task 7 — current analysis store with debounced and coalesced saves,
 // now over the async IndexedDB store (FB IndexedDB lane; the fake database is
 // installed per test by tests/setup/indexedDb.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

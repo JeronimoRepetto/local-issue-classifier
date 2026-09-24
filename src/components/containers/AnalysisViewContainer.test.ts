@@ -1,4 +1,4 @@
-// Task INT — SPEC.md §2.4 / §2.5 / §6.1 screen 3: the analysis view
+// Task INT — screen 3: the analysis view
 // container. Replaces AnalysisViewPlaceholder.vue: mounts IssuesContainer and
 // ClassifyContainer over the current analysis, wires refresh/back/open-settings
 // and owns the "?" shortcuts help dialog left out by Task 12.

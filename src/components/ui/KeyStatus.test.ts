@@ -1,4 +1,4 @@
-// Task 4 — SPEC.md §6.1 key status indicator: "Jev key: in memory / missing",
+// Task 4 — key status indicator: "Jev key: in memory / missing",
 // "GitHub: token / anonymous". Booleans only in props — it can never render a
 // secret value.
 import { describe, expect, it } from 'vitest'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The top-bar GitHub quota badge (SPEC §2.3 / §10.4): ok / warning (>80% used) / critical (exhausted).
+// The top-bar GitHub quota badge: ok / warning (>80% used) / critical (exhausted).
 import { computed } from 'vue'
 
 const props = defineProps<{ remaining: number | null; limit: number | null }>()

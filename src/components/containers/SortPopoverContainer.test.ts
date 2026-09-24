@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §2.5 item 3: "A 'Sort' popover reuses SortRuleList to
+// Task 13 — "A 'Sort' popover reuses SortRuleList to
 // edit the full ordered key list." This is the small wrapper that plugs
 // into IssuesContainer's `sort-popover` scoped slot: it owns useFilters()
 // directly for the full multi-key order (the slot's own `sort`/`setSort`

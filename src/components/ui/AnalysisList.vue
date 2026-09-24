@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Home list (SPEC §2.2): newest-updated first, with the empty state when
+// The Home list: newest-updated first, with the empty state when
 // there are no saved analyses yet.
 import EmptyState from '../../ui/EmptyState.vue'
 import AnalysisCard from './AnalysisCard.vue'

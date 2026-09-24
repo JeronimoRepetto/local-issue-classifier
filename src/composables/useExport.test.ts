@@ -1,4 +1,4 @@
-// Task 13 — SPEC.md §2.6: export options persisted per analysis (via
+// Task 13 — export options persisted per analysis (via
 // useAnalysis().updateWorking, like useFilters), "Use current table sort",
 // a preview built by the pure formatter, and download.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
