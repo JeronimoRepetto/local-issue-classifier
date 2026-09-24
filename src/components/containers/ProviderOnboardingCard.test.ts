@@ -130,4 +130,61 @@ describe('ProviderOnboardingCard', () => {
     await wrapper.get('[data-test="choice-local"]').trigger('click')
     expect(wrapper.find('.ui-button--primary').exists()).toBe(false)
   })
+
+  describe('"Your computer" hardware box', () => {
+    it('shows Detecting… until the shared hardware report resolves, then the facts and a Settings link', async () => {
+      const { useHardwareDetection } = await import('../../composables/useHardwareDetection')
+      let resolveDetect: ((report: HardwareReport) => void) | undefined
+      const pending = new Promise<HardwareReport>((resolve) => {
+        resolveDetect = resolve
+      })
+      const detectionDone = useHardwareDetection().run(() => pending)
+
+      const { default: ProviderOnboardingCard } = await import('./ProviderOnboardingCard.vue')
+      const wrapper = mount(ProviderOnboardingCard)
+
+      expect(wrapper.find('[data-test="hardware-box"]').exists()).toBe(true)
+      expect(wrapper.get('[data-test="hardware-box-detecting"]').text()).toContain('Detecting')
+      expect(wrapper.find('[data-test="hardware-box-gpu"]').exists()).toBe(false)
+
+      resolveDetect?.(RTX_5070)
+      await detectionDone
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="hardware-box-detecting"]').exists()).toBe(false)
+      expect(wrapper.get('[data-test="hardware-box-gpu"]').text()).toContain('RTX 5070')
+      expect(wrapper.find('[data-test="hardware-box-settings-link"]').exists()).toBe(true)
+    })
+
+    it('shows GPU + VRAM, the "≥ 8 GB" lower-bound RAM wording, CPU threads and tier chips for a detected report', async () => {
+      const wrapper = await mountCard(RTX_5070)
+
+      expect(wrapper.get('[data-test="hardware-box-gpu"]').text()).toBe('NVIDIA GeForce RTX 5070 · 12 GB')
+      expect(wrapper.get('[data-test="hardware-box-ram"]').text()).toContain('≥ 8 GB')
+      expect(wrapper.get('[data-test="hardware-box-cpu"]').text()).toContain('16')
+
+      expect(wrapper.get('[data-test="hardware-box-tier-kev-0.8b"]').text()).toContain('Fits')
+      expect(wrapper.get('[data-test="hardware-box-tier-kev-4b"]').text()).toContain('Fits')
+      expect(wrapper.get('[data-test="hardware-box-tier-jevk5"]').text()).toContain('Fits')
+      expect(wrapper.get('[data-test="hardware-box-tier-kev-9b"]').text()).toContain("Won't fit")
+      expect(wrapper.get('[data-test="hardware-box-recommendation"]').text()).toContain('JevK5')
+    })
+
+    it('shows "Unknown GPU — set it in Settings" and unknown chips when nothing was detected', async () => {
+      const wrapper = await mountCard(unknownHardwareReport())
+
+      expect(wrapper.get('[data-test="hardware-box-gpu"]').text()).toContain('Unknown GPU — set it in Settings')
+      expect(wrapper.get('[data-test="hardware-box-ram"]').text().toLowerCase()).toContain('unknown')
+      expect(wrapper.get('[data-test="hardware-box-cpu"]').text().toLowerCase()).toContain('unknown')
+      expect(wrapper.get('[data-test="hardware-box-tier-kev-0.8b"]').text()).toContain('Unknown')
+      expect(wrapper.get('[data-test="hardware-box-recommendation"]').text().toLowerCase()).toContain('cloud')
+    })
+
+    it('the "Details in Settings" link is a secondary/ghost action, never primary', async () => {
+      const wrapper = await mountCard()
+      expect(
+        wrapper.get('[data-test="hardware-box-settings-link"]').classes(),
+      ).not.toContain('ui-button--primary')
+    })
+  })
 })
