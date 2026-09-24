@@ -239,11 +239,12 @@ worked example — is specified in [`docs/export-format.md`](docs/export-format.
 ## Local providers
 
 By default the app classifies with **Jev on the TypeSafe cloud**, which needs a Jev API key. In
-Settings → **Classifier**, you can instead point it at a **local Jev-compatible server** — Kev
-(`jaredpalmer/kev`) or JevK5 (`allebee/jevk5`), both presets — which costs nothing per token and
-keeps issue text on your machine or LAN. No key is required for a local server, though one can be
-set if the server enforces one. See [`docs/local-providers.md`](docs/local-providers.md) for the
-launch commands, the CORS/proxy fallback and how to test the connection.
+Settings → **Classifier**, choose **Local server** for a copy-pasteable, step-by-step guide to
+running Kev (`jaredpalmer/kev`) or JevK5 (`allebee/jevk5`) — or just run `pnpm local:kev` from this
+repo, which clones, installs and starts Kev for you. A local server costs nothing per token, keeps
+issue text on your machine or LAN, and needs no key by default. See
+[`docs/local-providers.md`](docs/local-providers.md) for the exact commands, the CORS/proxy
+fallback and troubleshooting.
 
 ## Hardware fit
 
