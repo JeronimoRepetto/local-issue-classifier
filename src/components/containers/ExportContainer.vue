@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // Export dialog (Task 13, SPEC.md §2.6). Wires useExport() to a UiDialog:
-// scope, the four include toggles, the shared SortRuleList order editor,
-// "Use current table sort", a live preview and Download.
+// scope, the four include toggles, the Order segmented control (FB export:
+// "Same as table" (default) vs "Custom" — the shared SortRuleList order
+// editor and "Use current table sort" only show in Custom), a live preview
+// and Download.
 import UiDialog from '../../ui/UiDialog.vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSegmented from '../../ui/UiSegmented.vue'
@@ -19,6 +21,11 @@ const exportApi = useExport()
 const SCOPE_OPTIONS = [
   { value: 'filtered', label: 'filtered view' },
   { value: 'all', label: 'all issues' },
+]
+
+const ORDER_MODE_OPTIONS = [
+  { value: 'table', label: 'Same as table (default)' },
+  { value: 'custom', label: 'Custom' },
 ]
 
 function onCheckbox(field: keyof ExportOptions, event: Event): void {
@@ -94,10 +101,20 @@ function onCheckbox(field: keyof ExportOptions, event: Event): void {
       <div class="export-container__row">
         <span class="export-container__key u-micro">Order</span>
         <div class="export-container__order">
-          <SortRuleList :rules="exportApi.options.value.order" @update="exportApi.setOrder" />
-          <UiButton data-test="export-use-table-sort" variant="ghost" size="compact" @click="exportApi.useCurrentTableSort">
-            Use current table sort
-          </UiButton>
+          <UiSegmented
+            data-test="export-order-mode"
+            label="Export order"
+            size="compact"
+            :model-value="exportApi.options.value.orderMode"
+            :options="ORDER_MODE_OPTIONS"
+            @update:model-value="exportApi.setOptions({ orderMode: $event as ExportOptions['orderMode'] })"
+          />
+          <template v-if="exportApi.options.value.orderMode === 'custom'">
+            <SortRuleList :rules="exportApi.options.value.order" @update="exportApi.setOrder" />
+            <UiButton data-test="export-use-table-sort" variant="ghost" size="compact" @click="exportApi.useCurrentTableSort">
+              Use current table sort
+            </UiButton>
+          </template>
         </div>
       </div>
 

@@ -9,6 +9,40 @@ The formatter is pure and deterministic: given the same analysis, options and cl
 produces the same bytes. The only line that varies run to run is `Generated`, since it carries the
 injected clock.
 
+## Order modes (FB export: the export must match the table)
+
+`options.orderMode` is `'table' | 'custom'`, defaulting to **`'table'`**. It decides which rows
+appear and in what order — not just their sort:
+
+- **`'table'` (default).** The export runs the *exact* table pipeline for the current analysis,
+  via `domain/analysis.ts`'s `visibleRows(analysis, { filter: filterRows, sort: sortRowsBy })` —
+  the same function `IssuesContainer.vue` calls to render the table. Concretely:
+  - Dismissal is gated by `working.showDismissed`, not `options.includeDismissed`: a dismissed row
+    appears (in its own Dismissed section, still) if and only if the table is currently showing
+    dismissed rows, and it still has to pass the filter below to do so.
+  - `filterRows(working.filter)` applies to every row alike — unclassified rows do **not** bypass
+    it in this mode, unlike `'custom'` below. A narrowed filter (e.g. a criticality of "high") can
+    hide an unclassified row from the export exactly as it hides it from the table.
+  - The row order is `sortRowsBy(working.tableSort, working.priorityWeights)` — the table's own
+    live multi-key sort, not `options.order`.
+  - `options.scope`, `options.includeDismissed` and `options.includeUnclassified` are not consulted
+    at all in this mode: reusing `visibleRows` directly is what keeps the export and the table from
+    drifting apart again.
+  - The header's `Order` line reads `Same as table: <rules>`, and `Scope` always describes the
+    live filter (as if `scope: 'filtered'`), since the table always applies it.
+- **`'custom'`.** The export's own independent order/scope/include settings apply, exactly as
+  described in the rest of this document (own `options.order`, `options.scope`, dismissed rows
+  gated by `includeDismissed`, unclassified rows bypassing the filter when `includeUnclassified` is
+  on). The Order dialog row's segmented control switches modes; the sort-rule editor and "Use
+  current table sort" are only shown in Custom.
+- An analysis saved before `orderMode` existed has no such field; `domain/types.ts`'s
+  `resolveExportOptions` (read at the `useExport()` boundary, same pattern as
+  `resolveVisibleColumns`) tolerantly treats that as `'table'`.
+
+`exportScopeCount`/`useExport().scopeCount` and the Export dialog's Download-disabled state always
+count exactly the rows the current mode would write — in `'table'` mode that is
+`visibleRows(...).length` for the current analysis.
+
 ## Format rules
 
 - Fixed-width layout: every header label is padded to 11 characters before its colon; the row index
@@ -28,14 +62,20 @@ injected clock.
 ## Sections
 
 1. **Header** — one label per line (see below).
-2. **Main section** — a divider (`===...`, 72 `=` characters), then every issue that is classified,
-   not dismissed, and in scope, in the export order (`options.order`).
-3. **Unclassified (N)** — only when `options.includeUnclassified` is true and at least one row has
-   no classification. These rows bypass the working filter entirely: "Include unclassified" is a
-   blanket toggle, not another filter dimension, so a narrowed filter (say, a relevance floor no
-   unclassified row can satisfy) never empties this section.
-4. **Dismissed (N)** — only when `options.includeDismissed` is true and at least one row is
-   dismissed. Dismissed rows never appear anywhere else, classified or not.
+2. **Main section** — a divider (`===...`, 72 `=` characters), then every issue that is classified
+   and not dismissed, in the export order. In `'custom'` mode that order is `options.order`, applied
+   to the rows `options.scope` selects; in `'table'` mode it is the table's own row set and order
+   (see "Order modes" above).
+3. **Unclassified (N)** — rendered whenever at least one row with no classification is included.
+   In `'custom'` mode this is gated by `options.includeUnclassified`, and those rows bypass the
+   working filter entirely: "Include unclassified" is a blanket toggle, not another filter
+   dimension, so a narrowed filter (say, a relevance floor no unclassified row can satisfy) never
+   empties this section. In `'table'` mode unclassified rows follow the table exactly instead: they
+   go through the same filter as every other row, with no bypass.
+4. **Dismissed (N)** — rendered whenever at least one dismissed row is included. In `'custom'` mode
+   this is gated by `options.includeDismissed`; in `'table'` mode it follows `working.showDismissed`
+   instead (and the row still has to pass the filter). Dismissed rows never appear anywhere else,
+   classified or not.
 
 Sections are separated by a blank line; entries within the main section are separated by a blank
 line too.
@@ -47,9 +87,9 @@ line too.
 | `Repository` | `{owner}/{repo} ({stateFilter} issues)`, plus ` — "{name}"` when the analysis was renamed away from its default name. |
 | `Generated` | `YYYY-MM-DD HH:mm (local time)`, from the injected clock. |
 | `Model` | `{model} · questions v{questionsVersion}` from the first classified row found; omitted when nothing is classified yet. |
-| `Order` | The export order, e.g. `Priority (high→low), Effort (low→high)`. Date keys read `newest→oldest` / `oldest→newest` instead. |
+| `Order` | `'custom'` mode: the export order, e.g. `Priority (high→low), Effort (low→high)`. `'table'` mode (default): `Same as table: <rules>`, i.e. `working.tableSort` formatted the same way. Date keys read `newest→oldest` / `oldest→newest` instead. |
 | `Weights` | `Criticality N · Relevance N · Complexity N (inverted) · Effort N (inverted)`, the analysis's `priorityWeights`, always shown even if every weight is 0. |
-| `Scope` | `{filtered view|all issues} — {main count} of {total issues}`, plus ` (filters: …)` for an active, non-default filter when `scope` is `'filtered'`. |
+| `Scope` | `{filtered view|all issues} — {main count} of {total issues}`, plus ` (filters: …)` for an active, non-default filter. `'custom'` mode reads this from `scope`; `'table'` mode always behaves like `'filtered'`, since the table always applies `working.filter`. |
 | `Note` | A fixed sentence about the ordinal, model-based nature of levels/relevance/priority. |
 
 ## Main-section entry
@@ -84,6 +124,8 @@ message; otherwise it is omitted.
 ## Worked example
 
 Golden fixture (byte-for-byte, apart from the `Generated` line): `tests/fixtures/export/basic-report.txt`.
+Built with `orderMode: 'custom'` and an explicit `order`/`scope`, so its `Order` and `Scope` lines
+read as described above for that mode.
 
 ```text
 local-issue-classifier report
@@ -127,6 +169,8 @@ Dismissed (1)
 | `exportScopeCount(analysis, options)` | `src/domain/exportText.ts` | Total rows that would appear in any section — backs the "Nothing to export" gate. |
 | `exportFilenameStem(analysis, now)` | `src/domain/exportText.ts` | `{owner}-{repo}-issues-{YYYYMMDD-HHmm}`, without the `.txt` extension. |
 | `sortRowsBy(rows, rules, weights?)` | `src/domain/sort.ts` | The stable multi-key sort used for the main section, and by the table itself. |
+| `visibleRows(analysis, options?)` | `src/domain/analysis.ts` | Dismissal → filter → sort, in that order; `orderMode: 'table'` calls this the same way `IssuesContainer.vue` does. |
+| `resolveExportOptions(stored)` | `src/domain/types.ts` | Tolerant read of `exportOptions`; fills in `orderMode: 'table'` for an analysis saved before the field existed. |
 | `downloadText(text, filename)` | `src/adapters/download.ts` | Anchor-based download: Blob URL → `<a download>` click → revoke on the next tick. |
 | `useExport()` | `src/composables/useExport.ts` | `options`, `setOptions`, `setOrder`, `useCurrentTableSort`, `previewText`, `scopeCount`, `download`. |
 

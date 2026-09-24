@@ -2,10 +2,12 @@
 // useAnalysis().updateWorking, like useFilters), "Use current table sort",
 // a preview built by the pure formatter, and download.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createAnalysis } from '../domain/analysis'
-import type { Analysis } from '../domain/types'
-import { defaultExportOptions, defaultPreferences, defaultProjectContext } from '../domain/types'
-import { fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
+import { createAnalysis, visibleRows } from '../domain/analysis'
+import { filterRows } from '../domain/filter'
+import { sortRowsBy } from '../domain/sort'
+import type { Analysis, ExportOptions } from '../domain/types'
+import { defaultExportOptions, defaultFilter, defaultPreferences, defaultProjectContext } from '../domain/types'
+import { fakeClassification, fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
 import { MemoryStorage } from '../../tests/fakes/memoryStorage'
 
 vi.mock('../adapters/download', () => ({ downloadText: vi.fn() }))
@@ -60,6 +62,40 @@ describe('useExport — reading options', () => {
     analysisMod.useAnalysis().setCurrent(analysis())
     const { options } = exportMod.useExport()
     expect(options.value).toEqual(defaultExportOptions())
+  })
+
+  it('defaults orderMode to "table" (FB export: export must match the table)', () => {
+    analysisMod.useAnalysis().setCurrent(analysis())
+    const { options } = exportMod.useExport()
+    expect(options.value.orderMode).toBe('table')
+  })
+
+  it('tolerantly resolves orderMode to "table" for an older saved analysis missing the field', () => {
+    const a = analysis()
+    const stale: Partial<ExportOptions> = { ...a.working.exportOptions }
+    delete stale.orderMode
+    analysisMod.useAnalysis().setCurrent({
+      ...a,
+      working: { ...a.working, exportOptions: stale as ExportOptions },
+    })
+    const { options } = exportMod.useExport()
+    expect(options.value.orderMode).toBe('table')
+  })
+})
+
+describe('useExport — scopeCount mirrors the table in orderMode "table"', () => {
+  it('equals visibleRows().length for the current analysis, not a separately-filtered count', () => {
+    const a = analysis()
+    a.rows[0].status = 'done'
+    a.rows[0].classification = fakeClassification()
+    analysisMod.useAnalysis().setCurrent(a)
+    analysisMod.useAnalysis().updateWorking({ filter: { ...defaultFilter(), statuses: ['done'] } })
+
+    const { scopeCount } = exportMod.useExport()
+    const current = analysisMod.useAnalysis().current.value!
+    const expected = visibleRows(current, { filter: filterRows, sort: sortRowsBy }).length
+    expect(expected).toBe(1) // only rows[0] has status 'done'
+    expect(scopeCount.value).toBe(expected)
   })
 })
 

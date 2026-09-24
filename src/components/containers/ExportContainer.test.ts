@@ -112,6 +112,9 @@ describe('ExportContainer', () => {
     mount(ExportContainer, { props: { open: true }, attachTo: document.body })
     await flush()
 
+    // "Use current table sort" only applies to a custom order (orderMode: 'table' is the default).
+    ;(document.querySelector('[data-test="segment-custom"]') as HTMLButtonElement).click()
+    await flush()
     ;(document.querySelector('[data-test="export-use-table-sort"]') as HTMLButtonElement).click()
     await flush()
 
@@ -120,14 +123,34 @@ describe('ExportContainer', () => {
     ])
   })
 
-  it('disables Download and shows "Nothing to export" when the scope is empty', async () => {
+  it('the Order control defaults to "Same as table" and only reveals the rule list in Custom', async () => {
+    analysisMod.useAnalysis().setCurrent(seedAnalysis())
+    mount(ExportContainer, { props: { open: true }, attachTo: document.body })
+    await flush()
+
+    expect(document.querySelector('[data-test="segment-table"]')?.getAttribute('aria-checked')).toBe('true')
+    expect(document.querySelector('.sort-rule-list')).toBeNull()
+    expect(document.querySelector('[data-test="export-use-table-sort"]')).toBeNull()
+
+    ;(document.querySelector('[data-test="segment-custom"]') as HTMLButtonElement).click()
+    await flush()
+
+    expect(document.querySelector('.sort-rule-list')).not.toBeNull()
+    expect(document.querySelector('[data-test="export-use-table-sort"]')).not.toBeNull()
+    expect(analysisMod.useAnalysis().current.value?.working.exportOptions.orderMode).toBe('custom')
+  })
+
+  it('disables Download and shows "Nothing to export" when the scope is empty (Custom, includeUnclassified off)', async () => {
     const analysis = seedAnalysis()
     analysis.rows[0].classification = null
     analysis.rows[0].status = 'unclassified'
     analysis.rows[1].status = 'unclassified'
     analysisMod.useAnalysis().setCurrent(analysis)
+    // orderMode: 'table' (the default) always shows unclassified rows that
+    // pass the working filter, so this needs Custom mode to exercise
+    // includeUnclassified: false.
     analysisMod.useAnalysis().updateWorking({
-      exportOptions: { ...analysis.working.exportOptions, includeUnclassified: false },
+      exportOptions: { ...analysis.working.exportOptions, orderMode: 'custom', includeUnclassified: false },
     })
     mount(ExportContainer, { props: { open: true }, attachTo: document.body })
     await flush()

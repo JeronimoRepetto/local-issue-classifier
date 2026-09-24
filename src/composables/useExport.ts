@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { useAnalysis } from './useAnalysis'
 import { exportFilenameStem, exportScopeCount, formatExport } from '../domain/exportText'
 import { downloadText } from '../adapters/download'
-import { defaultExportOptions } from '../domain/types'
+import { resolveExportOptions } from '../domain/types'
 import type { ExportOptions, ExportOrder } from '../domain/types'
 
 /** Dependency injection for the clock (Generated line, filename stamp), like `configureAnalysis`. */
@@ -23,7 +23,7 @@ export function configureExport(config: ExportConfig): void {
 export function useExport() {
   const analysis = useAnalysis()
 
-  const options = computed<ExportOptions>(() => analysis.current.value?.working.exportOptions ?? defaultExportOptions())
+  const options = computed<ExportOptions>(() => resolveExportOptions(analysis.current.value?.working.exportOptions))
 
   function setOptions(patch: Partial<ExportOptions>): void {
     analysis.updateWorking({ exportOptions: { ...options.value, ...patch } })

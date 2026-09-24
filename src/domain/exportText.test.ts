@@ -8,7 +8,9 @@
 import { describe, expect, it } from 'vitest'
 import golden from '../../tests/fixtures/export/basic-report.txt?raw'
 import { exportFilenameStem, exportScopeCount, formatExport } from './exportText'
-import { createAnalysis, updateWorking } from './analysis'
+import { createAnalysis, updateWorking, visibleRows } from './analysis'
+import { filterRows } from './filter'
+import { sortRowsBy } from './sort'
 import { defaultExportOptions, defaultFilter, defaultPreferences, defaultProjectContext } from './types'
 import type { Analysis, ExportOptions, IssueRow } from './types'
 import { fakeClassification, fakeIssue, fakeRepo } from '../../tests/fakes/domainFixtures'
@@ -17,6 +19,21 @@ const GENERATED_LINE_RE = /^Generated {2}: .*$/m
 
 function normalizeGenerated(text: string): string {
   return text.replace(GENERATED_LINE_RE, 'Generated  : <TIMESTAMP>')
+}
+
+/** Issue numbers of every main-section entry (` 1. #NNN  ...`), in order. */
+function mainNumbers(text: string): number[] {
+  return [...text.matchAll(/^ *\d+\.\s+#(\d+)/gm)].map((m) => Number(m[1]))
+}
+
+/** Issue numbers inside one compact section ("Unclassified (N)" / "Dismissed (N)"), in order. */
+function sectionNumbers(text: string, marker: 'Unclassified' | 'Dismissed'): number[] {
+  const start = text.indexOf(`${marker} (`)
+  if (start === -1) return []
+  const rest = text.slice(start)
+  const end = rest.indexOf('\n\n')
+  const block = end === -1 ? rest : rest.slice(0, end)
+  return [...block.matchAll(/#(\d+)/g)].map((m) => Number(m[1]))
 }
 
 function baseAnalysis(): Analysis {
@@ -82,6 +99,7 @@ describe('formatExport — golden file (SPEC.md §6.5)', () => {
     const analysis = withOptions(
       updateWorking(baseAnalysis(), { filter: { ...defaultFilter(), relevanceMin: 50 } }, '2026-09-01T00:00:00Z'),
       {
+        orderMode: 'custom',
         scope: 'filtered',
         order: [
           { key: 'priority', direction: 'desc' },
@@ -151,7 +169,7 @@ describe('formatExport — format rules', () => {
   it('scope "all" ignores the working filter and includes every non-dismissed classified row', () => {
     const analysis = withOptions(
       updateWorking(baseAnalysis(), { filter: { ...defaultFilter(), relevanceMin: 95 } }, '2026-09-01T00:00:00Z'),
-      { scope: 'all' },
+      { orderMode: 'custom', scope: 'all' },
     )
     const text = formatExport(analysis, analysis.working.exportOptions, new Date('2026-09-23T14:05:00'))
     expect(text).toContain('#812')
@@ -159,9 +177,133 @@ describe('formatExport — format rules', () => {
   })
 })
 
+// Reported bug: the export used a separate default order (defaultExportOptions'
+// order) instead of the table's own pipeline, so it could show different rows in
+// a different order than what the user was looking at. `orderMode: 'table'`
+// (the default) fixes this by running the *exact* table pipeline — dismissal
+// gated by `working.showDismissed`, `filterRows(working.filter)` with no
+// unclassified bypass, `sortRowsBy(working.tableSort)` — via `visibleRows`
+// itself, so the two can never drift apart again.
+describe('formatExport — orderMode "table" (bug fix: export must match the table)', () => {
+  function tableOrderAnalysis(): Analysis {
+    const analysis = createAnalysis({
+      id: 'a2',
+      repo: fakeRepo(),
+      stateFilter: 'open',
+      now: '2026-09-01T00:00:00Z',
+      prefs: defaultPreferences(),
+      projectContext: defaultProjectContext('acme/widgets'),
+      issues: [301, 302, 303, 304, 305, 306].map((n) => fakeIssue(n)),
+      commentsFetched: true,
+    })
+
+    function classify(n: number, overrides: Parameters<typeof fakeClassification>[0]): void {
+      const row = analysis.rows.find((r) => r.issue.number === n)
+      if (!row) throw new Error(`fixture bug: no row #${n}`)
+      row.status = 'done'
+      row.classification = fakeClassification(overrides)
+    }
+
+    const high = { level: 'high' as const, score: 2, confidence: 0.9, probabilities: [0, 0, 1] as [number, number, number] }
+    classify(301, { criticality: high, relevance: { value: 80, score: 3.2, confidence: 0.8, probabilities: [0, 0, 0, 1, 0] } })
+    classify(302, { criticality: high, relevance: { value: 20, score: 0.8, confidence: 0.8, probabilities: [1, 0, 0, 0, 0] } })
+    classify(305, { criticality: high, relevance: { value: 50, score: 2, confidence: 0.8, probabilities: [0, 0, 1, 0, 0] } })
+    classify(306, { criticality: { level: 'medium', score: 1, confidence: 0.9, probabilities: [0, 1, 0] } })
+    // 303 and 304 stay unclassified.
+
+    return updateWorking(
+      analysis,
+      {
+        // Narrows to criticality=high: 303/304 (unclassified) and 306 (medium) all fail it.
+        filter: { ...defaultFilter(), criticality: ['high'] },
+        tableSort: [
+          { key: 'criticality', direction: 'desc' },
+          { key: 'relevance', direction: 'asc' },
+        ],
+        showDismissed: true,
+        dismissed: [304, 305],
+      },
+      analysis.updatedAt,
+    )
+  }
+
+  it('produces exactly visibleRows() row set and order: filter + multi-key sort + dismissed + unclassified', () => {
+    const analysis = tableOrderAnalysis()
+    const text = formatExport(analysis, analysis.working.exportOptions, new Date('2026-09-23T14:05:00'))
+
+    const tableRows = visibleRows(analysis, { filter: filterRows, sort: sortRowsBy })
+    const dismissedSet = new Set(analysis.working.dismissed)
+    const expectedMain = tableRows
+      .filter((r) => !dismissedSet.has(r.issue.number) && r.classification !== null)
+      .map((r) => r.issue.number)
+    const expectedUnclassified = tableRows
+      .filter((r) => !dismissedSet.has(r.issue.number) && r.classification === null)
+      .map((r) => r.issue.number)
+    const expectedDismissed = tableRows.filter((r) => dismissedSet.has(r.issue.number)).map((r) => r.issue.number)
+
+    // Sanity on the fixture itself, so a future edit to it fails loudly here
+    // instead of silently changing what the regression below actually covers.
+    expect(expectedMain).toEqual([302, 301])
+    expect(expectedUnclassified).toEqual([])
+    expect(expectedDismissed).toEqual([305])
+
+    expect(mainNumbers(text)).toEqual(expectedMain)
+    expect(sectionNumbers(text, 'Unclassified')).toEqual(expectedUnclassified)
+    expect(sectionNumbers(text, 'Dismissed')).toEqual(expectedDismissed)
+  })
+
+  it('does not let unclassified rows bypass the working filter (regression)', () => {
+    const analysis = tableOrderAnalysis()
+    const text = formatExport(analysis, analysis.working.exportOptions, new Date('2026-09-23T14:05:00'))
+    // 303 is unclassified and not dismissed; the old export always showed it
+    // ("Include unclassified" bypassed the filter entirely). The table never
+    // did, so in table mode neither should the export.
+    expect(text).not.toContain('#303')
+  })
+
+  it('dismissed rows follow working.showDismissed, not options.includeDismissed', () => {
+    const shown = withOptions(tableOrderAnalysis(), { includeDismissed: false })
+    const textShown = formatExport(shown, shown.working.exportOptions, new Date('2026-09-23T14:05:00'))
+    expect(sectionNumbers(textShown, 'Dismissed')).toEqual([305]) // shown despite includeDismissed: false
+
+    const hidden = withOptions(
+      updateWorking(tableOrderAnalysis(), { showDismissed: false }, '2026-09-01T00:00:00Z'),
+      { includeDismissed: true },
+    )
+    const textHidden = formatExport(hidden, hidden.working.exportOptions, new Date('2026-09-23T14:05:00'))
+    expect(sectionNumbers(textHidden, 'Dismissed')).toEqual([]) // hidden despite includeDismissed: true
+    expect(textHidden).not.toContain('#305')
+  })
+
+  it('ignores options.scope: the table filter always applies, never "all issues"', () => {
+    const analysis = withOptions(tableOrderAnalysis(), { scope: 'all' })
+    const text = formatExport(analysis, analysis.working.exportOptions, new Date('2026-09-23T14:05:00'))
+    expect(text).not.toContain('#303')
+    expect(text).not.toContain('#304')
+    expect(text).not.toContain('#306')
+  })
+
+  it('the Order header line describes the live table sort, not options.order', () => {
+    const analysis = withOptions(tableOrderAnalysis(), { order: [{ key: 'number', direction: 'asc' }] })
+    const text = formatExport(analysis, analysis.working.exportOptions, new Date('2026-09-23T14:05:00'))
+    expect(text).toContain('Order      : Same as table: Criticality (high→low), Relevance (low→high)')
+  })
+
+  it('exportScopeCount matches visibleRows().length exactly', () => {
+    const analysis = tableOrderAnalysis()
+    const expected = visibleRows(analysis, { filter: filterRows, sort: sortRowsBy }).length
+    expect(expected).toBe(3) // 301, 302 (main) + 305 (dismissed, shown); 303/304/306 filtered out
+    expect(exportScopeCount(analysis, analysis.working.exportOptions)).toBe(expected)
+  })
+})
+
 describe('exportScopeCount — "Nothing to export" gating (SPEC.md §2.6 edge cases)', () => {
   it('counts every row that would appear in any section', () => {
-    const analysis = withOptions(baseAnalysis(), { includeDismissed: true, includeUnclassified: true })
+    const analysis = withOptions(baseAnalysis(), {
+      orderMode: 'custom',
+      includeDismissed: true,
+      includeUnclassified: true,
+    })
     expect(exportScopeCount(analysis, analysis.working.exportOptions)).toBe(3) // main + unclassified + dismissed
   })
 
@@ -173,6 +315,7 @@ describe('exportScopeCount — "Nothing to export" gating (SPEC.md §2.6 edge ca
 
   it('is 0 when scope excludes everything', () => {
     const analysis = withOptions(baseAnalysis(), {
+      orderMode: 'custom',
       scope: 'filtered',
       includeUnclassified: false,
       includeDismissed: false,
@@ -197,6 +340,7 @@ describe('defaultExportOptions (sanity: unchanged by Task 13, SPEC.md §2.6)', (
         { key: 'relevance', direction: 'desc' },
         { key: 'effort', direction: 'asc' },
       ],
+      orderMode: 'table',
       scope: 'filtered',
       includeUnclassified: true,
       includeDismissed: false,

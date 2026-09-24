@@ -245,6 +245,15 @@ export interface IssueFilter {
 
 export interface ExportOptions {
   order: ExportOrder
+  /**
+   * FB export: 'table' (default) makes the export use the *exact* table
+   * pipeline for the current analysis (dismissal gated by
+   * `working.showDismissed`, `filterRows(working.filter)` with no
+   * unclassified bypass, `sortRowsBy(working.tableSort)`) — see
+   * `domain/exportText.ts`'s `partitionForExport`. `scope`, `includeDismissed`
+   * and `includeUnclassified` below are only consulted in `'custom'` mode.
+   */
+  orderMode: 'table' | 'custom'
   scope: 'all' | 'filtered'
   includeUnclassified: boolean
   includeDismissed: boolean
@@ -291,6 +300,9 @@ export function defaultTableSort(): ExportOrder {
 export function defaultExportOptions(): ExportOptions {
   return {
     order: defaultSortOrder(),
+    // FB export: mirror the table by default so the export can never show a
+    // different row set/order than what the user is looking at (§2.6).
+    orderMode: 'table',
     // "the current filtered view (default)", §2.6.
     scope: 'filtered',
     includeUnclassified: true,
@@ -298,6 +310,18 @@ export function defaultExportOptions(): ExportOptions {
     includeConfidence: true,
     includeUrls: true,
   }
+}
+
+/**
+ * Tolerant read of a possibly-older stored `ExportOptions` (same pattern as
+ * `domain/columns.ts`'s `resolveVisibleColumns`): an analysis saved before
+ * `orderMode` existed has every other field but that one, so it falls back to
+ * `'table'` rather than `undefined`. Everything else is passed through as-is.
+ */
+export function resolveExportOptions(stored: ExportOptions | undefined): ExportOptions {
+  if (!stored) return defaultExportOptions()
+  if (stored.orderMode === 'table' || stored.orderMode === 'custom') return stored
+  return { ...stored, orderMode: 'table' }
 }
 
 export function defaultPriorityWeights(): PriorityWeights {
@@ -328,6 +352,7 @@ export function defaultFilter(): IssueFilter {
 function cloneExportOptions(options: ExportOptions): ExportOptions {
   return {
     order: options.order.map((rule) => ({ ...rule })),
+    orderMode: options.orderMode,
     scope: options.scope,
     includeUnclassified: options.includeUnclassified,
     includeDismissed: options.includeDismissed,

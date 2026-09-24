@@ -12,8 +12,9 @@ import {
   defaultSecrets,
   defaultTableSort,
   defaultWorkingState,
+  resolveExportOptions,
 } from './types'
-import type { Repo } from './types'
+import type { ExportOptions, Repo } from './types'
 import { DEFAULT_VISIBLE_COLUMNS } from './columns'
 
 function fakeRepo(): Repo {
@@ -112,9 +113,10 @@ describe('defaultTableSort / defaultExportOptions', () => {
     expect(defaultTableSort()).toEqual(expectedOrder)
   })
 
-  it('defaultExportOptions seeds scope=filtered and the same order', () => {
+  it('defaultExportOptions seeds scope=filtered, orderMode=table and the same order', () => {
     const options = defaultExportOptions()
     expect(options.order).toEqual(expectedOrder)
+    expect(options.orderMode).toBe('table')
     expect(options.scope).toBe('filtered')
     expect(options.includeDismissed).toBe(false)
   })
@@ -129,6 +131,25 @@ describe('defaultTableSort / defaultExportOptions', () => {
     const y = defaultExportOptions()
     x.order.push({ key: 'number', direction: 'asc' })
     expect(y.order).toHaveLength(3)
+  })
+})
+
+describe('resolveExportOptions (FB export: tolerant loading of older working state)', () => {
+  it('returns defaultExportOptions() when nothing is stored', () => {
+    expect(resolveExportOptions(undefined)).toEqual(defaultExportOptions())
+  })
+
+  it('fills in orderMode: "table" for an older stored value that predates the field', () => {
+    const stored = defaultExportOptions()
+    delete (stored as Partial<ExportOptions>).orderMode
+    expect(resolveExportOptions(stored).orderMode).toBe('table')
+    // every other field is passed through unchanged
+    expect(resolveExportOptions(stored)).toEqual({ ...defaultExportOptions(), orderMode: 'table' })
+  })
+
+  it('leaves an explicit orderMode untouched', () => {
+    const stored: ExportOptions = { ...defaultExportOptions(), orderMode: 'custom' }
+    expect(resolveExportOptions(stored).orderMode).toBe('custom')
   })
 })
 
