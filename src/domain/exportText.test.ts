@@ -346,6 +346,8 @@ describe('defaultExportOptions (sanity: unchanged by Task 13; see docs/export-fo
       includeDismissed: false,
       includeConfidence: true,
       includeUrls: true,
+      format: 'text',
+      includeBodies: false,
     })
   })
 })

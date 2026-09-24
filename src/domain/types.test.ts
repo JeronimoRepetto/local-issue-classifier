@@ -151,6 +151,34 @@ describe('resolveExportOptions (FB export: tolerant loading of older working sta
     const stored: ExportOptions = { ...defaultExportOptions(), orderMode: 'custom' }
     expect(resolveExportOptions(stored).orderMode).toBe('custom')
   })
+
+  it('fills in format: "text" for an older stored value that predates the field', () => {
+    const stored = defaultExportOptions()
+    delete (stored as Partial<ExportOptions>).format
+    expect(resolveExportOptions(stored).format).toBe('text')
+  })
+
+  it('leaves an explicit format untouched', () => {
+    const stored: ExportOptions = { ...defaultExportOptions(), format: 'markdown' }
+    expect(resolveExportOptions(stored).format).toBe('markdown')
+    expect(resolveExportOptions({ ...defaultExportOptions(), format: 'html' }).format).toBe('html')
+  })
+
+  it('falls back to "text" for an unrecognized stored format', () => {
+    const stored = { ...defaultExportOptions(), format: 'pdf' } as unknown as ExportOptions
+    expect(resolveExportOptions(stored).format).toBe('text')
+  })
+
+  it('fills in includeBodies: false for an older stored value that predates the field', () => {
+    const stored = defaultExportOptions()
+    delete (stored as Partial<ExportOptions>).includeBodies
+    expect(resolveExportOptions(stored).includeBodies).toBe(false)
+  })
+
+  it('leaves an explicit includeBodies untouched', () => {
+    const stored: ExportOptions = { ...defaultExportOptions(), includeBodies: true }
+    expect(resolveExportOptions(stored).includeBodies).toBe(true)
+  })
 })
 
 describe('defaultPriorityWeights', () => {
