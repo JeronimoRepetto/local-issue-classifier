@@ -2,6 +2,7 @@
 // / error), resume, the huge-repo and comment-cost confirmations, refresh merge
 // and the once-per-session private-repo notice.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { watch } from 'vue'
 import { STORAGE_KEYS, defaultPreferences } from '../domain/types'
 import { MemoryStorage } from '../../tests/fakes/memoryStorage'
 
@@ -53,6 +54,20 @@ interface ServerOptions {
   comments?: Record<number, Array<Record<string, unknown>>>
   /** Full override for one page's raw issue array, bypassing auto-numbering. */
   pages?: Record<number, Array<Record<string, unknown>>>
+  /**
+   * Cursor pagination, as GitHub serves the issues list today: page links point at
+   * `/repositories/{id}/issues?...&after=<cursor>&page=N` and carry `next`/`prev`
+   * only, never `rel="last"`, so the total page count is unknown.
+   */
+  cursor?: boolean
+}
+
+const CURSOR_ISSUES_RE =
+  /^\/repositories\/42\/issues\?state=open&sort=updated&direction=desc&per_page=100&(?:after|before)=Y3Vyc29y(\d+)%3D&page=(\d+)$/
+
+function cursorPageUrl(page: number, rel: 'next' | 'prev', from: number): string {
+  const param = rel === 'next' ? 'after' : 'before'
+  return `/repositories/42/issues?state=open&sort=updated&direction=desc&per_page=100&${param}=Y3Vyc29y${from}%3D&page=${page}`
 }
 
 function fakeGitHub(opts: ServerOptions) {
@@ -82,7 +97,7 @@ function fakeGitHub(opts: ServerOptions) {
     // Only issues/comments requests count against the simulated quota, so this
     // fake server's request count for repo metadata and project-context probes
     // (an implementation detail of loadProjectContext) never affects it.
-    const countsAgainstQuota = ISSUES_RE.test(path) || /\/comments\?per_page=100$/.test(path)
+    const countsAgainstQuota = ISSUES_RE.test(path) || CURSOR_ISSUES_RE.test(path) || /\/comments\?per_page=100$/.test(path)
     if (countsAgainstQuota) remaining = Math.max(0, remaining - 1)
 
     if (path === REPO_PATH) {
@@ -104,16 +119,23 @@ function fakeGitHub(opts: ServerOptions) {
     }
 
     const issuesMatch = ISSUES_RE.exec(path)
-    if (issuesMatch) {
+    const cursorMatch = CURSOR_ISSUES_RE.exec(path)
+    if (issuesMatch || cursorMatch) {
       issuesSeen += 1
       if (opts.failIssuesRequestAt === issuesSeen) return rateLimitedResponse()
-      const page = issuesMatch[1] ? Number(issuesMatch[1]) : 1
+      const page = cursorMatch ? Number(cursorMatch[2]) : issuesMatch![1] ? Number(issuesMatch![1]) : 1
       if (page > opts.totalPages) return new Response('[]', { status: 200, headers: rateHeaders() })
       const body = JSON.stringify(
         opts.pages?.[page] ?? makePage(page, perPage, (n) => opts.issues?.[n] ?? rawIssue(n)),
       )
-      const links: string[] = [`<${BASE}${issuesPageUrl(opts.totalPages)}>; rel="last"`]
-      if (page < opts.totalPages) links.push(`<${BASE}${issuesPageUrl(page + 1)}>; rel="next"`)
+      const links: string[] = []
+      if (opts.cursor) {
+        if (page < opts.totalPages) links.push(`<${BASE}${cursorPageUrl(page + 1, 'next', page)}>; rel="next"`)
+        if (page > 1) links.push(`<${BASE}${cursorPageUrl(page - 1, 'prev', page)}>; rel="prev"`)
+      } else {
+        links.push(`<${BASE}${issuesPageUrl(opts.totalPages)}>; rel="last"`)
+        if (page < opts.totalPages) links.push(`<${BASE}${issuesPageUrl(page + 1)}>; rel="next"`)
+      }
       return new Response(body, { status: 200, headers: { ...rateHeaders(), link: links.join(', ') } })
     }
 
@@ -225,6 +247,73 @@ describe('huge-repo confirmation (SPEC §2.3, above 20 pages)', () => {
     const current = analysisMod.useAnalysis().current.value!
     expect(current.rows).toHaveLength(100)
     // Only the peek request was made for the issues list.
+    expect(server.calls.filter((c) => c.includes('/issues?')).length).toBe(1)
+  })
+})
+
+describe('cursor pagination without rel="last" (GitHub issues list today)', () => {
+  const withPullRequests = (page: number) =>
+    makePage(page, 100, (n) => (n % 10 === 0 ? rawIssue(n, { pull_request: { url: 'x' } }) : rawIssue(n)))
+
+  it('loads exactly the cap of 200 over a 3-page repo without asking to confirm', async () => {
+    const server = fakeGitHub({ totalPages: 3, cursor: true })
+    setup(server, { maxIssuesToLoad: 200, fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+    const phases: string[] = []
+    const stop = watch(() => repo.state.phase, (phase) => phases.push(phase))
+
+    await repo.startNew(ref, 'open')
+    stop()
+
+    expect(phases).not.toContain('confirm-huge-repo')
+    expect(repo.state.phase).toBe('done')
+    expect(analysisMod.useAnalysis().current.value!.rows).toHaveLength(200)
+    expect(server.calls.filter((c) => c.includes('/issues?')).length).toBe(2)
+  })
+
+  it('keeps paging past the first page up to maxIssuesToLoad although the total is unknown', async () => {
+    const server = fakeGitHub({
+      totalPages: 4,
+      cursor: true,
+      pages: { 1: withPullRequests(1), 2: withPullRequests(2), 3: withPullRequests(3), 4: withPullRequests(4) },
+    })
+    setup(server, { maxIssuesToLoad: 1000, fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+
+    await repo.startNew(ref, 'open')
+
+    expect(repo.state.phase).toBe('done')
+    const current = analysisMod.useAnalysis().current.value!
+    // 4 pages x 100 items, one in ten a pull request.
+    expect(current.rows).toHaveLength(360)
+    expect(new Set(current.rows.map((r) => r.issue.number)).size).toBe(360)
+    expect(server.calls.filter((c) => c.includes('/issues?')).length).toBe(4)
+  })
+
+  it('stops at maxIssuesToLoad without fetching further pages', async () => {
+    const server = fakeGitHub({ totalPages: 12, cursor: true })
+    setup(server, { maxIssuesToLoad: 250, fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+
+    await repo.startNew(ref, 'open')
+
+    expect(repo.state.phase).toBe('done')
+    expect(analysisMod.useAnalysis().current.value!.rows).toHaveLength(250)
+    expect(server.calls.filter((c) => c.includes('/issues?')).length).toBe(3)
+  })
+
+  it('asks before paging when the cap alone could need more than 20 pages', async () => {
+    const server = fakeGitHub({ totalPages: 30, cursor: true })
+    setup(server, { maxIssuesToLoad: 2500, fetchComments: 'never' })
+    const repo = repoMod.useRepo()
+
+    const run = repo.startNew(ref, 'open')
+    await vi.waitFor(() => expect(repo.state.phase).toBe('confirm-huge-repo'))
+    expect(repo.state.totalPages).toBeNull()
+    repo.confirmHugeRepo(false)
+    await run
+
+    expect(analysisMod.useAnalysis().current.value!.rows).toHaveLength(100)
     expect(server.calls.filter((c) => c.includes('/issues?')).length).toBe(1)
   })
 })

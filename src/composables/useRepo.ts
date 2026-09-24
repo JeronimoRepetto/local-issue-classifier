@@ -206,10 +206,13 @@ async function fetchIssuesPeek(
   run: PendingRun,
 ): Promise<{ issues: Issue[]; totalPages: number | null; capped: boolean }> {
   let nextUrl: string | null = null
-  const cap = Math.min(PER_PAGE, Math.max(0, Math.floor(run.prefs.maxIssuesToLoad)))
+  // Exactly one page: capping by issue count instead would pull a second page
+  // whenever the first holds pull requests, and resuming from its `next` link
+  // would then skip the rest of that second page.
   const result = await run.loader.loadIssues(run.ref, {
     state: run.stateFilter,
-    maxIssues: cap,
+    maxIssues: Math.max(0, Math.floor(run.prefs.maxIssuesToLoad)),
+    maxPages: 1,
     signal: run.controller.signal,
     onProgress: (p) => {
       state.progress = p
@@ -256,6 +259,15 @@ async function doFetchComments(run: PendingRun): Promise<void> {
 }
 
 /**
+ * Above the threshold by the reported page count or, when GitHub does not report
+ * one (cursor pagination), by the pages the user's cap alone could need.
+ */
+function isHugeRepo(totalPages: number | null, userCap: number): boolean {
+  const pages = totalPages ?? Math.ceil(userCap / PER_PAGE)
+  return pages > HUGE_REPO_PAGE_THRESHOLD
+}
+
+/**
  * Issues phase (SPEC §2.3 / §5.5). Fetches one page first so the total page
  * count is known before spending quota on the rest: above
  * HUGE_REPO_PAGE_THRESHOLD it pauses for confirmation. Declining keeps only
@@ -268,13 +280,16 @@ async function runIssuesPhase(run: PendingRun): Promise<void> {
     run.issuesAcc = peek.issues
     // `peek.capped` is expected here: the peek's own cap is one page's worth, so
     // it says nothing about whether more *real* pages exist. Only the user's own
-    // maxIssuesToLoad, already reached, or a genuinely single-page repo, ends it early.
-    const reachedUserCap = run.issuesAcc.length >= Math.floor(run.prefs.maxIssuesToLoad)
-    if (reachedUserCap || peek.totalPages === null || peek.totalPages <= 1) {
+    // maxIssuesToLoad, already reached, or no next page, ends it early. GitHub's
+    // issues list uses cursor pagination (`after=` links with `next`/`prev` only,
+    // no `rel="last"`), so an unknown total with a next page must keep going.
+    const userCap = Math.floor(run.prefs.maxIssuesToLoad)
+    const reachedUserCap = run.issuesAcc.length >= userCap
+    if (reachedUserCap || run.peekNextUrl === null) {
       run.step = 'decide-comments'
       return
     }
-    if (peek.totalPages > HUGE_REPO_PAGE_THRESHOLD && !run.hugeRepoConfirmed) {
+    if (isHugeRepo(peek.totalPages, userCap) && !run.hugeRepoConfirmed) {
       state.phase = 'confirm-huge-repo'
       state.totalPages = peek.totalPages
       const proceed = await waitForHugeRepoDecision()

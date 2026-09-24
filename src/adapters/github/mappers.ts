@@ -1,7 +1,7 @@
 // GitHub JSON → domain objects (SPEC §3, §4.8). Pure: no fetch, no Vue.
 // Issues are produced directly in STORED form: the body and the selected
 // comments are already trimmed, so what is stored is exactly what Jev sees.
-import { trimMiddle } from '../../domain/text'
+import { headText, trimMiddle } from '../../domain/text'
 import type { Issue, IssueComment, IssueState, Repo } from '../../domain/types'
 
 // ── The subset of GitHub's REST JSON this app reads ──────────────────
@@ -80,7 +80,7 @@ export function trimStoredBody(body: string): string {
 }
 
 function trimComment(body: string): string {
-  return body.length > COMMENT_BUDGET ? `${body.slice(0, COMMENT_BUDGET - 1)}…` : body
+  return body.length > COMMENT_BUDGET ? `${headText(body, COMMENT_BUDGET - 1)}…` : body
 }
 
 const labelName = (label: string | { name?: string | null }) => (typeof label === 'string' ? label : label.name ?? '')

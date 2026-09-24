@@ -14,6 +14,7 @@ import { buildIssueState, TOO_LARGE_MESSAGE } from '../../domain/jevState'
 import { estimateStateTokens } from '../../domain/estimate'
 import { QUESTIONS_TOKENS } from './questions'
 import { buildBatchState, planBatches } from '../../domain/jevBatchState'
+import { sanitizeJsonStrings } from '../../domain/text'
 import type { JevBatchState, RequestLimits } from '../../domain/jevBatchState'
 import { toBatchClassifications, toClassification, UNEXPECTED_JEV_RESPONSE } from '../../domain/classification'
 import type { ClassificationOutcome } from '../../domain/analysis'
@@ -41,10 +42,13 @@ const DETAIL_MAX_CHARS = 200
 
 export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>
 
-/** The result of one request after retries; `validation` marks a 422/413. */
+/**
+ * The result of one request after retries; `validation` marks a 422/413, and
+ * `invalidText` a 400 rejecting the text itself (see isInvalidUnicode).
+ */
 type SendOutcome =
   | { ok: true; body: unknown }
-  | { ok: false; error: string; validation?: boolean }
+  | { ok: false; error: string; validation?: boolean; invalidText?: boolean }
 
 export interface RunnerOptions {
   issues: readonly Issue[]
@@ -104,6 +108,16 @@ const isRetryable = (status: number) => status === 408 || status === 429 || (sta
 export function isAuthFailure(result: JevHttpResult<unknown>): boolean {
   if (result.status === 401) return true
   return result.status === 403 && JSON.stringify(result.body ?? '').includes('authentication_error')
+}
+
+/**
+ * The live API's 400 `api_usage_error` "Request contains invalid Unicode text.":
+ * some text of the state (a lone surrogate, a control character) was refused.
+ */
+export function isInvalidUnicode(result: JevHttpResult<unknown>): boolean {
+  if (result.status !== 400) return false
+  const text = JSON.stringify(result.body ?? '')
+  return text.includes('api_usage_error') && /unicode/i.test(text)
 }
 
 /** The field detail of a 422 body; never the request. */
@@ -249,6 +263,9 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
         if (!(await wait(delay))) return null
         continue
       }
+      if (isInvalidUnicode(result)) {
+        return { ok: false, error: `Invalid request (400): ${validationDetail(result.body)}`, invalidText: true }
+      }
       if (result.status === 422) {
         return { ok: false, error: `Invalid request (422): ${validationDetail(result.body)}`, validation: true }
       }
@@ -267,7 +284,13 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
       record(issue.number, fail(built.error.message))
       return
     }
-    const sent = await send(() => options.client.classify(built.state, signal), built.estimatedTokens + QUESTIONS_TOKENS)
+    const tokens = built.estimatedTokens + QUESTIONS_TOKENS
+    let sent = await send(() => options.client.classify(built.state, signal), tokens)
+    // Text refused as invalid Unicode: one retry with strictly sanitized text.
+    if (sent && !sent.ok && sent.invalidText) {
+      const strict = sanitizeJsonStrings(built.state, { strict: true })
+      sent = await send(() => options.client.classify(strict, signal), tokens)
+    }
     if (!sent) return
     if (!sent.ok) {
       record(issue.number, fail(sent.error))
@@ -290,19 +313,35 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
   // ── Batched mode: every issue of a batch in one request ───────────
   const stateOptions = { now, maxCommentsPerIssue: options.maxCommentsPerIssue }
 
-  /** A validation error (422/413) on a batch splits it in half; depth is bounded by log2(size). */
-  async function classifyBatch(issues: readonly Issue[], state: JevBatchState, profileId: TrimmingProfileId) {
+  /**
+   * A validation error (422/413) on a batch splits it in half; depth is bounded by log2(size).
+   * Text refused as invalid Unicode is retried once, strictly sanitized; if that
+   * still fails, the same split isolates the offending issue as its own failure.
+   */
+  async function classifyBatch(
+    issues: readonly Issue[],
+    state: JevBatchState,
+    profileId: TrimmingProfileId,
+    strict = false,
+  ): Promise<void> {
     const questions = batchQuestions(issues.map((i) => i.number))
     const tokens = estimateStateTokens(state) + issues.length * BATCH_QUESTION_BUDGET.perIssueTokens
     const sent = await send(() => options.client.classifyBatch(state, questions, signal), tokens)
     if (!sent) return
     if (!sent.ok) {
-      if (sent.validation && issues.length > 1) {
+      if (sent.invalidText && !strict) {
+        planned++ // the sanitized retry
+        report()
+        await classifyBatch(issues, sanitizeJsonStrings(state, { strict: true }), profileId, true)
+        return
+      }
+      if ((sent.validation || sent.invalidText) && issues.length > 1) {
         const middle = Math.ceil(issues.length / 2)
         planned++ // one request becomes two
         for (const half of [issues.slice(0, middle), issues.slice(middle)]) {
           if (signal.aborted) return
-          await classifyBatch(half, buildBatchState(half, options.projectContext, profileId, stateOptions), profileId)
+          const halfState = buildBatchState(half, options.projectContext, profileId, stateOptions)
+          await classifyBatch(half, strict ? sanitizeJsonStrings(halfState, { strict: true }) : halfState, profileId, strict)
         }
         return
       }

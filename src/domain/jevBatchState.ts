@@ -12,7 +12,7 @@
 // questions; 32k tokens for the state plus the longest question. Both are used
 // with a 10% safety margin because token counts here are estimates.
 import type { Clock } from './dates'
-import { trimMiddle } from './text'
+import { headText, sanitizeJsonStrings, trimMiddle } from './text'
 import {
   commentsNotLoaded,
   selectComments,
@@ -97,15 +97,15 @@ export interface BatchStateOptions {
 
 function projectFor(ctx: ProjectContext, profile: TrimmingProfile): JevProject {
   const base = toJevProject(ctx)
-  return {
+  return sanitizeJsonStrings({
     ...base,
-    readme_excerpt: base.readme_excerpt === null ? null : base.readme_excerpt.slice(0, profile.readmeChars),
+    readme_excerpt: base.readme_excerpt === null ? null : headText(base.readme_excerpt, profile.readmeChars),
     contributing_excerpt:
       base.contributing_excerpt === null || profile.contributingChars === 0
         ? null
-        : base.contributing_excerpt.slice(0, profile.contributingChars),
+        : headText(base.contributing_excerpt, profile.contributingChars),
     docs_index: profile.docsIndex ? base.docs_index : [],
-  }
+  })
 }
 
 function bodyFor(body: string, profile: TrimmingProfile): string {
@@ -122,7 +122,7 @@ function issueFor(issue: Issue, profile: TrimmingProfile, opts: BatchStateOption
   const selection =
     commentsNotLoaded(issue) ?? selectComments(issue.comments, issue.commentCount, max, profile.commentChars)
   const { number, ...rest } = toJevIssue(issue, opts.now, bodyFor(issue.body, profile), selection)
-  return { id: batchIssueId(number), ...rest }
+  return sanitizeJsonStrings({ id: batchIssueId(number), ...rest })
 }
 
 /** The composite state: `project` once, then one entry per issue, in order. */
