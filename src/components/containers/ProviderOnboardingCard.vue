@@ -11,8 +11,17 @@
 // own comment); nothing here uses the `primary` button variant.
 //
 // The hardware-fit line reuses the passive, module-scope detection cache in
-// useHardwareDetection() (shared with Settings' HardwareFitPanel), so no
-// second independent scan or benchmark ever runs.
+// useHardwareDetection() (shared with Settings' HardwareFitPanel and Home's
+// HardwareSummaryPanel), so no second independent scan or benchmark ever runs.
+//
+// Layout change (user decisions 2026-09-24):
+// - The "Your computer" hardware box moved out of this card into its own
+//   sibling component, HardwareSummaryPanel.vue, rendered by HomeContainer
+//   next to this card. This file keeps only the hardware-FIT LINE inside the
+//   "On this computer" choice, which still needs the same cached report.
+// - The card is no longer dismissible ("Not now" removed): it is the one
+//   place to choose/see the provider, so it always stays on Home, and once a
+//   provider is configured it reflects that as the active choice below.
 import { computed, onMounted, ref } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
 import UiSecretInput from '../../ui/UiSecretInput.vue'
@@ -25,7 +34,6 @@ import { detectHardware } from '../../adapters/hardware/detect'
 import { defaultLocalProviderConfig } from '../../domain/provider'
 import type { ProviderProbeResult } from '../../domain/provider'
 import { fitTiers } from '../../domain/hardware'
-import type { TierVerdictKind } from '../../domain/hardware'
 
 const provider = useProvider()
 const prefs = usePreferences()
@@ -35,7 +43,8 @@ const hw = useHardwareDetection()
 
 onMounted(() => {
   // Passive only: reuses whichever detection already ran (HardwareFitPanel in
-  // Settings, or this card if it mounts first); never a second independent scan.
+  // Settings, HomeContainer's own trigger, or this card if it mounts first);
+  // never a second independent scan.
   if (!hw.hasStarted()) void hw.run(() => detectHardware())
 })
 
@@ -63,64 +72,38 @@ const fitLine = computed(() => {
 })
 
 type Choice = 'cloud' | 'local' | null
-const choice = ref<Choice>(null)
+
+/** An explicit click in this session always wins over the configured choice below. */
+const manualChoice = ref<Choice>(null)
+
+/** Reflects an ALREADY configured provider: local always counts (it only
+ *  becomes 'local' through an explicit choice, here or in Settings); cloud
+ *  counts only once a Jev key actually exists — the bare 'typesafe' default
+ *  with no key is not a "choice" yet, just the inert starting config. */
+const configuredChoice = computed<Choice>(() => {
+  const c = provider.config.value
+  if (c.kind === 'local') return 'local'
+  if (c.kind === 'typesafe' && secrets.hasJevKey.value) return 'cloud'
+  return null
+})
+
+const choice = computed<Choice>(() => manualChoice.value ?? configuredChoice.value)
 
 function chooseCloud(): void {
-  choice.value = 'cloud'
+  manualChoice.value = 'cloud'
 }
 
 /** docs/hardware-fit.md's recommendation, applied unconditionally to the Kev
  *  preset (LOCAL_PRESETS[0]) — the same preset SettingsContainer's "Use Kev
  *  locally" applies. */
 function chooseLocal(): void {
-  choice.value = 'local'
+  manualChoice.value = 'local'
   prefs.update({ provider: defaultLocalProviderConfig() })
 }
 
 function openSettings(): void {
   view.openSettings()
 }
-
-// "Your computer" box (Home, requested after the provider-card approval):
-// makes the same passive fitTiers() verdict HardwareFitPanel shows in
-// Settings visible on Home too, as a compact secondary box — never a second
-// detection run, always the shared useHardwareDetection() cache above.
-const hwDetecting = computed(() => hw.report.value === null)
-
-const hwBoxGpu = computed(() => {
-  const gpu = hw.report.value?.gpu
-  if (!gpu) return ''
-  if (!gpu.model) return 'Unknown GPU — set it in Settings'
-  return gpu.vramGb !== null ? `${gpu.model} · ${gpu.vramGb} GB` : gpu.model
-})
-
-const hwBoxRam = computed(() => {
-  const report = hw.report.value
-  if (!report || report.ramGb === null) return 'RAM: unknown'
-  return `${report.ramIsLowerBound ? '≥ ' : ''}${report.ramGb} GB RAM`
-})
-
-const hwBoxCpu = computed(() => {
-  const threads = hw.report.value?.cpuThreads
-  return threads === null || threads === undefined ? 'CPU: unknown' : `${threads} CPU threads`
-})
-
-// Same short verdict labels as HardwareFitPanel.vue's VERDICT_TEXT; duplicated
-// (rather than imported from there) since HardwareFitPanel belongs to a
-// parallel lane in this worktree.
-const HW_TIER_VERDICT_TEXT: Record<TierVerdictKind, string> = {
-  ok: 'Fits',
-  tight: 'Tight',
-  no: "Won't fit",
-  unknown: 'Unknown',
-}
-
-const hwBoxRecommendation = computed(() => {
-  const f = fit.value
-  if (!f) return ''
-  const name = f.recommendation.tier === 'cloud' ? 'Cloud API' : (f.tiers.find((t) => t.id === f.recommendation.tier)?.label ?? '')
-  return `Recommended: ${name}. ${f.recommendation.reason}`
-})
 
 const checking = ref(false)
 const probeResult = ref<ProviderProbeResult | null>(null)
@@ -143,12 +126,6 @@ const PROBE_TEXT: Record<ProviderProbeResult['status'], string> = {
   unreachable: 'Could not reach the server yet.',
 }
 
-function dismiss(): void {
-  prefs.dismissHomeProviderCard()
-}
-
-const visible = computed(() => !(provider.ready.value && prefs.state.homeProviderCardDismissed))
-
 // Condensed 3-line setup summary, kept in sync BY HAND with
 // docs/local-providers.md, scripts/local-kev.mjs and LocalSetupGuide.vue (its
 // own comment: "keep the four in sync" — this file is the fourth place).
@@ -161,89 +138,36 @@ const SETUP_SUMMARY = [
 
 <template>
   <section
-    v-if="visible"
     class="provider-onboarding"
     data-test="provider-onboarding-card"
     aria-labelledby="provider-onboarding-title"
   >
     <header class="provider-onboarding__header">
       <h2 id="provider-onboarding-title" class="provider-onboarding__title">Where should the AI run?</h2>
-      <UiButton data-test="dismiss" variant="ghost" size="compact" @click="dismiss">Not now</UiButton>
     </header>
 
-    <div class="provider-onboarding__top">
-      <div class="provider-onboarding__choices">
-        <button
-          type="button"
-          class="provider-onboarding__choice"
-          :class="{ 'provider-onboarding__choice--active': choice === 'cloud' }"
-          data-test="choice-cloud"
-          @click="chooseCloud"
-        >
-          <span class="provider-onboarding__choice-title">Cloud (Jev by TypeSafe)</span>
-          <span class="provider-onboarding__choice-desc">Needs an API key. About 3s for 20 issues.</span>
-        </button>
-        <button
-          type="button"
-          class="provider-onboarding__choice"
-          :class="{ 'provider-onboarding__choice--active': choice === 'local' }"
-          data-test="choice-local"
-          @click="chooseLocal"
-        >
-          <span class="provider-onboarding__choice-title">On this computer</span>
-          <span class="provider-onboarding__choice-desc">Free, private. Needs a GPU.</span>
-          <span class="provider-onboarding__fit" data-test="hardware-fit-line">{{ fitLine }}</span>
-        </button>
-      </div>
-
-      <aside
-        class="provider-onboarding__hardware"
-        data-test="hardware-box"
-        aria-labelledby="hardware-box-title"
+    <div class="provider-onboarding__choices">
+      <button
+        type="button"
+        class="provider-onboarding__choice"
+        :class="{ 'provider-onboarding__choice--active': choice === 'cloud' }"
+        data-test="choice-cloud"
+        @click="chooseCloud"
       >
-        <h3 id="hardware-box-title" class="provider-onboarding__hardware-title">Your computer</h3>
-        <p v-if="hwDetecting" class="provider-onboarding__muted" data-test="hardware-box-detecting" role="status">
-          Detecting…
-        </p>
-        <template v-else>
-          <dl class="provider-onboarding__hardware-facts">
-            <div>
-              <dt>GPU</dt>
-              <dd data-test="hardware-box-gpu">{{ hwBoxGpu }}</dd>
-            </div>
-            <div>
-              <dt>RAM</dt>
-              <dd data-test="hardware-box-ram">{{ hwBoxRam }}</dd>
-            </div>
-            <div>
-              <dt>CPU</dt>
-              <dd data-test="hardware-box-cpu">{{ hwBoxCpu }}</dd>
-            </div>
-          </dl>
-          <ul class="provider-onboarding__hardware-chips">
-            <li
-              v-for="tier in fit?.tiers ?? []"
-              :key="tier.id"
-              class="provider-onboarding__hardware-chip"
-              :class="`provider-onboarding__hardware-chip--${tier.verdict}`"
-              :data-test="`hardware-box-tier-${tier.id}`"
-            >
-              {{ tier.label }} · {{ HW_TIER_VERDICT_TEXT[tier.verdict] }}
-            </li>
-          </ul>
-          <p class="provider-onboarding__hardware-recommendation" data-test="hardware-box-recommendation">
-            {{ hwBoxRecommendation }}
-          </p>
-        </template>
-        <UiButton
-          data-test="hardware-box-settings-link"
-          variant="ghost"
-          size="compact"
-          @click="openSettings"
-        >
-          Details in Settings
-        </UiButton>
-      </aside>
+        <span class="provider-onboarding__choice-title">Cloud (Jev by TypeSafe)</span>
+        <span class="provider-onboarding__choice-desc">Needs an API key. About 3s for 20 issues.</span>
+      </button>
+      <button
+        type="button"
+        class="provider-onboarding__choice"
+        :class="{ 'provider-onboarding__choice--active': choice === 'local' }"
+        data-test="choice-local"
+        @click="chooseLocal"
+      >
+        <span class="provider-onboarding__choice-title">On this computer</span>
+        <span class="provider-onboarding__choice-desc">Free, private. Needs a GPU.</span>
+        <span class="provider-onboarding__fit" data-test="hardware-fit-line">{{ fitLine }}</span>
+      </button>
     </div>
 
     <div v-if="choice === 'cloud'" class="provider-onboarding__panel" data-test="cloud-panel">
@@ -304,108 +228,29 @@ pre {
   font-weight: var(--weight-medium);
 }
 
-.provider-onboarding__top {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-3);
-}
-
-/* Third column on >= 1024 px: the two choice cards keep their own auto-fit
-   layout at 2fr, the hardware box sits to the right at 1fr; below this it
-   stacks (box last), per odd/tasks/local-issue-classifier-two-home-ui-additions. */
-@media (min-width: 64em) {
-  .provider-onboarding__top {
-    grid-template-columns: 2fr 1fr;
-    align-items: start;
-  }
-}
-
+/* Equal-size choice cards (user decisions 2026-09-24): a fixed 2-column grid
+   with equal minmax(0, 1fr) tracks and align-items: stretch, so both cards
+   share one width and one height regardless of which has more text; each
+   card aligns its own content to the top (see .provider-onboarding__choice's
+   align-content below) so a longer hardware-fit sentence never changes the
+   card size. Stacks to one column on narrow viewports, same 40em breakpoint
+   App.vue uses elsewhere for this kind of mobile stacking. */
 .provider-onboarding__choices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-7) * 3), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
   gap: var(--space-2);
 }
 
-.provider-onboarding__hardware {
-  display: grid;
-  gap: var(--space-2);
-  align-content: start;
-  padding: var(--space-2h);
-  background: var(--color-surface-2);
-  border: var(--line-thin) solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.provider-onboarding__hardware-title {
-  margin: 0;
-  font-size: var(--text-caption-size);
-  font-weight: var(--weight-medium);
-  color: var(--color-text-muted);
-}
-
-.provider-onboarding__hardware-facts {
-  display: grid;
-  gap: var(--space-1);
-  margin: 0;
-}
-
-.provider-onboarding__hardware-facts dt {
-  display: none;
-}
-
-.provider-onboarding__hardware-facts dd {
-  margin: 0;
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
-  color: var(--color-text);
-}
-
-.provider-onboarding__hardware-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.provider-onboarding__hardware-chip {
-  padding: 0 var(--space-1);
-  border: var(--line-thin) solid currentColor;
-  border-radius: var(--radius-round);
-  font-size: var(--text-micro-size);
-  line-height: var(--text-caption-line);
-  white-space: nowrap;
-}
-
-.provider-onboarding__hardware-chip--ok {
-  color: var(--color-success);
-}
-
-.provider-onboarding__hardware-chip--tight {
-  color: var(--color-warning);
-}
-
-.provider-onboarding__hardware-chip--no {
-  color: var(--color-danger);
-}
-
-.provider-onboarding__hardware-chip--unknown {
-  color: var(--color-text-muted);
-}
-
-.provider-onboarding__hardware-recommendation {
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
-  color: var(--color-text-muted);
-}
-
-.provider-onboarding__hardware .ui-button {
-  justify-self: start;
+@media (max-width: 40em) {
+  .provider-onboarding__choices {
+    grid-template-columns: 1fr;
+  }
 }
 
 .provider-onboarding__choice {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
   justify-items: start;
   padding: var(--space-2h);
@@ -468,8 +313,7 @@ pre {
   gap: var(--space-2);
 }
 
-.provider-onboarding__status,
-.provider-onboarding__muted {
+.provider-onboarding__status {
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
   color: var(--color-text-muted);
