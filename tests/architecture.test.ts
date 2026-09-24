@@ -140,6 +140,39 @@ describe('architecture import rules', () => {
     expect(users).toEqual([...INDEXED_DB_ALLOWLIST])
   })
 
+  // In-browser inference (docs/browser-inference.md): transformers.js owns the
+  // model cache ('transformers-cache'); the app only measures and clears it, in
+  // one adapter. transformers.js itself is imported by exactly one file, lazily.
+  const CACHE_API_ALLOWLIST = new Set([join('adapters', 'browser', 'modelCache.ts')])
+  const TRANSFORMERS_ALLOWLIST = new Set([join('adapters', 'browser', 'browserModel.ts')])
+
+  it('the Cache API is referenced only by the allowlisted model-cache adapter', () => {
+    const offenders: string[] = []
+    const users: string[] = []
+    for (const file of listSourceFiles(SRC_ROOT)) {
+      const rel = relative(SRC_ROOT, file)
+      if (rel.endsWith('.test.ts')) continue
+      if (!/\bcaches\.\w|CacheStorage/.test(readFileSync(file, 'utf8'))) continue
+      if (CACHE_API_ALLOWLIST.has(rel)) users.push(rel)
+      else offenders.push(rel)
+    }
+    expect(offenders).toEqual([])
+    expect(users).toEqual([...CACHE_API_ALLOWLIST])
+  })
+
+  it('@huggingface/transformers is imported only by browserModel.ts, and only dynamically', () => {
+    const offenders: string[] = []
+    for (const file of listSourceFiles(SRC_ROOT)) {
+      const rel = relative(SRC_ROOT, file)
+      const source = readFileSync(file, 'utf8')
+      if (!importSpecifiers(source).includes('@huggingface/transformers')) continue
+      if (!TRANSFORMERS_ALLOWLIST.has(rel)) offenders.push(rel)
+      // A static import would pull ONNX Runtime Web into the main bundle.
+      expect(source, rel).not.toMatch(/^import\s[^(]*from\s*['"]@huggingface\/transformers['"]/m)
+    }
+    expect(offenders).toEqual([])
+  })
+
   it('sessionStorage is referenced only by the allowlisted secrets store', () => {
     const offenders: string[] = []
     const users: string[] = []

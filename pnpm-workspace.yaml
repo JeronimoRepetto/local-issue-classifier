@@ -3,6 +3,11 @@
 # esbuild ships a native binary via a postinstall step that Vite needs.
 allowBuilds:
   esbuild: true
+  # @huggingface/transformers pulls these in for its Node build only; the app
+  # runs onnxruntime-web in the browser, so none of their install scripts run.
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false
 
 # vitest 2.1.x's internal vite-node/@vitest/mocker packages otherwise resolve
 # their own vite@5.x peer alongside our vite@6.x, doubling the install and

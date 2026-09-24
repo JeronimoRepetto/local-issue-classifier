@@ -9,9 +9,19 @@ the app and keep their own licenses; they are **not** relicensed under MIT.
 |---|---|---|---|
 | `vue` | 3.5.43 | MIT | UI framework. |
 | `@tanstack/vue-virtual` | 3.13.39 | MIT | Row virtualization for the issues table above 200 rows. |
+| `@huggingface/transformers` | 3.8.1 | Apache-2.0 | In-browser inference (docs/browser-inference.md). Loaded lazily, only for the "In this browser" provider. |
+| `onnxruntime-web` (via `@huggingface/transformers`) | 1.22.0-dev.20250409-89f8206ba4 | MIT | The WebGPU/WebAssembly runtime; its `ort-wasm-simd-threaded.jsep.{mjs,wasm}` files are served by the app under `/ort/`. |
 
-Both are MIT, the same license as this project, so no separate notice is required beyond this
-table; their own `LICENSE` files ship in `node_modules/<package>/`.
+`vue`, `@tanstack/vue-virtual` and `onnxruntime-web` are MIT, the same license as this project.
+`@huggingface/transformers` is Apache-2.0 (Copyright Hugging Face), which permits bundling
+alongside MIT code; its license text ships in `node_modules/@huggingface/transformers/LICENSE`.
+Each package's own `LICENSE` file ships in `node_modules/<package>/`.
+
+The model weights are **not** bundled: the browser downloads them from the Hugging Face Hub at the
+user's request. The default, `onnx-community/Qwen3-0.6B-ONNX`, is an ONNX export of
+`Qwen/Qwen3-0.6B` (Apache-2.0, Alibaba Cloud). The prompt and readout follow JevK5
+(`allebee/jevk5`, Apache-2.0) and SemIf (`TheoLeeCJ/SemIf`, MIT); no code was copied, the
+protocol was reimplemented in TypeScript.
 
 ## Fonts
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self' https://api.github.com http://localhost:* http://127.0.0.1:* http://[::1]:*; img-src 'self' data: https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.github.com http://localhost:* http://127.0.0.1:* http://[::1]:* https://huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co; img-src 'self' data: https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'"
     />
     <title>local-issue-classifier</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

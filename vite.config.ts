@@ -3,6 +3,7 @@ import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { createJevProxy, jevLocalProxy, jevProxyGuard, jevProxyPrefix, JEV_UPSTREAM_DEFAULT } from './server/jevProxy'
+import { ortAssets } from './server/ortAssets'
 
 // Fixed port so the preview tooling can find it (qr-tool=5173, design-studio=5180, steam-picker=5190).
 const PORT = 5200
@@ -18,7 +19,9 @@ export default defineConfig(({ mode }) => {
   return {
     // /jev-local (T16): forwards to a local Kev/JevK5 server named in x-local-target,
     // loopback or private LAN only. Local Vite server only; see docs/deployment.md.
-    plugins: [vue(), jevProxyGuard({ prefix }), jevLocalProxy()],
+    // ortAssets: ONNX Runtime Web's wasm + loader for the in-browser provider,
+    // served from /ort/ instead of a CDN (docs/browser-inference.md).
+    plugins: [vue(), jevProxyGuard({ prefix }), jevLocalProxy(), ortAssets()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
