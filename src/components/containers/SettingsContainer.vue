@@ -101,10 +101,11 @@ onBeforeUnmount(() => stopTheme?.())
           @update:model-value="secrets.setJevKey($event)"
         >
           <template #help>
-            <p>
-              Create a key in the TypeSafe console dashboard, then paste it here. It is required
-              to classify issues, and is kept in memory only.
-            </p>
+            <ol class="settings__help-steps">
+              <li>Sign in to the TypeSafe console at <code>console.typesafe.ai/keys</code>.</li>
+              <li>Create a new key.</li>
+              <li>Paste it above. It is kept in memory only.</li>
+            </ol>
             <a href="README.md#getting-a-jev-api-key">Full steps in the README</a>
           </template>
         </UiSecretInput>
@@ -118,10 +119,19 @@ onBeforeUnmount(() => stopTheme?.())
           @update:model-value="secrets.setGitHubToken($event)"
         >
           <template #help>
-            <p>
-              Optional. Raises the GitHub rate limit from 60 to 5 000 requests/hour and lets you
-              fetch comments and private repositories. Kept in memory only.
-            </p>
+            <ol class="settings__help-steps">
+              <li>
+                On GitHub, open
+                <strong>Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong>.
+              </li>
+              <li>Click <strong>Generate new token</strong> and choose the repository access you need.</li>
+              <li>
+                Under <strong>Permissions</strong>, set <strong>Issues</strong> to Read-only and
+                <strong>Contents</strong> to Read-only — Metadata read-only is added automatically.
+              </li>
+              <li>Generate the token and copy it. GitHub shows it once.</li>
+              <li>Paste it above.</li>
+            </ol>
             <a href="README.md#getting-a-github-token">Full steps in the README</a>
           </template>
         </UiSecretInput>
@@ -297,6 +307,13 @@ onBeforeUnmount(() => stopTheme?.())
   color: var(--color-text-muted);
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
+}
+
+.settings__help-steps {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
 }
 
 .settings__hardware-actions {

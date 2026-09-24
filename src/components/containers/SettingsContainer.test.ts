@@ -69,6 +69,30 @@ describe('SettingsContainer', () => {
     expect(summaries[0]?.text()).toBe('Where do I get this?')
   })
 
+  it('the Jev and GitHub disclosures show 3-5 concrete steps inline, ending with a README anchor link', async () => {
+    const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+    const wrapper = mount(SettingsContainer)
+
+    const jevSteps = wrapper.get('[data-test="jev-key-field"] ol').findAll('li')
+    expect(jevSteps.length).toBeGreaterThanOrEqual(3)
+    expect(jevSteps.length).toBeLessThanOrEqual(5)
+    expect(wrapper.get('[data-test="jev-key-field"] ol').text()).toContain('console.typesafe.ai/keys')
+    expect(wrapper.get('[data-test="jev-key-field"] a').attributes('href')).toBe(
+      'README.md#getting-a-jev-api-key',
+    )
+
+    const githubSteps = wrapper.get('[data-test="github-token-field"] ol').findAll('li')
+    expect(githubSteps.length).toBeGreaterThanOrEqual(3)
+    expect(githubSteps.length).toBeLessThanOrEqual(5)
+    const githubStepsText = wrapper.get('[data-test="github-token-field"] ol').text()
+    expect(githubStepsText).toMatch(/Fine-grained/)
+    expect(githubStepsText).toMatch(/Issues/)
+    expect(githubStepsText).toMatch(/Contents/)
+    expect(wrapper.get('[data-test="github-token-field"] a').attributes('href')).toBe(
+      'README.md#getting-a-github-token',
+    )
+  })
+
   it('Clear keys empties both in-memory secrets', async () => {
     const { useSecrets } = await import('../../composables/useSecrets')
     useSecrets().setJevKey('sk-test')
