@@ -19,7 +19,7 @@ import {
 
 describe('REQUIRED_DIST_FILES / REQUIRED_DIST_DIRS', () => {
   it('names what a Cloudflare Pages deployment of this app needs', () => {
-    expect(REQUIRED_DIST_FILES).toEqual(['index.html', '_headers'])
+    expect(REQUIRED_DIST_FILES).toEqual(['index.html', '_headers', 'og-image.png'])
     expect(REQUIRED_DIST_DIRS).toEqual(['ort', 'launchers'])
   })
 })
@@ -28,6 +28,7 @@ describe('checkDistEntries', () => {
   const CLEAN_TREE = [
     'index.html',
     '_headers',
+    'og-image.png',
     'assets/index-abc123.js',
     'ort/ort-wasm-simd-threaded.jsep.mjs',
     'ort/ort-wasm-simd-threaded.jsep.wasm',
@@ -49,6 +50,12 @@ describe('checkDistEntries', () => {
     const findings = checkDistEntries(CLEAN_TREE.filter((e) => e !== '_headers'))
     expect(findings).toHaveLength(1)
     expect(findings[0]).toMatchObject({ rule: 'missing-required-file', path: '_headers' })
+  })
+
+  it('fails when og-image.png is missing (the social link-preview image)', () => {
+    const findings = checkDistEntries(CLEAN_TREE.filter((e) => e !== 'og-image.png'))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ rule: 'missing-required-file', path: 'og-image.png' })
   })
 
   it('fails when the ort/ tree is empty', () => {
@@ -82,6 +89,7 @@ describe('checkDistEntries', () => {
       [
         'missing-required-file', // index.html
         'missing-required-file', // _headers
+        'missing-required-file', // og-image.png
         'missing-required-dir', // ort
         'missing-required-dir', // launchers
         'forbidden-entry', // functions/

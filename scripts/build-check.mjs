@@ -16,7 +16,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
-export const REQUIRED_DIST_FILES = ['index.html', '_headers']
+export const REQUIRED_DIST_FILES = ['index.html', '_headers', 'og-image.png']
 export const REQUIRED_DIST_DIRS = ['ort', 'launchers']
 // functions/ is not a build artifact: Cloudflare Pages picks it up from the
 // repository root directly, alongside (not from) the build output directory.

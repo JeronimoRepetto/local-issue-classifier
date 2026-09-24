@@ -7,11 +7,44 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.github.com http://localhost:* http://127.0.0.1:* http://[::1]:* https://huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co; img-src 'self' data: https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'"
     />
-    <title>local-issue-classifier</title>
+    <title>Issue Classifier — AI triage for GitHub issues</title>
+    <meta
+      name="description"
+      content="Rate GitHub issues by criticality, effort and relevance — a local-first AI triage tool. Runs entirely in your browser; nothing leaves your machine."
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Link preview (GitHub issue #3, docs/architecture.md "Link preview"). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Issue Classifier" />
+    <meta property="og:title" content="Issue Classifier — AI triage for GitHub issues" />
+    <meta
+      property="og:description"
+      content="Rate GitHub issues by criticality, effort and relevance — a local-first AI triage tool. Runs entirely in your browser; nothing leaves your machine."
+    />
+    <meta property="og:url" content="https://issueclassifier.com/" />
+    <meta property="og:image" content="https://issueclassifier.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Issue Classifier: a dark app screenshot showing three GitHub issues rated High, Medium and Low priority."
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Issue Classifier — AI triage for GitHub issues" />
+    <meta
+      name="twitter:description"
+      content="Rate GitHub issues by criticality, effort and relevance — a local-first AI triage tool. Runs entirely in your browser; nothing leaves your machine."
+    />
+    <meta name="twitter:image" content="https://issueclassifier.com/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Issue Classifier: a dark app screenshot showing three GitHub issues rated High, Medium and Low priority."
+    />
   </head>
   <body>
     <div id="app"></div>
