@@ -15,13 +15,19 @@
 import { computed, reactive } from 'vue'
 import {
   JEV_LOCAL_PROXY_PREFIX,
+  LOCAL_PRESETS,
   LOCAL_PROXY_MARKER_HEADER,
   LOCAL_TARGET_HEADER,
   BROWSER_MODELS,
+  configForCandidateId,
+  defaultBrowserProviderConfig,
   defaultLocalProviderConfig,
   defaultProviderConfig,
+  deviceLabel,
+  parseFirstModelDevice,
   parseModelNames,
   providerKey,
+  providerLabel,
   validateLocalBaseUrl,
 } from '../domain/provider'
 import type { BrowserProviderConfig, ProviderConfig, ProviderProbeResult, ProviderRouteStatus } from '../domain/provider'
@@ -102,7 +108,12 @@ const secrets = useSecrets()
 /** Routing decisions and model lists, keyed by providerKey(). In memory only. */
 const routes = reactive<Record<string, ProviderRouteStatus>>({})
 const modelLists = reactive<Record<string, string[] | null>>({})
+/** The first model's device, when a probed server's /v1/models includes one. */
+const modelDevices = reactive<Record<string, string | null>>({})
 const inflight = new Map<string, Promise<ProviderProbeResult>>()
+
+/** probeLocal's internal result: the same shape ProviderProbeResult exposes, plus the device. */
+type LocalProbeResult = ProviderProbeResult & { device: string | null }
 
 const config = computed<ProviderConfig>(() => prefs.state.provider ?? defaultProviderConfig())
 const isLocal = computed(() => config.value.kind === 'local')
@@ -184,12 +195,13 @@ function probeHeaders(apiKey: string): Record<string, string> {
   return headers
 }
 
-async function probeLocal(baseUrl: string, apiKey: string): Promise<ProviderProbeResult> {
+async function probeLocal(baseUrl: string, apiKey: string): Promise<LocalProbeResult> {
   const headers = probeHeaders(apiKey)
   try {
     // Any HTTP answer (even a 404 from a server without /v1/models) proves CORS works.
     const response = await timedFetch(`${baseUrl}/v1/models`, { method: 'GET', mode: 'cors', headers })
-    return { status: 'direct', models: response.ok ? parseModelNames(await readJson(response)) : null }
+    const parsed = response.ok ? await readJson(response) : null
+    return { status: 'direct', models: parseModelNames(parsed), device: parseFirstModelDevice(parsed) }
   } catch {
     // CORS refused, CSP blocked, or the server is down: try the proxy.
   }
@@ -199,12 +211,13 @@ async function probeLocal(baseUrl: string, apiKey: string): Promise<ProviderProb
       headers: { ...headers, [LOCAL_TARGET_HEADER]: baseUrl },
     })
     if (response.headers.get(LOCAL_PROXY_MARKER_HEADER) === 'upstream') {
-      return { status: 'proxied', models: response.ok ? parseModelNames(await readJson(response)) : null }
+      const parsed = response.ok ? await readJson(response) : null
+      return { status: 'proxied', models: parseModelNames(parsed), device: parseFirstModelDevice(parsed) }
     }
   } catch {
     // The proxy itself is absent (e.g. a hosted build).
   }
-  return { status: 'unreachable', models: null }
+  return { status: 'unreachable', models: null, device: null }
 }
 
 async function probeTypeSafe(apiKey: string): Promise<ProviderProbeResult> {
@@ -225,18 +238,21 @@ function probeConfig(c: ProviderConfig): Promise<ProviderProbeResult> {
   const running = inflight.get(key)
   if (running) return running
   const apiKey = c.kind === 'typesafe' ? secrets.state.jevApiKey : secrets.state.localApiKey
-  let task: Promise<ProviderProbeResult>
+  let task: Promise<LocalProbeResult>
   if (c.kind === 'typesafe') {
-    task = probeTypeSafe(apiKey)
+    task = probeTypeSafe(apiKey).then((result) => ({ ...result, device: null }))
   } else {
     const valid = validateLocalBaseUrl(c.baseUrl)
-    task = valid.ok ? probeLocal(valid.url, apiKey) : Promise.resolve({ status: 'unreachable', models: null })
+    task = valid.ok ? probeLocal(valid.url, apiKey) : Promise.resolve({ status: 'unreachable', models: null, device: null })
   }
-  const done = task.then((result) => {
+  const done = task.then((result): ProviderProbeResult => {
     routes[key] = result.status
     modelLists[key] = result.models
+    modelDevices[key] = result.device
     inflight.delete(key)
-    return result
+    // The device is an internal extra for the switcher's label (candidates
+    // below); probe()'s public result stays exactly { status, models }.
+    return { status: result.status, models: result.models }
   })
   inflight.set(key, done)
   return done
@@ -397,10 +413,99 @@ function createClient(options: CreateProviderClientOptions = {}): JevClient {
 function __resetForTests(): void {
   for (const key of Object.keys(routes)) delete routes[key]
   for (const key of Object.keys(modelLists)) delete modelLists[key]
+  for (const key of Object.keys(modelDevices)) delete modelDevices[key]
   inflight.clear()
   browserModel = null
   browserLoading = null
   Object.assign(browserStatus, { phase: 'idle', progress: null, support: null, device: null, cachedBytes: null, error: null })
+}
+
+// ── Provider switcher (classification screen) ─────────────────────────
+/** One option of the switcher; `reason` doubles as its disabled tooltip. */
+export interface ProviderCandidate {
+  id: string
+  label: string
+  kind: ProviderConfig['kind']
+  available: boolean
+  reason?: string
+  detail?: string
+}
+
+/** A local preset's port, for the "not reachable" reason; '' if the URL is somehow malformed. */
+function portOf(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).port
+  } catch {
+    return ''
+  }
+}
+
+function localCandidate(preset: (typeof LOCAL_PRESETS)[number]): ProviderCandidate {
+  const config: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
+  const key = providerKey(config)
+  const routeStatus = routes[key] ?? 'unknown'
+  const available = routeStatus === 'direct' || routeStatus === 'proxied'
+  const modelName = modelLists[key]?.[0] ?? preset.model
+  const device = deviceLabel(modelDevices[key] ?? null)
+  return {
+    id: `local:${preset.id}`,
+    label: available ? `${preset.label} · ${modelName}${device ? ` · ${device}` : ''}` : preset.label,
+    kind: 'local',
+    available,
+    reason: available ? undefined : `Server not reachable on :${portOf(preset.baseUrl)}`,
+    detail: preset.baseUrl,
+  }
+}
+
+/** Why the browser candidate is (not) available yet; gated on WebGPU alone (docs/browser-inference.md). */
+function browserReason(): string | undefined {
+  if (browserStatus.support === 'webgpu') return undefined
+  if (browserStatus.support === null) return 'Checking browser support…'
+  return 'WebGPU is not available in this browser.'
+}
+
+/**
+ * Candidates for the classification-screen switcher: TypeSafe cloud, one per
+ * local preset (probed by probeAll) and the in-browser model. Selecting one
+ * (selectProvider) writes the same Preferences.provider the Settings selector
+ * edits, so both stay in sync.
+ */
+const candidates = computed<ProviderCandidate[]>(() => [
+  {
+    id: 'typesafe',
+    label: 'Jev (TypeSafe cloud)',
+    kind: 'typesafe',
+    available: secrets.hasJevKey.value,
+    reason: secrets.hasJevKey.value ? undefined : 'Add a Jev key in Settings.',
+  },
+  ...LOCAL_PRESETS.map(localCandidate),
+  {
+    id: 'browser',
+    label: providerLabel(defaultBrowserProviderConfig()),
+    kind: 'browser',
+    available: browserStatus.support === 'webgpu',
+    reason: browserReason(),
+  },
+])
+
+/**
+ * Probes every local preset not yet known this session, and checks WebGPU
+ * support once — both passive (no benchmark), both cached: called once on
+ * mount of the analysis view, never polled.
+ */
+function probeAll(): Promise<void> {
+  const tasks: Promise<unknown>[] = [checkBrowserSupport()]
+  for (const preset of LOCAL_PRESETS) {
+    const config: ProviderConfig = { kind: 'local', baseUrl: preset.baseUrl, model: preset.model }
+    if (routes[providerKey(config)] === undefined) tasks.push(probeConfig(config))
+  }
+  return Promise.all(tasks).then(() => undefined)
+}
+
+/** Replaces Preferences.provider with the candidate's config; unknown ids are ignored. */
+function selectProvider(id: string): void {
+  const config = configForCandidateId(id)
+  if (config) prefs.update({ provider: config })
 }
 
 export function useProvider() {
@@ -421,6 +526,9 @@ export function useProvider() {
     downloadBrowserModel,
     removeBrowserModel,
     refreshBrowserCache,
+    candidates,
+    probeAll,
+    selectProvider,
     __resetForTests,
   }
 }

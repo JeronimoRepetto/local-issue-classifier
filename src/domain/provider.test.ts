@@ -4,10 +4,14 @@ import { describe, expect, it } from 'vitest'
 import {
   BROWSER_MODELS,
   LOCAL_PRESETS,
+  candidateIdFor,
+  configForCandidateId,
   defaultBrowserProviderConfig,
   defaultProviderConfig,
+  deviceLabel,
   findBrowserModel,
   findPreset,
+  parseFirstModelDevice,
   parseModelNames,
   providerKey,
   providerLabel,
@@ -170,5 +174,50 @@ describe('browser provider kind', () => {
 
   it('has no local preset', () => {
     expect(findPreset(defaultBrowserProviderConfig())).toBeNull()
+  })
+})
+
+// Provider switcher (classification screen): a candidate's id round-trips to a
+// ProviderConfig, so selecting one just replaces Preferences.provider.
+describe('candidateIdFor / configForCandidateId', () => {
+  it('ids TypeSafe and the browser provider directly', () => {
+    expect(candidateIdFor({ kind: 'typesafe' })).toBe('typesafe')
+    expect(candidateIdFor(defaultBrowserProviderConfig())).toBe('browser')
+    expect(configForCandidateId('typesafe')).toEqual({ kind: 'typesafe' })
+    expect(configForCandidateId('browser')).toEqual(defaultBrowserProviderConfig())
+  })
+
+  it('ids a local config by its matching preset', () => {
+    expect(candidateIdFor({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' })).toBe('local:kev')
+    expect(candidateIdFor({ kind: 'local', baseUrl: 'http://localhost:8090/', model: 'x' })).toBe('local:jevk5')
+    expect(configForCandidateId('local:kev')).toEqual({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' })
+    expect(configForCandidateId('local:jevk5')).toEqual({ kind: 'local', baseUrl: 'http://localhost:8090', model: 'alibiserikbay/JevK5' })
+  })
+
+  it('has no id for a local config that matches no preset, and no config for an unknown id', () => {
+    expect(candidateIdFor({ kind: 'local', baseUrl: 'http://10.0.0.5:9000', model: 'mine' })).toBeNull()
+    expect(configForCandidateId('local:unknown')).toBeNull()
+    expect(configForCandidateId('nonsense')).toBeNull()
+  })
+})
+
+describe('parseFirstModelDevice / deviceLabel', () => {
+  it('reads the first model device from either /v1/models shape', () => {
+    expect(parseFirstModelDevice({ models: [{ name: 'kev-latest', device: 'cuda' }] })).toBe('cuda')
+    expect(parseFirstModelDevice({ data: [{ id: 'kev-latest', device: 'cpu' }] })).toBe('cpu')
+  })
+
+  it('returns null when there is no device field or the body is malformed', () => {
+    for (const body of [null, 'x', {}, { models: [] }, { models: [{ name: 'kev-latest' }] }, { models: [{ device: '  ' }] }]) {
+      expect(parseFirstModelDevice(body)).toBeNull()
+    }
+  })
+
+  it('labels a known device kind, CPU distinct from anything else', () => {
+    expect(deviceLabel('cpu')).toBe('CPU')
+    expect(deviceLabel('CPU')).toBe('CPU')
+    expect(deviceLabel('cuda')).toBe('GPU')
+    expect(deviceLabel('mps')).toBe('GPU')
+    expect(deviceLabel(null)).toBeNull()
   })
 })

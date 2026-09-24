@@ -233,3 +233,48 @@ export function parseModelNames(body: unknown): string[] | null {
     .filter((n): n is string => n !== null && n !== '')
   return names.length > 0 ? names : null
 }
+
+// ── Provider switcher (classification screen) ────────────────────────
+// Candidate ids: 'typesafe', 'browser', or `local:<preset id>` (kev, jevk5).
+// Round-tripping through these two functions is how selecting a candidate in
+// ProviderSwitch replaces Preferences.provider without the switcher needing
+// to know a ProviderConfig's shape.
+
+/** The candidate id a config maps to, or null when a local config matches no known preset. */
+export function candidateIdFor(config: ProviderConfig): string | null {
+  if (config.kind === 'typesafe') return 'typesafe'
+  if (config.kind === 'browser') return 'browser'
+  const preset = findPreset(config)
+  return preset ? `local:${preset.id}` : null
+}
+
+/** The ProviderConfig a candidate id selects, or null for an id this app does not know. */
+export function configForCandidateId(id: string): ProviderConfig | null {
+  if (id === 'typesafe') return defaultProviderConfig()
+  if (id === 'browser') return defaultBrowserProviderConfig()
+  if (id.startsWith('local:')) {
+    const preset = LOCAL_PRESETS.find((p) => p.id === id.slice('local:'.length))
+    return preset ? { kind: 'local', baseUrl: preset.baseUrl, model: preset.model } : null
+  }
+  return null
+}
+
+/**
+ * The first model's device from `/v1/models` (e.g. "cuda", "cpu"), when the
+ * server includes one — neither Kev's nor JevK5's README documents this
+ * field, so it is read tolerantly and never required.
+ */
+export function parseFirstModelDevice(body: unknown): string | null {
+  if (!isObject(body)) return null
+  const list = Array.isArray(body.models) ? body.models : Array.isArray(body.data) ? body.data : null
+  const first = list?.[0]
+  if (!isObject(first)) return null
+  const device = first.device
+  return typeof device === 'string' && device.trim() !== '' ? device.trim() : null
+}
+
+/** A short device label for the provider switcher: CPU stands out, anything else reads as GPU. */
+export function deviceLabel(raw: string | null): string | null {
+  if (!raw) return null
+  return raw.trim().toLowerCase() === 'cpu' ? 'CPU' : 'GPU'
+}

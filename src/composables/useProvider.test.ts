@@ -224,7 +224,7 @@ describe('useProvider: local server routing', () => {
 // In-browser inference, phase A (docs/browser-inference.md): the model runs in
 // this page. The loader, the support check and the cache are fakes here.
 describe('useProvider: browser provider', () => {
-  const BROWSER: ProviderConfig = { kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' }
+  const BROWSER_CONFIG: ProviderConfig = { kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' }
 
   type LoadOptions = {
     modelId: string
@@ -278,21 +278,21 @@ describe('useProvider: browser provider', () => {
   } as never
 
   it('is not ready until the model is downloaded, and has no key and no probe', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     fakeBrowser()
     const provider = mods.provider.useProvider()
     expect(provider.isBrowser.value).toBe(true)
     expect(provider.isLocal.value).toBe(false)
     expect(provider.ready.value).toBe(false)
     expect(provider.browserStatus.phase).toBe('idle')
-    expect(provider.model()).toBe(BROWSER.modelId)
+    expect(provider.model()).toBe(BROWSER_CONFIG.modelId)
     expect(provider.getApiKey()).toBe('')
     expect(await provider.probe()).toEqual({ status: 'unreachable', models: null })
     expect(seen).toEqual([])
   })
 
   it('downloads with progress, then is ready on the backend the browser offers', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     const browser = fakeBrowser({ support: 'webgpu' })
     const provider = mods.provider.useProvider()
     const done = provider.downloadBrowserModel()
@@ -304,11 +304,11 @@ describe('useProvider: browser provider', () => {
     expect(provider.browserStatus).toMatchObject({ phase: 'ready', device: 'webgpu', support: 'webgpu', error: null })
     expect(provider.browserStatus.cachedBytes).toBe(578_917_626)
     expect(provider.ready.value).toBe(true)
-    expect(browser.loadModel).toHaveBeenCalledWith(expect.objectContaining({ modelId: BROWSER.modelId, backend: 'webgpu' }))
+    expect(browser.loadModel).toHaveBeenCalledWith(expect.objectContaining({ modelId: BROWSER_CONFIG.modelId, backend: 'webgpu' }))
   })
 
   it('uses WASM (slow) when the browser has no WebGPU', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     const browser = fakeBrowser({ support: 'wasm' })
     const provider = mods.provider.useProvider()
     browser.finish()
@@ -317,7 +317,7 @@ describe('useProvider: browser provider', () => {
   })
 
   it('is unsupported without WebGPU or WebAssembly, and never downloads', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     const browser = fakeBrowser({ support: 'none' })
     const provider = mods.provider.useProvider()
     await provider.downloadBrowserModel()
@@ -327,7 +327,7 @@ describe('useProvider: browser provider', () => {
   })
 
   it('reports a failed load as an error', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     const browser = fakeBrowser({ fail: true })
     const provider = mods.provider.useProvider()
     browser.finish()
@@ -338,7 +338,7 @@ describe('useProvider: browser provider', () => {
   })
 
   it('classifies in-process through the browser transport, with no network call', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     const browser = fakeBrowser()
     const provider = mods.provider.useProvider()
     browser.finish()
@@ -356,15 +356,115 @@ describe('useProvider: browser provider', () => {
   })
 
   it('removes the downloaded model and goes back to idle', async () => {
-    await load(() => json(MODELS), { provider: BROWSER })
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
     const browser = fakeBrowser()
     const provider = mods.provider.useProvider()
     browser.finish()
     await provider.downloadBrowserModel()
     await provider.removeBrowserModel()
-    expect(browser.removeCached).toHaveBeenCalledWith(BROWSER.modelId)
+    expect(browser.removeCached).toHaveBeenCalledWith(BROWSER_CONFIG.modelId)
     expect(provider.browserStatus.phase).toBe('idle')
     expect(provider.browserStatus.cachedBytes).toBe(0)
     expect(provider.ready.value).toBe(false)
+  })
+})
+
+// The provider switcher (classification screen, docs/local-providers.md,
+// docs/browser-inference.md): candidates for Jev cloud, each local preset and
+// the browser model, probed once and cached for the session.
+describe('useProvider: candidates, probeAll, selectProvider', () => {
+  const BROWSER_CONFIG: ProviderConfig = { kind: 'browser', modelId: 'onnx-community/Qwen3-0.6B-ONNX' }
+
+  it('TypeSafe is available only with a Jev key', async () => {
+    await load(() => json(MODELS))
+    const provider = mods.provider.useProvider()
+    const typesafe = () => provider.candidates.value.find((c) => c.id === 'typesafe')!
+    expect(typesafe()).toMatchObject({ label: 'Jev (TypeSafe cloud)', kind: 'typesafe', available: false })
+    expect(typesafe().reason).toBeTruthy()
+    mods.secrets.useSecrets().setJevKey('jev-test')
+    expect(typesafe().available).toBe(true)
+    expect(typesafe().reason).toBeUndefined()
+  })
+
+  it('lists one candidate per local preset, unavailable with a port-specific reason before probing', async () => {
+    await load(() => json(MODELS))
+    const provider = mods.provider.useProvider()
+    const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
+    const jevk5 = provider.candidates.value.find((c) => c.id === 'local:jevk5')!
+    expect(kev.available).toBe(false)
+    expect(kev.reason).toBe('Server not reachable on :8009')
+    expect(jevk5.reason).toBe('Server not reachable on :8090')
+  })
+
+  it('probeAll probes every local preset once and caches the routes', async () => {
+    await load((call) =>
+      call.url.startsWith('http://localhost:8009') ? json({ models: [{ name: 'kev-latest', device: 'cuda' }] }) : json(MODELS),
+    )
+    const provider = mods.provider.useProvider()
+    await provider.probeAll()
+    expect(seen.map((c) => c.url).sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+
+    const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
+    expect(kev.available).toBe(true)
+    expect(kev.label).toBe('Kev · kev-latest · GPU')
+
+    seen = []
+    await provider.probeAll()
+    expect(seen).toEqual([]) // cached for the session, no periodic polling
+  })
+
+  it('the browser candidate needs WebGPU support', async () => {
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
+    mods.provider.configureProvider({
+      browser: {
+        detectSupport: async () => 'wasm',
+        loadModel: async () => {
+          throw new Error('not used')
+        },
+        cachedBytes: async () => 0,
+        removeCached: async () => 0,
+      },
+    })
+    const provider = mods.provider.useProvider()
+    const browser = () => provider.candidates.value.find((c) => c.id === 'browser')!
+    expect(browser().available).toBe(false)
+    expect(browser().reason).toBeTruthy()
+    await provider.probeAll()
+    expect(browser().available).toBe(false)
+    expect(browser().reason).toMatch(/WebGPU/)
+  })
+
+  it('the browser candidate is available once WebGPU support is confirmed', async () => {
+    await load(() => json(MODELS), { provider: BROWSER_CONFIG })
+    mods.provider.configureProvider({
+      browser: {
+        detectSupport: async () => 'webgpu',
+        loadModel: async () => {
+          throw new Error('not used')
+        },
+        cachedBytes: async () => 0,
+        removeCached: async () => 0,
+      },
+    })
+    const provider = mods.provider.useProvider()
+    await provider.probeAll()
+    const browser = provider.candidates.value.find((c) => c.id === 'browser')!
+    expect(browser.available).toBe(true)
+    expect(browser.reason).toBeUndefined()
+  })
+
+  it('selectProvider replaces Preferences.provider with the candidate config', async () => {
+    await load(() => json(MODELS))
+    const provider = mods.provider.useProvider()
+    provider.selectProvider('local:jevk5')
+    expect(mods.prefs.usePreferences().state.provider).toEqual({
+      kind: 'local',
+      baseUrl: 'http://localhost:8090',
+      model: 'alibiserikbay/JevK5',
+    })
+    provider.selectProvider('browser')
+    expect(mods.prefs.usePreferences().state.provider).toEqual({ kind: 'browser', modelId: BROWSER_CONFIG.modelId })
+    provider.selectProvider('typesafe')
+    expect(mods.prefs.usePreferences().state.provider).toEqual({ kind: 'typesafe' })
   })
 })
