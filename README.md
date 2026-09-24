@@ -275,8 +275,9 @@ provider switch on the analysis view's classify bar also lets you pick Jev, a lo
 in-browser model without opening Settings — see
 [`docs/local-providers.md`](docs/local-providers.md#switching-from-the-analysis-view). In
 Settings → **Classifier**, choose **Local server** for a copy-pasteable, step-by-step guide to
-running Kev (`jaredpalmer/kev`) or JevK5 (`allebee/jevk5`) — or just run `pnpm local:kev` from this
-repo, which clones, installs and starts Kev for you. A local server costs nothing per token, keeps
+running Kev (`jaredpalmer/kev`), JevK5 (`allebee/jevk5`) or Laya (`NandhaKishorM/laya`) — or just
+run `pnpm local:kev` from this repo, which clones, installs and starts Kev for you. A local server
+costs nothing per token, keeps
 issue text on your machine or LAN, and needs no key by default. See
 [`docs/local-providers.md`](docs/local-providers.md) for the exact commands, the CORS/proxy
 fallback and troubleshooting.

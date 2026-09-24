@@ -187,7 +187,7 @@ async function testConnection(): Promise<void> {
           @change="selectKind('local')"
         />
         <span data-test="kind-local-label">{{
-          hosted ? 'Advanced: a Kev/JevK5 server on your machine' : 'Local server (Kev, JevK5)'
+          hosted ? 'Advanced: a Kev/JevK5/Laya server on your machine' : 'Local server (Kev, JevK5, Laya)'
         }}</span>
       </label>
       <label class="provider-selector__radio">

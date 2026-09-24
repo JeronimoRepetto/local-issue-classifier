@@ -8,6 +8,7 @@ import { markStale } from '../domain/analysis'
 import { estimateBatchedRun, estimateRun } from '../domain/estimate'
 import { buildIssueState } from '../domain/jevState'
 import { planBatches } from '../domain/jevBatchState'
+import { forcesPerIssue, presetMaxStateTokens } from '../domain/provider'
 import { batchSettingsFor } from '../domain/providerBatching'
 import type { BatchSettings } from '../domain/providerBatching'
 import { estimateBatchedSeconds, estimateSeconds, scopeCounts, selectForClassification } from '../domain/classifyRun'
@@ -118,12 +119,19 @@ function counts(filteredNumbers?: readonly number[]): ScopeCounts | null {
 // Classify bar itself ("1 request, compact profile") is not wired up yet.
 // A browser provider always runs per issue, one at a time (docs/browser-inference.md):
 // a batched state is too large for the page's attention buffers, and a second
-// concurrent forward pass would only compete for the same GPU.
+// concurrent forward pass would only compete for the same GPU. A preset whose
+// model context is too small ever to batch (currently only Laya,
+// domain/provider.ts's forcesPerIssue) is forced the same way.
 const classifyMode = (): ClassifyMode =>
-  provider.isBrowser.value || prefs.state.classifyMode === 'per-issue' ? 'per-issue' : 'batched'
+  provider.isBrowser.value || forcesPerIssue(provider.config.value) || prefs.state.classifyMode === 'per-issue'
+    ? 'per-issue'
+    : 'batched'
 const concurrency = (): number => (provider.isBrowser.value ? 1 : prefs.state.concurrency)
 /** The fitter's limits, floor and fallback for the current provider (docs/batching.md "Local providers"). */
 const batchSettings = (): BatchSettings => batchSettingsFor(provider.config.value.kind, prefs.state)
+/** A preset's own per-issue size-guard override (e.g. Laya's 512-token
+ *  context), or undefined to keep jevState.ts's 12k default. */
+const maxStateTokensOverride = (): number | undefined => presetMaxStateTokens(provider.config.value)
 
 /**
  * §4.7. Batched: the fitter's plan, each request's tokens counted once.
@@ -185,6 +193,7 @@ function estimatePerIssue(issues: readonly Issue[], ctx: ProjectContext): Classi
     const built = buildIssueState(issue, ctx, {
       now: config.now,
       maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
+      maxStateTokens: maxStateTokensOverride(),
     })
     if (built.ok) tokens.push(built.estimatedTokens)
     else tooLarge++
@@ -233,6 +242,7 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
       perIssueFallback: settings.perIssueFallback,
       questionsVersion: QUESTIONS_VERSION,
       maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
+      maxStateTokens: maxStateTokensOverride(),
       lowConfidenceThreshold: prefs.state.lowConfidenceThreshold,
       signal: run.signal,
       now: config.now,

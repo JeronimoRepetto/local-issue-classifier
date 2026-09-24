@@ -140,6 +140,43 @@ export function kevCommands({ model, port, os = 'windows', shortcut }: KevComman
   return steps
 }
 
+// ── Laya (docs/local-providers.md, github.com/NandhaKishorM/laya) ──────
+// Checked 2026-09-24 from the README and laya/serve.py (source, not just
+// docs): `laya-serve` takes no CLI flags at all — every setting (host, port,
+// device, which checkpoints to preload) is an environment variable
+// (LAYA_PORT, default 8000). Windows PowerShell has no bash-style
+// `VAR=value command` prefix, so it needs its own `$env:` assignment step,
+// exactly like Kev's clone/cd split above (kept as two separate copyable
+// lines rather than an unverified `;`-chaining assumption); macOS/Linux set
+// it inline on one line, same as Kev's clone `&&` line.
+
+export const LAYA_PREREQS_NOTE = 'Python 3.10+ and pip.'
+export const LAYA_CPU_NOTE =
+  'No GPU required: Laya (421M parameters, ModernBERT-large) runs comfortably on CPU, unlike Kev or JevK5. It also ships a multilingual checkpoint (`laya-multilingual`, ~1,024-token context) and a `laya-typed-decisions` fine-tune; this preset starts with the flagship English one.'
+export const LAYA_CONTEXT_NOTE =
+  "Reads only about 512 tokens of context (this preset's flagship English model) — issue bodies and comments are trimmed hard before they reach it, more than for Kev or JevK5. It always runs one request per issue; it is never sent a batch."
+
+export interface LayaCommandsOptions {
+  port: number
+  os?: KevOs
+}
+
+/** The ordered Laya commands: install the `serve` extra, then start the
+ *  server — no model flag (the app's request body picks the checkpoint, see
+ *  domain/provider.ts's LOCAL_PRESETS). */
+export function layaCommands({ port, os = 'windows' }: LayaCommandsOptions): KevCommandStep[] {
+  const steps: KevCommandStep[] = [{ id: 'install', label: 'Install', command: 'pip install "laya[serve]"' }]
+  if (os === 'windows') {
+    steps.push(
+      { id: 'port-env', label: 'Set the port', command: `$env:LAYA_PORT = ${port}` },
+      { id: 'serve', label: 'Start the server', command: 'laya-serve' },
+    )
+  } else {
+    steps.push({ id: 'serve', label: 'Start the server', command: `LAYA_PORT=${port} laya-serve` })
+  }
+  return steps
+}
+
 /** Reads the OS from the browser: `navigator.userAgentData.platform` first
  *  (Chromium's structured, non-deprecated API), falling back to the older
  *  `navigator.userAgent` string; an unrecognized or missing value defaults to

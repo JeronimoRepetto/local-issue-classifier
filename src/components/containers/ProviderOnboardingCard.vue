@@ -312,7 +312,7 @@ const summarySteps = computed<KevCommandStep[]>(() => {
     </div>
 
     <p v-if="!runtime.isLocal.value" class="provider-onboarding__note" data-test="local-in-settings-hint">
-      Have a Kev/JevK5 server on your machine?
+      Have a Kev/JevK5/Laya server on your machine?
       <button type="button" class="provider-onboarding__link" @click="openSettings">Configure it in Settings</button>
     </p>
 

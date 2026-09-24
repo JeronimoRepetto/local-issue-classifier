@@ -1,19 +1,21 @@
-# Local providers (Kev, JevK5)
+# Local providers (Kev, JevK5, Laya)
 
 By default the app classifies with **Jev on the TypeSafe cloud**. It can instead use a
 **local Jev-compatible server**: any server that answers TypeSafe's `POST /v1/systemone` request
-shape. Two open-source projects do this today. A local server costs nothing per token, and the
+shape. Three open-source projects do this today. A local server costs nothing per token, and the
 issues never leave your machine or LAN.
 
 | Project | License | Server | Default address | Model name |
 |---------|---------|--------|-----------------|------------|
 | [jaredpalmer/kev](https://github.com/jaredpalmer/kev) | Apache-2.0 | `python -m kev.serve` | `http://localhost:8009` | `kev-latest` |
 | [allebee/jevk5](https://github.com/allebee/jevk5) | Apache-2.0 | `jevk5-serve` | `http://localhost:8090` | `alibiserikbay/JevK5` |
+| [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya) | Apache-2.0 | `laya-serve` | `http://localhost:8000` | `convaiinnovations/laya` |
 
 To run a model with no server at all, see [In-browser inference](browser-inference.md)
 (experimental: a small placeholder model for now).
 
-Both are presets in Settings. The facts here come from each project's README (checked 2026-09-23).
+All three are presets in Settings. The facts here come from each project's README (Kev, JevK5:
+checked 2026-09-23; Laya: checked 2026-09-24, both the README and its `laya/serve.py` source).
 Check them again before you rely on them.
 
 This section is also built into the app: Settings → Classifier → **Local server** shows the same
@@ -174,6 +176,92 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
   answers 404, but it shows no model list.
 - There is no `pnpm local:kev`-style shortcut for JevK5; run the two commands above yourself.
 
+## Run Laya
+
+Laya (`NandhaKishorM/laya`, Apache-2.0) is a small BERT-family classifier — not a generative LLM
+like Kev or JevK5 — purpose-built to answer the same `choice`/`score`/`noul` decision primitives.
+Its README states `laya.serve` "exposes the Router over HTTP on the same POST /v1/systemone wire
+protocol as TypeSafe's hosted Jev API" and that "Laya's answer payload is already schema-identical
+to what Jev returns", which is why no adapter changes were needed: `domain/classification.ts`
+already reads `answers`/`usage` tolerantly and ignores fields it doesn't know about (Laya adds a
+`routing` block explaining checkpoint selection).
+
+```sh
+pip install "laya[serve]"
+```
+
+`laya-serve` takes **no CLI flags at all** — confirmed from `laya/serve.py` — every setting is an
+environment variable:
+
+```sh
+# macOS / Linux
+LAYA_PORT=8000 laya-serve
+```
+
+```powershell
+# Windows (PowerShell has no bash-style `VAR=value command` prefix)
+$env:LAYA_PORT = 8000
+laya-serve
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LAYA_HOST` | `0.0.0.0` | Bind address |
+| `LAYA_PORT` | `8000` | Bind port (this app's preset) |
+| `LAYA_DEVICE` | auto | `cuda`, `cpu`, or `mps` |
+| `LAYA_PRELOAD` | lazy | Load every checkpoint at startup instead of on first request |
+| `LAYA_MODELS` | — | Comma-separated checkpoints to preload |
+| `LAYA_API_KEY` | none | Bearer token authentication |
+
+### Models
+
+| Checkpoint | Encoder | Parameters | Context | Languages |
+|---|---|---|---|---|
+| `laya` (this preset's default) | ModernBERT-large | 421M | 512 tokens | English |
+| `laya-multilingual` | mmBERT-base | 322M | 1,024 tokens (up to 8,192 via `max_len`, SDK only) | 100+ |
+| `laya-typed-decisions` | ModernBERT-large | 421M | 1,024 tokens | English, fine-tuned |
+
+Weights: `convaiinnovations/laya`, `convaiinnovations/laya-multilingual`,
+`convaiinnovations/laya-typed-decisions` on the Hugging Face Hub. The app's Laya preset always
+requests the flagship `convaiinnovations/laya` (English, 512-token) checkpoint; `laya-serve`'s
+`_resolve_model()` maps a Hugging Face id like this to its router checkpoint name. Switching to
+`laya-multilingual` or `laya-typed-decisions` today means editing the local provider's **model**
+field by hand in Settings (there is no in-app picker for Laya's checkpoints yet, unlike Kev's
+model-size picker).
+
+### What is different from Kev and JevK5
+
+- **No GPU required.** Laya (421M parameters) is small enough to run comfortably on a CPU;
+  BENCHMARKS.md shows it running on a CPU-only laptop (Ryzen 9 6900HX) alongside GPU benchmarks
+  (Tesla T4, NVIDIA GB10). Neither README nor BENCHMARKS.md publishes a RAM or VRAM figure, so this
+  app makes no hardware-fit tier claim for it (unlike Kev's GB estimates and JevK5's ~9 GB figure)
+  — it is simply always shown as CPU-friendly.
+- **Much smaller context.** 512 tokens for the flagship model (1,024 for `laya-multilingual` /
+  `laya-typed-decisions`), against the app's 12,000-token default per-issue size guard. The app
+  gives this preset its own 512-token size-guard override (domain/provider.ts's
+  `LocalPreset.maxStateTokens`, read by domain/jevState.ts's `buildIssueState`), so issue bodies and
+  comments are trimmed hard before they reach it — more aggressively than for Kev or JevK5. An issue
+  that still doesn't fit after every trimming step fails as "Issue too large even after trimming",
+  same as any other provider.
+- **Always one request per issue, never batched.** Its context is too small ever to carry a
+  composite, multi-issue state, so this preset forces per-issue mode
+  (domain/provider.ts's `LocalPreset.perIssueOnly`) regardless of the **Classification mode**
+  preference under Advanced — the same hard rule the in-browser model already follows.
+- **No documented `GET /v1/models`.** Only `POST /v1/systemone` and `GET /health` are documented
+  (confirmed from `laya/serve.py`'s route table) — same situation as JevK5: the connection test
+  still passes when that path answers 404, but shows no model list and no GPU/CPU device readout.
+- **Latency.** The README's own benchmark: about 33 ms for one question on a Tesla T4 GPU (7.2
+  ms/question when using the SDK's `predict_batch`, which this app's `/v1/systemone` HTTP path does
+  not use — see "Batching" below). No CPU latency figure is published.
+- **Unverified: CORS.** Unlike Kev (confirmed `CORSMiddleware`, `allow_origins=["*"]`) and JevK5
+  (confirmed to send no CORS headers), Laya's README and `serve.py` say nothing about CORS. It was
+  not started or tested for this task (no pip install, no run). Until someone confirms it, treat it
+  like JevK5: assume **proxied**, not **direct**, and not supported from a hosted page.
+- **Unverified: whether `/v1/systemone` accepts a batched request body at all.** The SDK's
+  `predict_batch` groups multiple states client-side; the README's only documented HTTP example is
+  a single `state`. This app never sends Laya a batch either way (see above), so this gap does not
+  affect it, but do not assume the HTTP endpoint itself supports an array of states.
+
 ## Point the app at a local server
 
 1. Start the server (see above) and `pnpm dev`.
@@ -196,8 +284,9 @@ request count and the latency estimate still apply.
 You don't have to click anything to find out whether a local server is up. The app probes it on
 its own (one `GET /v1/models` per address, the same check as **Test connection**):
 
-- **On load**: the configured local base URL, plus the Kev (`:8009`) and JevK5 (`:8090`) presets
-  when the page runs on your machine. A hosted page probes only a local URL you configured.
+- **On load**: the configured local base URL, plus the Kev (`:8009`), JevK5 (`:8090`) and Laya
+  (`:8000`) presets when the page runs on your machine. A hosted page probes only a local URL you
+  configured.
 - **When you select a local server**: choosing **On this computer** on Home, or **Local server**
   or a preset in Settings.
 - **When you come back to Home**: only if the last check is at least 30 s old.
@@ -221,15 +310,16 @@ Kev's `GET /v1/models` reports, per model, the `device` it runs on (`cuda` or `c
   CPU and RAM and recommends Kev 0.8B (about 4 GB of RAM). AMD GPUs accelerate only on Linux with
   ROCm; Apple Silicon accelerates automatically.
 
-JevK5's README does not document these fields. When a server leaves them out, nothing is shown.
+Neither JevK5's nor Laya's README documents these fields (Laya also has no documented
+`GET /v1/models` at all — see "Run Laya" above). When a server leaves them out, nothing is shown.
 
 ## Switching from the analysis view
 
 The classify bar (screen 3) carries a provider switch next to the Classify button, so you can pick
-Jev, Kev or JevK5 without opening Settings: on your machine, opening the analysis view probes both
-local presets once (one `GET /v1/models` per preset, cached for the session — reachable ones show
-their first model name and, when the server reports it, its device), and disables whichever preset
-it could not reach with that reason as a tooltip.
+Jev, Kev, JevK5 or Laya without opening Settings: on your machine, opening the analysis view probes
+every local preset once (one `GET /v1/models` per preset, cached for the session — reachable ones
+show their first model name and, when the server reports it, its device), and disables whichever
+preset it could not reach with that reason as a tooltip.
 
 On a hosted page (e.g. local-issue-classifier.pages.dev) it never probes a preset you have not
 explicitly set up in Settings — doing that unconditionally is what triggered Chrome's Local Network
@@ -246,8 +336,8 @@ active.
 
 ## CORS and the `/jev-local` proxy
 
-A browser can only call a server on another origin when that server sends CORS headers. Kev's and
-JevK5's READMEs do not say whether they do, so the app handles both cases:
+A browser can only call a server on another origin when that server sends CORS headers. Kev's,
+JevK5's and Laya's READMEs do not say whether they do, so the app handles both cases:
 
 1. The first time it needs a server, the app sends `GET {baseUrl}/v1/models` with `mode: 'cors'`
    and a JSON `content-type`. That forces the same CORS preflight a classification POST triggers.
@@ -263,9 +353,10 @@ address or an `https` local server therefore always goes through the proxy. See
 
 **Hosted pages.** A hosted build has no `/jev-local` proxy, so it reaches `http://localhost` directly
 from your browser. That works with Kev, which answers with CORS `*`; JevK5 sends no CORS headers,
-so it is not supported from a hosted page (run the app locally for it). There, Home hides the
-**On this computer** card and Settings labels the option "Advanced: a Kev/JevK5 server on your
-machine".
+so it is not supported from a hosted page (run the app locally for it). Laya's CORS support is
+undocumented and was not tested (see "Run Laya" above) — assume it behaves like JevK5 until
+confirmed. There, Home hides the **On this computer** card and Settings labels the option
+"Advanced: a Kev/JevK5/Laya server on your machine".
 
 Local calls time out after 180 s instead of the cloud's 20 s, because a 4B model on a consumer GPU
 is much slower than the TypeSafe API.

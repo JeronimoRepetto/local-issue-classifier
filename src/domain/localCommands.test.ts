@@ -3,7 +3,7 @@
 // this bugfix's report: Home's condensed summary had drifted from the guide
 // (fixed kev-0.8b model, missing --no-sync, no copy buttons). Pure: no Vue.
 import { describe, expect, it } from 'vitest'
-import { detectOs, kevCommands, kevLauncher } from './localCommands'
+import { detectOs, kevCommands, kevLauncher, layaCommands } from './localCommands'
 
 describe('kevCommands', () => {
   it('includes the shortcut command with the given model only when shortcut is true', () => {
@@ -119,6 +119,34 @@ describe('kevCommands', () => {
   it('orders uv-install, clone, sync, cuda, serve, then shortcut last on macOS/Linux (no cd step)', () => {
     const steps = kevCommands({ model: 'kev-0.8b', port: 8009, os: 'linux', shortcut: true })
     expect(steps.map((s) => s.id)).toEqual(['uv-install', 'clone', 'sync', 'cuda', 'serve', 'shortcut'])
+  })
+})
+
+describe('layaCommands', () => {
+  it('installs the serve extra the same way regardless of OS', () => {
+    for (const os of ['windows', 'macos', 'linux'] as const) {
+      expect(layaCommands({ port: 8000, os }).find((s) => s.id === 'install')?.command).toBe(
+        'pip install "laya[serve]"',
+      )
+    }
+  })
+
+  it('Windows: sets $env:LAYA_PORT as its own step, then starts the server with no flags (laya-serve has no CLI args)', () => {
+    const steps = layaCommands({ port: 8000, os: 'windows' })
+    expect(steps.map((s) => s.id)).toEqual(['install', 'port-env', 'serve'])
+    expect(steps.find((s) => s.id === 'port-env')?.command).toBe('$env:LAYA_PORT = 8000')
+    expect(steps.find((s) => s.id === 'serve')?.command).toBe('laya-serve')
+  })
+
+  it('defaults to windows when os is omitted', () => {
+    const steps = layaCommands({ port: 8000 })
+    expect(steps.map((s) => s.id)).toEqual(['install', 'port-env', 'serve'])
+  })
+
+  it.each(['macos', 'linux'] as const)('%s: sets LAYA_PORT inline on the serve line, no separate env step', (os) => {
+    const steps = layaCommands({ port: 8123, os })
+    expect(steps.map((s) => s.id)).toEqual(['install', 'serve'])
+    expect(steps.find((s) => s.id === 'serve')?.command).toBe('LAYA_PORT=8123 laya-serve')
   })
 })
 

@@ -469,10 +469,14 @@ describe('App: local server auto-probe', () => {
     vi.useRealTimers()
   })
 
-  it('probes the Kev and JevK5 presets once on load', async () => {
+  it('probes the Kev, JevK5 and Laya presets once on load', async () => {
     await mountApp()
     await flushPromises()
-    expect(urls.sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+    expect(urls.sort()).toEqual([
+      'http://localhost:8000/v1/models',
+      'http://localhost:8009/v1/models',
+      'http://localhost:8090/v1/models',
+    ])
   })
 
   it('re-probes on returning to Home only after 30 s', async () => {
@@ -495,6 +499,10 @@ describe('App: local server auto-probe', () => {
     vi.setSystemTime(new Date(T0.getTime() + 31_000))
     view.goHome()
     await flushPromises()
-    expect(urls.sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+    expect(urls.sort()).toEqual([
+      'http://localhost:8000/v1/models',
+      'http://localhost:8009/v1/models',
+      'http://localhost:8090/v1/models',
+    ])
   })
 })

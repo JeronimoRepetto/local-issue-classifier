@@ -402,7 +402,11 @@ describe('useProvider: candidates, probeAll, selectProvider', () => {
     )
     const provider = mods.provider.useProvider()
     await provider.probeAll()
-    expect(seen.map((c) => c.url).sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+    expect(seen.map((c) => c.url).sort()).toEqual([
+      'http://localhost:8000/v1/models',
+      'http://localhost:8009/v1/models',
+      'http://localhost:8090/v1/models',
+    ])
 
     const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
     expect(kev.available).toBe(true)
@@ -481,7 +485,11 @@ describe('useProvider: probeAll presets gating (hosted vs local runtime)', () =>
     await load((call) => (call.url.startsWith('http://localhost:8009') ? json({ models: [{ name: 'kev-latest' }] }) : json(MODELS)))
     const provider = mods.provider.useProvider()
     await provider.probeAll()
-    expect(seen.map((c) => c.url).sort()).toEqual(['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models'])
+    expect(seen.map((c) => c.url).sort()).toEqual([
+      'http://localhost:8000/v1/models',
+      'http://localhost:8009/v1/models',
+      'http://localhost:8090/v1/models',
+    ])
   })
 
   it('skips every local preset when presets is false (hosted page), but still checks WebGPU', async () => {
@@ -542,7 +550,11 @@ describe('useProvider: candidates on a hosted runtime (isLocalRuntime env)', () 
 // computer" is selected, cached per session; returning to Home re-probes only
 // after 30 s. There is no polling loop: nothing probes without a call.
 describe('useProvider: autoProbe and the live local status', () => {
-  const PRESET_URLS = ['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models']
+  const PRESET_URLS = [
+    'http://localhost:8000/v1/models',
+    'http://localhost:8009/v1/models',
+    'http://localhost:8090/v1/models',
+  ]
   const T0 = new Date('2026-09-24T10:00:00Z')
 
   beforeEach(() => {

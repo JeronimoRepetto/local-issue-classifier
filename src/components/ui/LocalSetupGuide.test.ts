@@ -149,6 +149,26 @@ describe('LocalSetupGuide', () => {
     expect(wrapper.get('[data-test="callout-prereqs"]').classes()).toContain('ui-callout--warning')
   })
 
+  it('shows the Laya commands on Windows: install, set $env:LAYA_PORT, then start with no flags', async () => {
+    const wrapper = mountGuide()
+    await wrapper.get('[data-test="segment-laya"]').trigger('click')
+    expect(wrapper.get('[data-test="command-install"]').text()).toBe('pip install "laya[serve]"')
+    expect(wrapper.get('[data-test="command-port-env"]').text()).toBe('$env:LAYA_PORT = 8000')
+    expect(wrapper.get('[data-test="command-serve"]').text()).toBe('laya-serve')
+    expect(wrapper.find('[data-test="command-cuda"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="kev-model"]').exists()).toBe(false)
+    expect(wrapper.text()).toMatch(/no gpu required/i)
+    expect(wrapper.text()).toMatch(/512/)
+  })
+
+  it('macOS/Linux: Laya sets LAYA_PORT inline on one line, no separate env-var step', async () => {
+    const wrapper = mountGuide()
+    await wrapper.get('[data-test="segment-laya"]').trigger('click')
+    await wrapper.get('[data-test="segment-macos"]').trigger('click')
+    expect(wrapper.find('[data-test="command-port-env"]').exists()).toBe(false)
+    expect(wrapper.get('[data-test="command-serve"]').text()).toBe('LAYA_PORT=8000 laya-serve')
+  })
+
   describe('copy buttons (CopyCommandLine)', () => {
     const originalClipboard = navigator.clipboard
 

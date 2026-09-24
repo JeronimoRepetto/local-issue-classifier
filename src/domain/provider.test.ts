@@ -11,13 +11,16 @@ import {
   deviceLabel,
   findBrowserModel,
   findPreset,
+  forcesPerIssue,
   parseFirstModelDevice,
   parseModelNames,
+  presetMaxStateTokens,
   providerKey,
   providerLabel,
   sanitizeProviderConfig,
   validateLocalBaseUrl,
 } from './provider'
+import type { ProviderConfig } from './provider'
 
 describe('defaultProviderConfig', () => {
   it('is the TypeSafe cloud, as a fresh object each call', () => {
@@ -77,11 +80,42 @@ describe('validateLocalBaseUrl', () => {
 })
 
 describe('LOCAL_PRESETS', () => {
-  it('lists Kev and JevK5 with valid local base URLs', () => {
-    expect(LOCAL_PRESETS.map((p) => p.id)).toEqual(['kev', 'jevk5'])
+  it('lists Kev, JevK5 and Laya with valid local base URLs', () => {
+    expect(LOCAL_PRESETS.map((p) => p.id)).toEqual(['kev', 'jevk5', 'laya'])
     const kev = LOCAL_PRESETS[0]
     expect(kev).toMatchObject({ baseUrl: 'http://localhost:8009', model: 'kev-latest' })
+    const laya = LOCAL_PRESETS[2]
+    expect(laya).toMatchObject({
+      baseUrl: 'http://localhost:8000',
+      model: 'convaiinnovations/laya',
+      perIssueOnly: true,
+      maxStateTokens: 512,
+    })
     for (const preset of LOCAL_PRESETS) expect(validateLocalBaseUrl(preset.baseUrl).ok).toBe(true)
+  })
+
+  it('gives every preset a distinct port (no clash between Kev, JevK5 and Laya)', () => {
+    const ports = LOCAL_PRESETS.map((p) => new URL(p.baseUrl).port)
+    expect(new Set(ports).size).toBe(ports.length)
+  })
+})
+
+describe('forcesPerIssue / presetMaxStateTokens', () => {
+  const laya: ProviderConfig = { kind: 'local', baseUrl: 'http://localhost:8000', model: 'convaiinnovations/laya' }
+  const kev: ProviderConfig = { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' }
+  const jevk5: ProviderConfig = { kind: 'local', baseUrl: 'http://localhost:8090', model: 'alibiserikbay/JevK5' }
+  const unmatched: ProviderConfig = { kind: 'local', baseUrl: 'http://10.0.0.5:9000', model: 'mine' }
+
+  it('is true, with a 512-token cap, only for the Laya preset', () => {
+    expect(forcesPerIssue(laya)).toBe(true)
+    expect(presetMaxStateTokens(laya)).toBe(512)
+  })
+
+  it('is false, with no cap override, for every other provider', () => {
+    for (const config of [kev, jevk5, unmatched, defaultProviderConfig(), defaultBrowserProviderConfig()]) {
+      expect(forcesPerIssue(config)).toBe(false)
+      expect(presetMaxStateTokens(config)).toBeUndefined()
+    }
   })
 })
 
@@ -192,6 +226,17 @@ describe('candidateIdFor / configForCandidateId', () => {
     expect(candidateIdFor({ kind: 'local', baseUrl: 'http://localhost:8090/', model: 'x' })).toBe('local:jevk5')
     expect(configForCandidateId('local:kev')).toEqual({ kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' })
     expect(configForCandidateId('local:jevk5')).toEqual({ kind: 'local', baseUrl: 'http://localhost:8090', model: 'alibiserikbay/JevK5' })
+  })
+
+  it('ids the Laya local config by its matching preset', () => {
+    expect(candidateIdFor({ kind: 'local', baseUrl: 'http://localhost:8000', model: 'convaiinnovations/laya' })).toBe(
+      'local:laya',
+    )
+    expect(configForCandidateId('local:laya')).toEqual({
+      kind: 'local',
+      baseUrl: 'http://localhost:8000',
+      model: 'convaiinnovations/laya',
+    })
   })
 
   it('has no id for a local config that matches no preset, and no config for an unknown id', () => {
