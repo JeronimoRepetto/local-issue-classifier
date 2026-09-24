@@ -60,8 +60,13 @@ export interface RunnerOptions {
   trimmingFloor?: TrimmingProfileId
   /** Batched: use exactly this profile (the agreement harness). */
   forceProfile?: TrimmingProfileId
-  /** Batched: request limits override, for tests. Default: models.md minus 10%. */
+  /** Batched: request limits (a local provider's carry maxStateTokens). Default: models.md minus 10%. */
   requestLimits?: RequestLimits
+  /**
+   * Batched: send issues that fit no batch one at a time instead of failing
+   * them as too large (local providers, domain/providerBatching.ts).
+   */
+  perIssueFallback?: boolean
   /** Account rate limits to pace under; default models.md minus 10%. */
   rateLimits?: RateLimits
   /** Configured pool size (Preferences.concurrency), 1..8. */
@@ -371,13 +376,17 @@ export async function runClassification(options: RunnerOptions): Promise<RunSumm
         limits: options.requestLimits,
       })
       profile = plan.profile
-      planned = plan.batches.length
+      const alone = options.perIssueFallback ? plan.tooLarge : []
+      planned = plan.batches.length + alone.length
       report()
-      for (const issue of plan.tooLarge) record(issue.number, fail(TOO_LARGE_MESSAGE))
+      if (!options.perIssueFallback) for (const issue of plan.tooLarge) record(issue.number, fail(TOO_LARGE_MESSAGE))
       await runPool(plan.batches, (batch) => classifyBatch(batch.issues, batch.state, plan.profile), {
         limit: () => throttle.limit,
         signal,
       })
+      // Per-issue states keep their own size guard (buildIssueState), so an
+      // issue too large even alone still fails as too large there.
+      if (alone.length > 0) await runPool(alone, classifyOne, { limit: () => throttle.limit, signal })
     }
   } finally {
     options.signal?.removeEventListener('abort', onCancel)

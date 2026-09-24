@@ -21,8 +21,13 @@ import { usePreferences } from '../../composables/usePreferences'
 import { useAnalyses } from '../../composables/useAnalyses'
 import { useProvider } from '../../composables/useProvider'
 import { detectHardware } from '../../adapters/hardware/detect'
-import { defaultLocalProviderConfig, providerLabel } from '../../domain/provider'
-import type { ProviderConfig, ProviderRouteStatus } from '../../domain/provider'
+import { defaultLocalProviderConfig, findPreset, providerLabel } from '../../domain/provider'
+import { sanitizeLocalMaxStateTokens } from '../../domain/providerBatching'
+import { localDeviceAdvice } from '../../domain/localDevice'
+import { detectOs } from '../../domain/localCommands'
+import { useHardwareDetection } from '../../composables/useHardwareDetection'
+import { useRuntime } from '../../composables/useRuntime'
+import type { ProviderConfig } from '../../domain/provider'
 
 const ABOUT_TEXT =
   'local-issue-classifier is MIT-licensed. The UI icons are original line icons and the logo ' +
@@ -69,16 +74,27 @@ const PERSISTENCE_TEXT = {
 } as const
 const persistenceText = computed(() => PERSISTENCE_TEXT[analyses.state.persistence])
 
-// T16, WIRE-2: which server classifies, and, for a local one, the cached probe route.
-const STATUS_LABEL: Record<ProviderRouteStatus, string> = {
-  unknown: 'not tested',
-  direct: 'direct',
-  proxied: 'proxied',
-  unreachable: 'unreachable',
-}
+// T16, WIRE-2: which server classifies, and, for a local one, its live status
+// (useProvider().localStatus, checked automatically; docs/local-providers.md).
 
+/** On a hosted page the local option is an advanced one (docs/local-providers.md "Hosted pages"). */
+const runtime = useRuntime()
+
+/** GPU vs CPU readout for the local server, from its last probe and the shared (passive) hardware detection. */
+const hardware = useHardwareDetection()
+const deviceAdvice = computed(() =>
+  localDeviceAdvice({
+    runtime: provider.localRuntime.value,
+    gpuVendor: hardware.report.value?.gpu.vendor ?? null,
+    os: detectOs(navigator),
+  }),
+)
+
+/** Switching to a local server (or one of its presets) checks it at once; typing a custom URL waits for "Test connection". */
 function onProviderChange(value: ProviderConfig): void {
+  const wasLocal = prefs.state.provider.kind === 'local'
   prefs.update({ provider: value })
+  if (value.kind === 'local' && (!wasLocal || findPreset(value))) void provider.autoProbe({ presets: false })
 }
 
 /** docs/hardware-fit.md's recommendation, applied unconditionally to the Kev preset (LOCAL_PRESETS[0]). */
@@ -181,7 +197,7 @@ onBeforeUnmount(() => stopTheme?.())
         <h2 class="settings__heading u-micro">Classifier</h2>
         <p class="settings__lede" data-test="provider-label">{{ providerLabel(prefs.state.provider) }}</p>
         <p v-if="provider.isLocal.value" class="settings__lede" data-test="provider-status-chip">
-          {{ STATUS_LABEL[provider.status.value] }}
+          {{ provider.localStatus.value.text }}
         </p>
       </div>
       <div class="settings__body">
@@ -190,7 +206,11 @@ onBeforeUnmount(() => stopTheme?.())
           :api-key="secrets.state.localApiKey"
           :classify-mode="prefs.state.classifyMode"
           :trimming-floor="prefs.state.trimmingFloor"
+          :local-max-state-tokens="prefs.state.localMaxStateTokens"
           :probe="provider.probe"
+          :live-status="provider.localStatus.value.text"
+          :device-advice="deviceAdvice"
+          :hosted="!runtime.isLocal.value"
           :browser="provider.browserStatus"
           @update:model-value="onProviderChange"
           @download-model="provider.downloadBrowserModel()"
@@ -198,6 +218,7 @@ onBeforeUnmount(() => stopTheme?.())
           @update:api-key="secrets.setLocalApiKey($event)"
           @update:classify-mode="prefs.update({ classifyMode: $event })"
           @update:trimming-floor="prefs.update({ trimmingFloor: $event })"
+          @update:local-max-state-tokens="prefs.update({ localMaxStateTokens: sanitizeLocalMaxStateTokens($event) })"
         />
       </div>
     </section>

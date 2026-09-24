@@ -164,3 +164,35 @@ export function detectOs(nav: NavigatorLike | null | undefined): KevOs {
 
   return 'linux'
 }
+
+// ── One-click launchers (docs/local-providers.md "One-click launcher") ──
+// scripts/start-kev.ps1 and scripts/start-kev.sh, served under /launchers/ by
+// server/launcherAssets.ts. They run the same steps as kevCommands() above
+// (check tools, clone, sync once, CUDA torch on NVIDIA, serve with --no-sync).
+
+export interface KevLauncher {
+  /** File name the browser saves. */
+  file: string
+  /** Path relative to the app's base URL. */
+  path: string
+  label: string
+  /** How to run it from the folder it was saved to. */
+  run: string
+}
+
+const OS_NAMES: Record<KevOs, string> = { windows: 'Windows', macos: 'macOS', linux: 'Linux' }
+
+export function kevLauncher({ os, model }: { os: KevOs; model: string }): KevLauncher {
+  const label = `Download launcher for ${OS_NAMES[os]}`
+  if (os === 'windows') {
+    // A downloaded .ps1 is blocked by the default execution policy; the bypass
+    // applies to this one run only and changes no setting.
+    return {
+      file: 'start-kev.ps1',
+      path: 'launchers/start-kev.ps1',
+      label,
+      run: `powershell -ExecutionPolicy Bypass -File .\start-kev.ps1 -Model ${model}`,
+    }
+  }
+  return { file: 'start-kev.sh', path: 'launchers/start-kev.sh', label, run: `sh start-kev.sh --model ${model}` }
+}

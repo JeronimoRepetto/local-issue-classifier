@@ -14,6 +14,8 @@ import UiSelect from '../../ui/UiSelect.vue'
 import type { SelectOption } from '../../ui/UiSelect.vue'
 import LocalSetupGuide from './LocalSetupGuide.vue'
 import BrowserModelPanel from './BrowserModelPanel.vue'
+import LocalDeviceCallouts from './LocalDeviceCallouts.vue'
+import type { DeviceAdvice } from '../../domain/localDevice'
 import type { BrowserPanelState } from './BrowserModelPanel.vue'
 import {
   BROWSER_MODELS,
@@ -26,6 +28,7 @@ import {
 } from '../../domain/provider'
 import type { LocalProviderConfig, ProviderConfig, ProviderProbeResult } from '../../domain/provider'
 import { TRIMMING_PROFILE_IDS } from '../../domain/jevBatchState'
+import { DEFAULT_LOCAL_MAX_STATE_TOKENS, LOCAL_MAX_STATE_TOKENS_RANGE } from '../../domain/providerBatching'
 import type { ClassifyMode, TrimmingProfileId } from '../../domain/types'
 
 const props = defineProps<{
@@ -34,7 +37,15 @@ const props = defineProps<{
   apiKey: string
   classifyMode: ClassifyMode
   trimmingFloor: TrimmingProfileId
+  /** Preferences.localMaxStateTokens; shown in Advanced for a local provider only. */
+  localMaxStateTokens?: number
   probe: () => Promise<ProviderProbeResult>
+  /** The local server's live status from the automatic check (useProvider().localStatus); shown until a manual test runs. */
+  liveStatus?: string
+  /** GPU vs CPU callouts for the local server (domain/localDevice.ts's localDeviceAdvice). */
+  deviceAdvice?: readonly DeviceAdvice[]
+  /** A hosted page (not this repo's own server): the local option is labelled as advanced (docs/local-providers.md). */
+  hosted?: boolean
   /** The in-browser model's state (useProvider().browserStatus); only read for the browser kind. */
   browser?: BrowserPanelState
 }>()
@@ -44,6 +55,7 @@ const emit = defineEmits<{
   'update:apiKey': [value: string]
   'update:classifyMode': [value: ClassifyMode]
   'update:trimmingFloor': [value: TrimmingProfileId]
+  'update:localMaxStateTokens': [value: number]
   'download-model': []
   'remove-model': []
 }>()
@@ -126,6 +138,17 @@ function selectPreset(id: string): void {
   if (chosen) patchLocal({ baseUrl: chosen.baseUrl, model: chosen.model })
 }
 
+const LOCAL_BUDGET_HINT =
+  `Caps each batch sent to a local server so it stays well inside a small model's context ` +
+  `(default ${DEFAULT_LOCAL_MAX_STATE_TOKENS}, ${LOCAL_MAX_STATE_TOKENS_RANGE.min}-${LOCAL_MAX_STATE_TOKENS_RANGE.max}). ` +
+  'Issues that still do not fit go one per request.'
+
+/** Only a whole, positive number is emitted; the store clamps it to LOCAL_MAX_STATE_TOKENS_RANGE. */
+function onLocalBudget(value: string): void {
+  const tokens = Number(value)
+  if (Number.isFinite(tokens) && tokens > 0) emit('update:localMaxStateTokens', Math.floor(tokens))
+}
+
 async function testConnection(): Promise<void> {
   checking.value = true
   result.value = null
@@ -163,7 +186,9 @@ async function testConnection(): Promise<void> {
           :checked="modelValue.kind === 'local'"
           @change="selectKind('local')"
         />
-        Local server (Kev, JevK5)
+        <span data-test="kind-local-label">{{
+          hosted ? 'Advanced: a Kev/JevK5 server on your machine' : 'Local server (Kev, JevK5)'
+        }}</span>
       </label>
       <label class="provider-selector__radio">
         <input
@@ -234,10 +259,16 @@ async function testConnection(): Promise<void> {
         >
           Test connection
         </UiButton>
-        <p v-if="checking || result" role="status" class="provider-selector__status" data-test="probe-status">
-          {{ checking ? 'Checking…' : result ? PROBE_TEXT[result.status] : '' }}
+        <p
+          v-if="checking || result || liveStatus"
+          role="status"
+          class="provider-selector__status"
+          data-test="probe-status"
+        >
+          {{ checking ? 'Checking…' : result ? PROBE_TEXT[result.status] : liveStatus }}
         </p>
       </div>
+      <LocalDeviceCallouts :advice="deviceAdvice ?? []" />
       <p v-if="result?.status === 'unreachable'" class="provider-selector__hint" data-test="unreachable-hint">
         Is the server running on port {{ localPort }}? See the setup guide above.
       </p>
@@ -264,6 +295,15 @@ async function testConnection(): Promise<void> {
         :options="TRIMMING_FLOOR_OPTIONS"
         hint="How far a batch may trim each issue to fit one request."
         @update:model-value="emit('update:trimmingFloor', $event as TrimmingProfileId)"
+      />
+      <UiInput
+        v-if="local"
+        data-test="local-max-state-tokens"
+        label="Local batch size limit (tokens)"
+        type="number"
+        :model-value="String(localMaxStateTokens ?? DEFAULT_LOCAL_MAX_STATE_TOKENS)"
+        :hint="LOCAL_BUDGET_HINT"
+        @update:model-value="onLocalBudget"
       />
     </details>
   </div>

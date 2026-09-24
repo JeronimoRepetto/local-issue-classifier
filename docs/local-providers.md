@@ -37,6 +37,38 @@ detected hardware instead of a fixed size.
 - An **NVIDIA GPU is optional**: without one, both servers run on the CPU (slow — see
   "CPU-only torch" under Troubleshooting). JevK5 needs about 9 GB of GPU memory in practice.
 
+## One-click launcher
+
+The easiest way to run Kev. Home's **On this computer** card offers it first; the manual commands
+below are the fallback. Download the launcher for your OS
+([`start-kev.ps1`](../scripts/start-kev.ps1) for Windows, [`start-kev.sh`](../scripts/start-kev.sh)
+for macOS and Linux; the app serves both under `/launchers/`) and run it from the folder you saved
+it to:
+
+```powershell
+# Windows (PowerShell 5.1 or 7). The bypass applies to this one run and changes no setting.
+powershell -ExecutionPolicy Bypass -File .\start-kev.ps1 -Model kev-0.8b
+```
+
+```sh
+# macOS / Linux
+sh start-kev.sh --model kev-0.8b
+```
+
+It checks Git, Python 3.12–3.13 and uv, and offers to install uv (winget on Windows, the official
+installer elsewhere) after asking. It clones Kev into `./.local/kev` if it is not there yet, and runs
+`uv sync --extra serve` only when `.venv` is missing. On an NVIDIA machine (`nvidia-smi` present) it
+installs the CUDA build of torch when `torch.cuda.is_available()` is false. Then it starts the
+server with `uv run --no-sync`. It is idempotent: a second run just starts the server.
+
+| Windows | macOS / Linux | Default | What |
+|---------|---------------|---------|------|
+| `-Model` | `--model` | `kev-0.8b` | `kev-0.8b`, `kev-4b` or `kev-9b` |
+| `-Port` | `--port` | `8009` | Port to serve on |
+| `-Dir` | `--dir` | `./.local/kev` | Where Kev is cloned or found |
+| `-FastKernels` | `--fast-kernels` | off | Also install `causal-conv1d` and `flash-linear-attention`. Kev warns without them and uses slower kernels; they often fail to build on Windows, which is not fatal. |
+| `-DryRun` | `--dry-run` | off | Print the plan and run nothing |
+
 ## Run Kev
 
 The `sync` and `serve` commands below are the same on Windows, macOS and Linux (besides installing
@@ -149,7 +181,8 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
 3. Choose a preset, or type the base URL and the model. Only `localhost`, `127.x.x.x`, `[::1]` or a
    private LAN address (`10.x`, `172.16–31.x`, `192.168.x`, IPv6 `fc00::/7`) is accepted. Public
    hosts, other schemes (`javascript:`, `file:`), credentials in the URL, and `?`/`#` are refused.
-4. Click **Test connection**. It reports one of three results:
+4. The app checks the server on its own (see "Connection status" below). **Test connection** is a
+   manual retry; it reports one of three results:
    - **direct**: the browser calls the server itself.
    - **proxied**: the browser calls `/jev-local` on the Vite server, which forwards the call.
    - **unreachable**: neither route answered. The app then points back at the setup guide above
@@ -157,6 +190,38 @@ jevk5-serve --model alibiserikbay/JevK5 --port 8090
 
 No TypeSafe key is needed for a local server. The cost estimate before a run shows **$0**. The
 request count and the latency estimate still apply.
+
+## Connection status
+
+You don't have to click anything to find out whether a local server is up. The app probes it on
+its own (one `GET /v1/models` per address, the same check as **Test connection**):
+
+- **On load**: the configured local base URL, plus the Kev (`:8009`) and JevK5 (`:8090`) presets
+  when the page runs on your machine. A hosted page probes only a local URL you configured.
+- **When you select a local server**: choosing **On this computer** on Home, or **Local server**
+  or a preset in Settings.
+- **When you come back to Home**: only if the last check is at least 30 s old.
+
+Results are cached for the session. There is no polling loop; nothing runs in the background. The
+Home card and Settings show the live status: **Looking for a local server…**, then **Connected** or
+**Not reachable on :8009**. **Test connection** stays as the manual retry.
+
+## GPU or CPU
+
+Kev's `GET /v1/models` reports, per model, the `device` it runs on (`cuda` or `cpu`) and its
+`dtype`. The Home card, the Settings selector and the provider switch show it:
+
+- **GPU**: "Running on GPU (cuda · bf16)" as an `info` callout (the switch shows `GPU (cuda · bf16)`).
+- **CPU**: a `warning`, "Running on CPU and RAM — works, but slow (measured 0.8B: ≈470 ms vs
+  ≈197 ms per request on GPU; 4B impractical on CPU)". If hardware detection found an NVIDIA GPU,
+  the callout adds the exact CUDA torch step for your OS (the same one as "Run Kev" above). Only the
+  NVIDIA driver is required: the torch wheels bundle the CUDA runtime, so there is no CUDA Toolkit
+  to install. Restart the server with `--no-sync` afterwards.
+- **No NVIDIA GPU detected**: before any server answers, an `info` callout says Kev will run on the
+  CPU and RAM and recommends Kev 0.8B (about 4 GB of RAM). AMD GPUs accelerate only on Linux with
+  ROCm; Apple Silicon accelerates automatically.
+
+JevK5's README does not document these fields. When a server leaves them out, nothing is shown.
 
 ## Switching from the analysis view
 
@@ -185,6 +250,12 @@ JevK5's READMEs do not say whether they do, so the app handles both cases:
 The page's CSP allows direct calls only to `localhost`, `127.0.0.1` and `[::1]` over `http`. A LAN
 address or an `https` local server therefore always goes through the proxy. See
 [deployment.md](deployment.md) for what the proxy does.
+
+**Hosted pages.** A hosted build has no `/jev-local` proxy, so it reaches `http://localhost` directly
+from your browser. That works with Kev, which answers with CORS `*`; JevK5 sends no CORS headers,
+so it is not supported from a hosted page (run the app locally for it). There, Home hides the
+**On this computer** card and Settings labels the option "Advanced: a Kev/JevK5 server on your
+machine".
 
 Local calls time out after 180 s instead of the cloud's 20 s, because a 4B model on a consumer GPU
 is much slower than the TypeSafe API.

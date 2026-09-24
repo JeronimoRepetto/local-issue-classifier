@@ -65,6 +65,16 @@ The table below comes from `tests/fakes/typicalIssues.ts`. The fixture has a REA
 
 Cells show requests · estimated input tokens. The seconds estimate is `ceil(requests / concurrency) × 2 s`, so one request is estimated at one call (about 2 s). A large request may take longer than the 2 s measured per call, so treat this number as an approximation.
 
+## Local providers
+
+A local Kev or JevK5 server runs a small model whose context is far below the cloud's 32k state budget. A 100-issue run against Kev with the cloud limits logged three `422 Unprocessable Content` on `/v1/systemone`; the split-and-retry recovered them, but each one cost a wasted request. So when the provider is `local`, `batchSettingsFor` (`src/domain/providerBatching.ts`) changes three things:
+
+1. **A state cap.** Every batch's estimated state stays at or under `Preferences.localMaxStateTokens`: 8 000 tokens by default, 1 000 to 28 800 accepted. Change it under Settings → Classifier → Advanced → "Local batch size limit".
+2. **A looser floor.** Trimming stops at `condensed`, unless your own floor is looser. More, smaller requests are preferred over cutting each issue down to `tight` or `minimal`.
+3. **Per-issue fallback.** An issue that does not fit a batch alone at that floor is sent by itself, one request per issue, instead of failing as too large. The per-issue size guard still applies to it.
+
+The split-and-retry on 413/422 stays as the safety net. The cloud and the browser provider are unchanged. For the fixture repository, 100 issues on `local` never plan a batch above the cap (`src/domain/providerBatching.test.ts`).
+
 ## Failures, retries and rate limits
 
 - **One issue at a time.** A missing or malformed answer subset fails only its issue (`toBatchClassifications`). Only a failed HTTP call fails every issue of that request.

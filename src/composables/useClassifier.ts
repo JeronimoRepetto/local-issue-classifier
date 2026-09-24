@@ -8,6 +8,8 @@ import { markStale } from '../domain/analysis'
 import { estimateBatchedRun, estimateRun } from '../domain/estimate'
 import { buildIssueState } from '../domain/jevState'
 import { planBatches } from '../domain/jevBatchState'
+import { batchSettingsFor } from '../domain/providerBatching'
+import type { BatchSettings } from '../domain/providerBatching'
 import { estimateBatchedSeconds, estimateSeconds, scopeCounts, selectForClassification } from '../domain/classifyRun'
 import { ANSWER_DIMENSIONS } from '../domain/classification'
 import type { ClassifyMode, Issue, ProjectContext, TrimmingProfileId } from '../domain/types'
@@ -120,6 +122,8 @@ function counts(filteredNumbers?: readonly number[]): ScopeCounts | null {
 const classifyMode = (): ClassifyMode =>
   provider.isBrowser.value || prefs.state.classifyMode === 'per-issue' ? 'per-issue' : 'batched'
 const concurrency = (): number => (provider.isBrowser.value ? 1 : prefs.state.concurrency)
+/** The fitter's limits, floor and fallback for the current provider (docs/batching.md "Local providers"). */
+const batchSettings = (): BatchSettings => batchSettingsFor(provider.config.value.kind, prefs.state)
 
 /**
  * §4.7. Batched: the fitter's plan, each request's tokens counted once.
@@ -147,19 +151,30 @@ function perCallSecondsOverride(): number | undefined {
 }
 
 function estimateBatched(issues: readonly Issue[], ctx: ProjectContext): ClassifyEstimate {
+  const settings = batchSettings()
   const plan = planBatches(issues, ctx, {
     now: config.now,
     maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
-    floor: prefs.state.trimmingFloor,
+    floor: settings.floor,
+    limits: settings.limits,
     questions: BATCH_QUESTION_BUDGET,
   })
-  const run = estimateBatchedRun(plan.batches)
+  const batched = estimateBatchedRun(plan.batches)
+  // A local provider sends what fits no batch one request per issue instead.
+  const alone = settings.perIssueFallback ? estimatePerIssue(plan.tooLarge, ctx) : null
+  const run = alone
+    ? {
+        requests: batched.requests + alone.requests,
+        inputTokens: batched.inputTokens + alone.inputTokens,
+        costUsd: batched.costUsd + alone.costUsd,
+      }
+    : batched
   return {
     ...run,
     mode: 'batched',
     profile: plan.batches.length > 0 ? plan.profile : null,
     seconds: estimateBatchedSeconds(run.requests, concurrency(), perCallSecondsOverride()),
-    tooLarge: plan.tooLarge.length,
+    tooLarge: alone ? alone.tooLarge : plan.tooLarge.length,
   }
 }
 
@@ -204,6 +219,7 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
   state.progress = { done: 0, total: issues.length, failed: 0, rateLimited: 0, concurrency: concurrency() }
   setRunActive(true)
 
+  const settings = batchSettings()
   let summary: RunSummary
   try {
     summary = await runClassification({
@@ -212,7 +228,9 @@ async function start(request: ClassifyRequest = {}): Promise<RunSummary | null> 
       client: config.createClient({ getApiKey: provider.getApiKey, model: provider.model() }),
       concurrency: concurrency(),
       mode: classifyMode(),
-      trimmingFloor: prefs.state.trimmingFloor,
+      trimmingFloor: settings.floor,
+      requestLimits: settings.limits,
+      perIssueFallback: settings.perIssueFallback,
       questionsVersion: QUESTIONS_VERSION,
       maxCommentsPerIssue: prefs.state.maxCommentsPerIssue,
       lowConfidenceThreshold: prefs.state.lowConfidenceThreshold,

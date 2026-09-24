@@ -253,11 +253,55 @@ describe('SettingsContainer', () => {
 
       const { default: SettingsContainer } = await import('./SettingsContainer.vue')
       const wrapper = mount(SettingsContainer)
-      expect(wrapper.get('[data-test="provider-status-chip"]').text()).toMatch(/not tested/i)
+      expect(wrapper.get('[data-test="provider-status-chip"]').text()).toBe('Looking for a local server…')
 
       await wrapper.get('[data-test="test-connection"]').trigger('click')
       await flushPromises()
-      expect(wrapper.get('[data-test="provider-status-chip"]').text()).toMatch(/direct/i)
+      expect(wrapper.get('[data-test="provider-status-chip"]').text()).toBe('Connected')
+    })
+
+    it('selecting the local server probes it at once and shows the live status, no click needed', async () => {
+      const { configureProvider } = await import('../../composables/useProvider')
+      const urls: string[] = []
+      configureProvider({
+        fetch: async (input) => {
+          urls.push(String(input))
+          return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+        },
+      })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      await wrapper.get('[data-test="kind-local"]').setValue(true)
+      await flushPromises()
+      expect(urls).toContain('http://localhost:8009/v1/models')
+      expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Connected')
+    })
+
+    it('shows the GPU readout from the server in the Settings selector', async () => {
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
+      const { configureProvider, useProvider } = await import('../../composables/useProvider')
+      configureProvider({
+        fetch: async () =>
+          new Response(JSON.stringify({ models: [{ name: 'kev-0.8b', device: 'cuda', dtype: 'bfloat16' }] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      })
+      await useProvider().autoProbe({ presets: false })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      expect(wrapper.get('[data-test="device-callout-running-gpu"]').text()).toContain('Running on GPU (cuda · bf16)')
+    })
+
+    it('shows "Not reachable on :8009" when nothing answers', async () => {
+      const { usePreferences } = await import('../../composables/usePreferences')
+      usePreferences().update({ provider: { kind: 'local', baseUrl: 'http://localhost:8009', model: 'kev-latest' } })
+      const { useProvider } = await import('../../composables/useProvider')
+      await useProvider().autoProbe({ presets: false })
+      const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+      const wrapper = mount(SettingsContainer)
+      expect(wrapper.get('[data-test="probe-status"]').text()).toBe('Not reachable on :8009')
     })
   })
 

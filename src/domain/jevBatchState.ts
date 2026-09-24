@@ -31,6 +31,12 @@ export interface RequestLimits {
   stateTokens: number
   /** Budget for the state plus every question of the request. */
   totalTokens: number
+  /**
+   * Optional cap on the estimated state alone. Set for a local provider
+   * (domain/providerBatching.ts): a small model's context is far below the
+   * cloud's, and a batch above it comes back 422. Absent for the cloud.
+   */
+  maxStateTokens?: number
 }
 
 /** models.md, "Context length". */
@@ -197,6 +203,7 @@ const stateTokensOf = (projectChars: number, issueChars: number, count: number) 
   Math.ceil((ENVELOPE_CHARS + projectChars + issueChars + Math.max(0, count - 1)) / CHARS_PER_TOKEN)
 
 function fits(stateTokens: number, count: number, q: QuestionBudget, limits: RequestLimits): boolean {
+  if (limits.maxStateTokens !== undefined && stateTokens > limits.maxStateTokens) return false
   return (
     stateTokens + q.longestQuestionTokens <= limits.stateTokens &&
     stateTokens + count * q.perIssueTokens <= limits.totalTokens

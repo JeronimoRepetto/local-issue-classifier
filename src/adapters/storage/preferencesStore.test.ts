@@ -76,6 +76,15 @@ describe('loadPreferences', () => {
     )
     expect(loadPreferences(storage)).toMatchObject({ classifyMode: 'per-issue', trimmingFloor: 'compact' })
   })
+
+  it('defaults the local state budget to 8k tokens and clamps a stored one (docs/batching.md)', () => {
+    expect(defaultPreferences().localMaxStateTokens).toBe(8_000)
+    const storage = new MemoryStorage()
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...defaultPreferences(), localMaxStateTokens: 'lots' }))
+    expect(loadPreferences(storage).localMaxStateTokens).toBe(8_000)
+    storage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...defaultPreferences(), localMaxStateTokens: 12_000 }))
+    expect(loadPreferences(storage).localMaxStateTokens).toBe(12_000)
+  })
 })
 
 describe('savePreferences', () => {

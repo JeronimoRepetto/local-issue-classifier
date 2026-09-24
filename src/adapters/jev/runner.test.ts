@@ -14,6 +14,7 @@ import type { BatchHandler, Handler } from '../../../tests/fakes/fakeJev'
 import { BATCH_QUESTION_BUDGET } from './batchQuestions'
 import { planBatches } from '../../domain/jevBatchState'
 import type { JevBatchState } from '../../domain/jevBatchState'
+import { estimateStateTokens } from '../../domain/estimate'
 import { seededRandom } from '../../../tests/fakes/seededRandom'
 
 const NOW = new Date('2026-09-23T12:00:00Z')
@@ -422,6 +423,46 @@ describe('runClassification: batched mode', () => {
     expect(client.batches).toEqual([[1, 3]])
     expect(new Map(results).get(2)).toEqual({ ok: false, error: TOO_LARGE_MESSAGE })
     expect(summary).toMatchObject({ classified: 2, failed: 1 })
+  })
+
+  it('with the per-issue fallback (local providers), sends an issue too large for a batch on its own', async () => {
+    const { client, results, run } = batched(
+      () => ok(),
+      {
+        issues: [fakeIssue(1), fakeIssue(2, { body: 'x'.repeat(20_000) }), fakeIssue(3)],
+        requestLimits: { stateTokens: 100_000, totalTokens: 1_000_000, maxStateTokens: 1_500 },
+        trimmingFloor: 'standard',
+        perIssueFallback: true,
+      },
+      3,
+      (issues) => ok(batchBody(issues)),
+    )
+    const summary = await run()
+    expect(client.batches).toEqual([[1, 3]])
+    expect(client.calls.map((c) => c.issue)).toEqual([2])
+    expect(new Map(results).get(2)?.ok).toBe(true)
+    expect(summary).toMatchObject({ classified: 3, failed: 0, requests: 2 })
+  })
+
+  it('caps every batch at maxStateTokens when the limits carry one', async () => {
+    const { client, run } = batched(
+      () => ok(),
+      {
+        requestLimits: { stateTokens: 100_000, totalTokens: 1_000_000, maxStateTokens: 1_500 },
+        issues: Array.from({ length: 8 }, (_, i) => fakeIssue(i + 1, { body: 'word '.repeat(300) })),
+      },
+      8,
+      (issues) => ok(batchBody(issues)),
+    )
+    const sizes: number[] = []
+    const send = client.classifyBatch.bind(client)
+    client.classifyBatch = (state, questions, signal) => {
+      sizes.push(estimateStateTokens(state))
+      return send(state, questions, signal)
+    }
+    await run()
+    expect(sizes.length).toBeGreaterThan(1)
+    for (const tokens of sizes) expect(tokens).toBeLessThanOrEqual(1_500)
   })
 
   it('honours the trimming floor and a forced profile', async () => {

@@ -125,6 +125,61 @@ describe('ProviderSelector', () => {
     expect(wrapper.emitted('update:trimmingFloor')?.[0]).toEqual(['compact'])
   })
 
+  it('offers the local state budget in Advanced for a local provider only, and emits it as a number', async () => {
+    expect(mountSelector().find('[data-test="local-max-state-tokens"]').exists()).toBe(false)
+    const wrapper = mount(ProviderSelector, {
+      props: {
+        modelValue: LOCAL,
+        apiKey: '',
+        classifyMode: 'batched',
+        trimmingFloor: 'minimal',
+        localMaxStateTokens: 8_000,
+        probe: async () => ({ status: 'direct', models: null }),
+      },
+    })
+    const input = wrapper.get('[data-test="local-max-state-tokens"] input')
+    expect((input.element as HTMLInputElement).value).toBe('8000')
+    await input.setValue('6000')
+    expect(wrapper.emitted('update:localMaxStateTokens')?.[0]).toEqual([6_000])
+  })
+
+  it('renders the GPU vs CPU callouts it is given, with a copyable command, for a local provider', () => {
+    const wrapper = mount(ProviderSelector, {
+      props: {
+        modelValue: LOCAL,
+        apiKey: '',
+        classifyMode: 'batched',
+        trimmingFloor: 'minimal',
+        probe: async () => ({ status: 'direct', models: null }),
+        deviceAdvice: [
+          { id: 'running-cpu', tone: 'warning', title: 'Running on CPU and RAM', text: 'Slow.' },
+          { id: 'cuda-fix', tone: 'warning', title: 'Use your NVIDIA GPU', text: 'Driver only.', command: 'uv pip install x' },
+        ],
+      },
+    })
+    expect(wrapper.get('[data-test="device-callout-running-cpu"]').text()).toContain('Slow.')
+    expect(wrapper.get('[data-test="device-callout-cuda-fix"] [data-test="command-cuda-fix"]').text()).toBe('uv pip install x')
+  })
+
+  it('labels the local option as advanced on a hosted page, and plainly when running locally', () => {
+    const label = (hosted?: boolean) =>
+      mount(ProviderSelector, {
+        props: {
+          modelValue: { kind: 'typesafe' },
+          apiKey: '',
+          classifyMode: 'batched',
+          trimmingFloor: 'minimal',
+          probe: async () => ({ status: 'direct', models: null }),
+          hosted,
+        },
+      })
+        .get('[data-test="kind-local-label"]')
+        .text()
+    expect(label(true)).toBe('Advanced: a Kev/JevK5 server on your machine')
+    expect(label(false)).toBe('Local server (Kev, JevK5)')
+    expect(label()).toBe('Local server (Kev, JevK5)')
+  })
+
   // FB-4 — the local setup guide, and a hint pointing to it when unreachable.
   it('mounts the local setup guide only for a local provider', () => {
     expect(mountSelector().find('[data-test="local-setup-guide"]').exists()).toBe(false)

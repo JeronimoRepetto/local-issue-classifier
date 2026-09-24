@@ -3,7 +3,7 @@
 // this bugfix's report: Home's condensed summary had drifted from the guide
 // (fixed kev-0.8b model, missing --no-sync, no copy buttons). Pure: no Vue.
 import { describe, expect, it } from 'vitest'
-import { detectOs, kevCommands } from './localCommands'
+import { detectOs, kevCommands, kevLauncher } from './localCommands'
 
 describe('kevCommands', () => {
   it('includes the shortcut command with the given model only when shortcut is true', () => {
@@ -146,5 +146,27 @@ describe('detectOs', () => {
     expect(
       detectOs({ userAgentData: { platform: 'macOS' }, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }),
     ).toBe('macos')
+  })
+})
+
+// One-click launchers (docs/local-providers.md "One-click launcher").
+describe('kevLauncher', () => {
+  it('Windows: the PowerShell launcher, run with a one-off execution-policy bypass', () => {
+    expect(kevLauncher({ os: 'windows', model: 'kev-4b' })).toEqual({
+      file: 'start-kev.ps1',
+      path: 'launchers/start-kev.ps1',
+      label: 'Download launcher for Windows',
+      run: 'powershell -ExecutionPolicy Bypass -File .\start-kev.ps1 -Model kev-4b',
+    })
+  })
+
+  it('macOS and Linux: the POSIX sh launcher', () => {
+    expect(kevLauncher({ os: 'macos', model: 'kev-0.8b' })).toMatchObject({
+      file: 'start-kev.sh',
+      path: 'launchers/start-kev.sh',
+      label: 'Download launcher for macOS',
+      run: 'sh start-kev.sh --model kev-0.8b',
+    })
+    expect(kevLauncher({ os: 'linux', model: 'kev-9b' }).label).toBe('Download launcher for Linux')
   })
 })

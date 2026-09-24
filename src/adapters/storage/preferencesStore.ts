@@ -7,6 +7,7 @@ import type { Preferences } from '../../domain/types'
 import { TRIMMING_PROFILE_IDS } from '../../domain/jevBatchState'
 import { sanitizeHardwareOverride } from '../../domain/hardware'
 import { sanitizeProviderConfig } from '../../domain/provider'
+import { sanitizeLocalMaxStateTokens } from '../../domain/providerBatching'
 import type { StorageLike } from './analysisStore'
 
 const CLASSIFY_MODES: readonly string[] = ['batched', 'per-issue']
@@ -20,6 +21,7 @@ function sanitize(prefs: Preferences): Preferences {
     trimmingFloor: (TRIMMING_PROFILE_IDS as readonly string[]).includes(prefs.trimmingFloor)
       ? prefs.trimmingFloor
       : defaults.trimmingFloor,
+    localMaxStateTokens: sanitizeLocalMaxStateTokens(prefs.localMaxStateTokens),
     hardwareOverride: sanitizeHardwareOverride(prefs.hardwareOverride),
     // Unknown shapes fall back to TypeSafe; a local config keeps no key (T16).
     provider: sanitizeProviderConfig(prefs.provider),

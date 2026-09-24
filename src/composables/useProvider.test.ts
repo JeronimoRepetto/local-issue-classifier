@@ -1,7 +1,7 @@
 // T16 — useProvider: builds the Jev client for the selected provider and
 // routes a local server directly (CORS ok) or through /jev-local (CORS fails).
 // Every network call goes to a fake fetch; nothing real is contacted.
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { STORAGE_KEYS, defaultPreferences } from '../domain/types'
 import type { Preferences } from '../domain/types'
 import type { ProviderConfig } from '../domain/provider'
@@ -406,7 +406,7 @@ describe('useProvider: candidates, probeAll, selectProvider', () => {
 
     const kev = provider.candidates.value.find((c) => c.id === 'local:kev')!
     expect(kev.available).toBe(true)
-    expect(kev.label).toBe('Kev · kev-latest · GPU')
+    expect(kev.label).toBe('Kev · kev-latest · GPU (cuda)')
 
     seen = []
     await provider.probeAll()
@@ -466,5 +466,106 @@ describe('useProvider: candidates, probeAll, selectProvider', () => {
     expect(mods.prefs.usePreferences().state.provider).toEqual({ kind: 'browser', modelId: BROWSER_CONFIG.modelId })
     provider.selectProvider('typesafe')
     expect(mods.prefs.usePreferences().state.provider).toEqual({ kind: 'typesafe' })
+  })
+})
+
+// Auto-probe (docs/local-providers.md "Connection status"): the configured
+// local URL and the Kev/JevK5 presets are probed on load and when "On this
+// computer" is selected, cached per session; returning to Home re-probes only
+// after 30 s. There is no polling loop: nothing probes without a call.
+describe('useProvider: autoProbe and the live local status', () => {
+  const PRESET_URLS = ['http://localhost:8009/v1/models', 'http://localhost:8090/v1/models']
+  const T0 = new Date('2026-09-24T10:00:00Z')
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(T0)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('probes the presets once per session and caches the result', async () => {
+    await load(() => json(MODELS))
+    const provider = mods.provider.useProvider()
+    await provider.autoProbe()
+    expect(seen.map((c) => c.url).sort()).toEqual(PRESET_URLS)
+    seen = []
+    await provider.autoProbe()
+    expect(seen).toEqual([])
+  })
+
+  it('also probes a configured custom local URL, and only that one without presets', async () => {
+    await load(() => json(MODELS), { provider: { kind: 'local', baseUrl: 'http://127.0.0.1:9000', model: 'm' } })
+    const provider = mods.provider.useProvider()
+    await provider.autoProbe({ presets: false })
+    expect(seen.map((c) => c.url)).toEqual(['http://127.0.0.1:9000/v1/models'])
+  })
+
+  it('probes nothing for a cloud config without presets (hosted pages)', async () => {
+    await load(() => json(MODELS))
+    await mods.provider.useProvider().autoProbe({ presets: false })
+    expect(seen).toEqual([])
+  })
+
+  it('re-probes on a stale check only after the given age (the 30 s return-to-Home rule)', async () => {
+    await load(() => json(MODELS), { provider: LOCAL })
+    const provider = mods.provider.useProvider()
+    const { REPROBE_AFTER_MS } = mods.provider
+    expect(REPROBE_AFTER_MS).toBe(30_000)
+    await provider.autoProbe({ presets: false })
+    expect(seen).toHaveLength(1)
+
+    vi.setSystemTime(new Date(T0.getTime() + 29_999))
+    await provider.autoProbe({ presets: false, staleAfterMs: REPROBE_AFTER_MS })
+    expect(seen).toHaveLength(1)
+
+    vi.setSystemTime(new Date(T0.getTime() + 30_000))
+    await provider.autoProbe({ presets: false, staleAfterMs: REPROBE_AFTER_MS })
+    expect(seen).toHaveLength(2)
+  })
+
+  it('reports "Looking for a local server…" while probing, then "Connected"', async () => {
+    let answer!: (response: Response) => void
+    await load(() => new Promise<Response>((resolve) => (answer = resolve)), { provider: LOCAL })
+    const provider = mods.provider.useProvider()
+    expect(provider.localStatus.value).toMatchObject({ phase: 'checking', text: 'Looking for a local server…' })
+    const done = provider.autoProbe({ presets: false })
+    expect(provider.localStatus.value.phase).toBe('checking')
+    answer(json(MODELS))
+    await done
+    expect(provider.localStatus.value).toMatchObject({ phase: 'connected', text: 'Connected' })
+  })
+
+  it('reports "Not reachable on :8009" when both routes fail', async () => {
+    await load(() => corsFailure(), { provider: LOCAL })
+    const provider = mods.provider.useProvider()
+    await provider.autoProbe({ presets: false })
+    expect(provider.localStatus.value).toMatchObject({ phase: 'unreachable', text: 'Not reachable on :8009' })
+  })
+
+  it('a manual probe() always runs, even when the session cache is fresh', async () => {
+    await load(() => json(MODELS), { provider: LOCAL })
+    const provider = mods.provider.useProvider()
+    await provider.autoProbe({ presets: false })
+    await provider.probe()
+    expect(seen).toHaveLength(2)
+  })
+})
+
+describe('useProvider: localRuntime (GPU vs CPU readout)', () => {
+  it("exposes the configured server's model, device and dtype from /v1/models", async () => {
+    await load(() => json({ models: [{ name: 'kev-0.8b', device: 'cuda', dtype: 'bfloat16' }] }), { provider: LOCAL })
+    const provider = mods.provider.useProvider()
+    expect(provider.localRuntime.value).toBeNull()
+    await provider.autoProbe({ presets: false })
+    expect(provider.localRuntime.value).toEqual({ name: 'kev-0.8b', device: 'cuda', dtype: 'bf16' })
+  })
+
+  it('labels a reachable preset in the switcher with the short readout', async () => {
+    await load(() => json({ models: [{ name: 'kev-0.8b', device: 'cpu', dtype: 'float32' }] }))
+    const provider = mods.provider.useProvider()
+    await provider.probeAll()
+    expect(provider.candidates.value.find((c) => c.id === 'local:kev')!.label).toBe('Kev · kev-0.8b · CPU')
   })
 })
