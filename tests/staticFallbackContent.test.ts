@@ -33,6 +33,18 @@ describe('static fallback content inside #app', () => {
     expect(text).toContain('browser')
   })
 
+  it('describes where keys go accurately: GitHub token to GitHub, model keys to the chosen model', () => {
+    const text = APP_HTML.replace(/\s+/g, ' ').toLowerCase()
+    expect(text).not.toContain('nothing is sent anywhere')
+    expect(text).toContain("github's api")
+    expect(text).toContain('model you choose')
+  })
+
+  it('lists every export format the app offers', () => {
+    const text = APP_HTML.toLowerCase()
+    for (const format of ['plain text', 'markdown', 'html']) expect(text).toContain(format)
+  })
+
   it('has no inline style or event-handler attributes (plain markup only)', () => {
     expect(APP_HTML).not.toMatch(/\sstyle=/)
     expect(APP_HTML).not.toMatch(/\son[a-z]+=/i)
