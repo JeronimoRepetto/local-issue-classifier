@@ -326,3 +326,28 @@ Full notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own licenses; see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Acknowledgements
+
+- **midudev / [canirun.ai](https://github.com/midudev/canirun.ai)** — the visual direction and the
+  browser-side hardware detection approach used by this app's "Hardware fit" panel were inspired
+  by canirun.ai. No code or assets were copied: canirun.ai's repository carries no license
+  (checked 2026-09-24 via the GitHub API), so the equivalent behavior here was reimplemented from
+  scratch.
+- **TypeSafe AI** — makers of Jev, the decision model this app sends issues to for classification.
+  See ["Getting a Jev API key"](#getting-a-jev-api-key).
+- **[jaredpalmer/kev](https://github.com/jaredpalmer/kev)** and
+  **[allebee/jevk5](https://github.com/allebee/jevk5)** — authors of the local, Jev-compatible
+  servers this app can point to instead of the TypeSafe cloud. See ["Local providers"](#local-providers).
+- **Vercel** — designers of the Geist typeface family (Geist Sans, Geist Mono, Geist Pixel) under
+  the SIL Open Font License 1.1; see "Credits" above for the exact license text and how the fonts
+  are bundled.
+
+**Built with**
+
+<a href="https://github.com/Gentleman-Programming/gentle-ai">
+  <img width="220" src="https://raw.githubusercontent.com/Gentleman-Programming/gentle-ai/main/docs/assets/brand/built-with-gentle-ai.png" alt="Built with Gentle-AI" />
+</a>
+
+No official canirun.ai badge or "built with" asset was found in its repository (its README and
+`public/` tree were checked on 2026-09-24), so no canirun.ai badge is shown here.

@@ -151,6 +151,14 @@ describe('SettingsContainer', () => {
     expect(wrapper.text()).toContain('THIRD_PARTY_NOTICES.md')
   })
 
+  it('credits midudev\'s canirun.ai as inspiration in the About block', async () => {
+    const { default: SettingsContainer } = await import('./SettingsContainer.vue')
+    const wrapper = mount(SettingsContainer)
+    const about = wrapper.get('[data-test="about"]').text()
+    expect(about).toContain('canirun.ai')
+    expect(about).toContain('midudev')
+  })
+
   describe('Classifier (T16, WIRE-2)', () => {
     it('mounts ProviderSelector, showing the current provider label', async () => {
       const { default: SettingsContainer } = await import('./SettingsContainer.vue')
