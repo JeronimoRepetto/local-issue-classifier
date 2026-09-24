@@ -50,6 +50,13 @@ const visible = computed(() =>
 
 const summary = computed(() => (analysis.current.value ? summarize(analysis.current.value) : null))
 
+/** The model of every classified row, for AnalysisHeader's "Classified by" line (T-provider-switch). */
+const classifiedModels = computed(() =>
+  (analysis.current.value?.rows ?? [])
+    .filter((row) => row.status === 'done' && row.classification !== null)
+    .map((row) => row.classification!.model),
+)
+
 const availableLabels = computed(() => {
   const labels = new Set<string>()
   for (const row of analysis.current.value?.rows ?? []) {
@@ -177,6 +184,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
       :total-count="analysis.current.value.rows.length"
       :dismissed-count="summary?.counts.dismissed ?? 0"
       :show-dismissed="analysis.current.value.working.showDismissed"
+      :classified-models="classifiedModels"
       :refreshing="refreshing"
       @refresh="emit('refresh')"
       @back="emit('back')"

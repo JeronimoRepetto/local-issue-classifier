@@ -82,6 +82,24 @@ describe('IssuesContainer', () => {
     expect(wrapper.get('[data-test="issue-count"]').text()).toBe('3 of 3 issues')
   })
 
+  it('passes the classified rows\' models to AnalysisHeader, single then mixed', async () => {
+    const analysis = seedAnalysis()
+    analysis.rows[0].status = 'done'
+    analysis.rows[0].classification = fakeClassification({ model: 'jev-1.13.0' })
+    analysisMod.useAnalysis().setCurrent(analysis)
+    const wrapper = mount(IssuesContainer, { attachTo: document.body })
+    await flush()
+    expect(wrapper.get('[data-test="classified-by"]').text()).toBe('Classified by: jev-1.13.0')
+
+    analysisMod.useAnalysis().update((a) => {
+      const rows = a.rows.slice()
+      rows[1] = { ...rows[1], status: 'done', classification: fakeClassification({ model: 'kev-latest' }) }
+      return { ...a, rows }
+    }, 'classification')
+    await flush()
+    expect(wrapper.get('[data-test="classified-by"]').text()).toBe('Classified by: mixed (jev-1.13.0 · kev-latest)')
+  })
+
   it('filters the table via FilterBar and updates the count', async () => {
     const analysis = seedAnalysis()
     analysis.rows[0].status = 'done'

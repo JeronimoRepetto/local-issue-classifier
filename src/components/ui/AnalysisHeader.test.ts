@@ -56,6 +56,25 @@ describe('AnalysisHeader', () => {
     expect(idle.emitted('refresh')).toHaveLength(1)
   })
 
+  it('shows no "Classified by" line when nothing is classified yet', () => {
+    const wrapper = mountHeader({ classifiedModels: [] })
+    expect(wrapper.find('[data-test="classified-by"]').exists()).toBe(false)
+  })
+
+  it('shows the single model every classified row shares', () => {
+    const wrapper = mountHeader({ classifiedModels: ['jev-1.13.0', 'jev-1.13.0'] })
+    expect(wrapper.get('[data-test="classified-by"]').text()).toBe('Classified by: jev-1.13.0')
+  })
+
+  it('shows "mixed" with each model when rows were classified by different providers', () => {
+    const wrapper = mountHeader({ classifiedModels: ['jev-1.13.0', 'kev-latest', 'kev-latest'] })
+    const line = wrapper.get('[data-test="classified-by"]')
+    expect(line.text()).toBe('Classified by: mixed (jev-1.13.0 · kev-latest)')
+    expect(line.attributes('aria-describedby')).toBeTruthy()
+    expect(wrapper.text()).toContain('jev-1.13.0: 1')
+    expect(wrapper.text()).toContain('kev-latest: 2')
+  })
+
   it('never imports a composable (props/emits only)', () => {
     const { readFileSync } = require('node:fs') as typeof import('node:fs')
     const { join } = require('node:path') as typeof import('node:path')

@@ -4,6 +4,7 @@
 // wiring (Task 8/INT) passes handlers in.
 import { computed } from 'vue'
 import UiButton from '../../ui/UiButton.vue'
+import UiTooltip from '../../ui/UiTooltip.vue'
 import IconRefresh from '../../assets/icons/IconRefresh.vue'
 import IconArrowLeft from '../../assets/icons/IconArrowLeft.vue'
 import { dateBucket } from '../../domain/dates'
@@ -18,6 +19,8 @@ const props = defineProps<{
   showDismissed: boolean
   refreshing?: boolean
   now?: () => Date
+  /** The model of every classified (done) row, in row order (T-provider-switch). */
+  classifiedModels?: string[]
 }>()
 
 const emit = defineEmits<{ refresh: []; back: [] }>()
@@ -28,6 +31,24 @@ const countText = computed(() => {
 })
 
 const fetchedLabel = computed(() => `${dateBucket(props.fetchedAt, props.now ?? (() => new Date()))} ago`)
+
+/**
+ * "Classified by" (T-provider-switch): a single model when every classified
+ * row agrees, else "mixed (...)" with a tooltip listing each model's count.
+ * Nothing shown until at least one row is classified.
+ */
+const classifiedBy = computed(() => {
+  const models = props.classifiedModels ?? []
+  if (models.length === 0) return null
+  const unique = [...new Set(models)]
+  if (unique.length === 1) return { text: `Classified by: ${unique[0]}`, tooltip: null as string | null }
+  const counts = new Map<string, number>()
+  for (const model of models) counts.set(model, (counts.get(model) ?? 0) + 1)
+  return {
+    text: `Classified by: mixed (${unique.join(' · ')})`,
+    tooltip: [...counts.entries()].map(([model, count]) => `${model}: ${count}`).join('\n'),
+  }
+})
 </script>
 
 <template>
@@ -49,6 +70,15 @@ const fetchedLabel = computed(() => `${dateBucket(props.fetchedAt, props.now ?? 
           <span>{{ repoFullName }}</span>
           <span aria-hidden="true">·</span>
           <span>fetched {{ fetchedLabel }}</span>
+          <template v-if="classifiedBy">
+            <span aria-hidden="true">·</span>
+            <UiTooltip v-if="classifiedBy.tooltip" :text="classifiedBy.tooltip">
+              <template #default="{ describedBy }">
+                <span data-test="classified-by" :aria-describedby="describedBy">{{ classifiedBy.text }}</span>
+              </template>
+            </UiTooltip>
+            <span v-else data-test="classified-by">{{ classifiedBy.text }}</span>
+          </template>
         </p>
       </div>
       <div class="analysis-header__actions">
