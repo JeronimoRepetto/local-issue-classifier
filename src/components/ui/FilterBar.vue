@@ -38,8 +38,17 @@ const STATUS_OPTIONS = [
 const labelOptions = computed(() => props.availableLabels.map((label) => ({ value: label, label })))
 
 const searchRoot = ref<{ $el: HTMLElement } | null>(null)
+const section = ref<HTMLDetailsElement | null>(null)
+
+/** Active search + multi-select filters, shown in the toggle so a collapsed section still says what is applied. */
+const activeCount = computed(() => {
+  const f = props.filter
+  const lists = [f.criticality, f.complexity, f.effort, f.kind, f.statuses, f.labels]
+  return (f.text.trim() ? 1 : 0) + lists.filter((values) => values.length > 0).length
+})
 
 function focusSearch(): void {
+  if (section.value) section.value.open = true
   searchRoot.value?.$el?.querySelector<HTMLInputElement>('input')?.focus()
 }
 
@@ -60,6 +69,11 @@ function onStatuses(values: string[]) {
 
 <template>
   <div class="filter-bar">
+    <details ref="section" class="filter-bar__main" data-test="filters-section" open>
+      <summary class="filter-bar__toggle" data-test="filters-toggle">
+        Search and filters<span v-if="activeCount > 0" class="filter-bar__active"> · {{ activeCount }} active</span>
+      </summary>
+      <div class="filter-bar__main-body">
     <UiInput
       ref="searchRoot"
       data-test="search-input"
@@ -118,9 +132,11 @@ function onStatuses(values: string[]) {
       @update:model-value="emit('update', { labels: $event })"
     />
     </div>
+      </div>
+    </details>
 
     <details class="filter-bar__ranges">
-      <summary class="filter-bar__ranges-toggle">Relevance and confidence ranges</summary>
+      <summary class="filter-bar__toggle">Relevance and confidence ranges</summary>
       <div class="filter-bar__ranges-body">
     <UiSlider
       data-test="relevance-min"
@@ -159,9 +175,14 @@ function onStatuses(values: string[]) {
   gap: var(--space-2h) var(--space-3);
 }
 
-.filter-bar > :first-child,
-.filter-bar__facets {
+.filter-bar__main {
   grid-column: 1 / -1;
+}
+
+.filter-bar__main-body {
+  display: grid;
+  gap: var(--space-2h);
+  padding-top: var(--space-2);
 }
 
 .filter-bar__facets {
@@ -170,7 +191,7 @@ function onStatuses(values: string[]) {
   gap: var(--space-2h);
 }
 
-.filter-bar__ranges-toggle {
+.filter-bar__toggle {
   width: fit-content;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
@@ -179,7 +200,11 @@ function onStatuses(values: string[]) {
   cursor: pointer;
 }
 
-.filter-bar__ranges-toggle:hover {
+.filter-bar__toggle:hover {
+  color: var(--color-text);
+}
+
+.filter-bar__active {
   color: var(--color-text);
 }
 
