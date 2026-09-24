@@ -94,8 +94,13 @@ const launchers: Launcher[] = [
   },
 ]
 
+// Each case spawns a real shell. A cold PowerShell start on a CI runner can
+// exceed vitest's 5 s default (seen on GitHub Actions), so the test timeout
+// matches the spawn timeout above instead of racing it.
+const SHELL_TEST_TIMEOUT_MS = 60_000
+
 for (const launcher of launchers) {
-  describe.skipIf(!launcher.shell)(`${launcher.name} --dry-run`, () => {
+  describe.skipIf(!launcher.shell)(`${launcher.name} --dry-run`, { timeout: SHELL_TEST_TIMEOUT_MS }, () => {
     it('on a fresh machine: clones, syncs once, then serves kev-0.8b on :8009', () => {
       const { status, out } = launcher.plan({ dir: kevDir('absent') })
       expect(status).toBe(0)
