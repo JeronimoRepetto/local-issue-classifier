@@ -86,8 +86,12 @@ Never put a key in `.env`. Keys are entered at runtime and kept in memory only.
 
 ## Measuring classification latency
 
-The in-app estimate still carries an assumed latency (1–2 s per call); it has not been measured yet, because
-no key was available when the runner was built. To measure it, run `pnpm dev`, enter a Jev key in
-Settings, open an analysis and click **Classify unclassified** at the default concurrency of 4. Note
-the wall-clock time from click to the summary and divide by the number of calls, then update the
-§4.7 latency row and `SECONDS_PER_CALL` in `src/domain/classifyRun.ts` (the in-app estimate).
+Measured classification latencies (2026-09-23 and -24):
+
+- Per-issue mode (concurrency 4): ≈2 s per call (22 issues classified in 11 s)
+- Batched mode (one request): 22 issues classified in ≈3.2 s
+
+The in-app estimate in `src/domain/classifyRun.ts` (`SECONDS_PER_CALL`) defaults to 2 s per call.
+To measure again with a different key or provider, run `pnpm dev`, enter the key in Settings,
+open an analysis and click **Classify unclassified**. Note the wall-clock time from click to the
+summary, divide by the number of calls, and update `SECONDS_PER_CALL` in `src/domain/classifyRun.ts`.
