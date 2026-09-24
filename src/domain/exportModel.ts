@@ -8,8 +8,10 @@
 import { filterRows } from './filter'
 import { sortRowsBy } from './sort'
 import { defaultAnalysisName, visibleRows } from './analysis'
+import { priorityOf } from './priority'
 import type {
   Analysis,
+  Classification,
   ExportOptions,
   IssueFilter,
   IssueRow,
@@ -43,6 +45,41 @@ export function formatGenerated(now: Date): string {
 
 export function levelLabel(level: string): string {
   return level.toUpperCase()
+}
+
+// ── Row-table shape shared by the Markdown and HTML renderers ─────────────
+// Both build one GFM/HTML table per section with the same columns, computed
+// from the same raw values, so a mismatch between the two formats can only
+// come from how each one *wraps* a value (a link, a chip, an escape rule),
+// never from a different number or level.
+
+const TABLE_HEADERS_BASE = ['#', 'Title', 'Kind', 'Priority', 'Criticality', 'Complexity', 'Effort', 'Relevance']
+const TABLE_HEADERS_TAIL = ['Status', 'Updated']
+
+/** The column headers for one row table, with Confidence inserted only when requested. */
+export function tableHeaders(includeConfidence: boolean): string[] {
+  return includeConfidence
+    ? [...TABLE_HEADERS_BASE, 'Confidence', ...TABLE_HEADERS_TAIL]
+    : [...TABLE_HEADERS_BASE, ...TABLE_HEADERS_TAIL]
+}
+
+/** `{priority}/100`, or `—` when unclassified or every weight is 0. */
+export function priorityText(c: Classification | null, weights: PriorityWeights): string {
+  if (!c) return '—'
+  const priority = priorityOf(c, weights)
+  return priority === null ? '—' : `${priority}/100`
+}
+
+/** The classification's overall `minConfidence`, to 2 decimals, or `—`. */
+export function confidenceText(c: Classification | null): string {
+  if (!c || c.minConfidence === undefined) return '—'
+  return c.minConfidence.toFixed(2)
+}
+
+/** The row's classification status, plus the stored error message when it errored. */
+export function statusText(row: IssueRow): string {
+  if (row.status === 'error' && row.error) return `${row.status} (${row.error})`
+  return row.status
 }
 
 const KEY_LABELS: Record<SortKey, string> = {
