@@ -329,11 +329,9 @@ MIT — see [`LICENSE`](LICENSE). Third-party fonts and icons keep their own lic
 
 ## Acknowledgements
 
-- **midudev / [canirun.ai](https://github.com/midudev/canirun.ai)** — the visual direction and the
+- **[midudev](https://github.com/midudev) / [canirun.ai](https://github.com/midudev/canirun.ai)** — the visual direction and the
   browser-side hardware detection approach used by this app's "Hardware fit" panel were inspired
-  by canirun.ai. No code or assets were copied: canirun.ai's repository carries no license
-  (checked 2026-09-24 via the GitHub API), so the equivalent behavior here was reimplemented from
-  scratch.
+  by canirun.ai. 
 - **TypeSafe AI** — makers of Jev, the decision model this app sends issues to for classification.
   See ["Getting a Jev API key"](#getting-a-jev-api-key).
 - **[jaredpalmer/kev](https://github.com/jaredpalmer/kev)** and
