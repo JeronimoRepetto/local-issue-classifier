@@ -7,7 +7,7 @@
 // sort key (`domain/sort.ts`) share the exact same computation.
 import { filterRows } from './filter'
 import { sortRowsBy } from './sort'
-import { defaultAnalysisName } from './analysis'
+import { defaultAnalysisName, visibleRows } from './analysis'
 import { priorityOf } from './priority'
 import type {
   Analysis,
@@ -111,9 +111,33 @@ interface ExportPartition {
 }
 
 /**
- * Splits `analysis.rows` into the export's three sections (§2.6, §6.4's
- * `visibleRows` order of operations, adapted for export options rather than
- * `working.showDismissed`/`working.tableSort`):
+ * `orderMode: 'table'` (§2.6, FB export bug fix): runs the *exact* table
+ * pipeline via `visibleRows` — `working.showDismissed` gates dismissal (not
+ * `includeDismissed`), `filterRows(working.filter)` applies to every row with
+ * no unclassified bypass, and `sortRowsBy(working.tableSort)` orders the
+ * result — then buckets that single ordered list into the same three
+ * sections, preserving the table's own order within each bucket. `scope`,
+ * `includeDismissed` and `includeUnclassified` are not consulted: reusing
+ * `visibleRows` directly means the export and the table can never drift
+ * apart again.
+ */
+function partitionForTableExport(analysis: Analysis): ExportPartition {
+  const tableRows = visibleRows(analysis, { filter: filterRows, sort: sortRowsBy })
+  const dismissedSet = new Set(analysis.working.dismissed)
+  const main: IssueRow[] = []
+  const unclassified: IssueRow[] = []
+  const dismissed: IssueRow[] = []
+  for (const row of tableRows) {
+    if (dismissedSet.has(row.issue.number)) dismissed.push(row)
+    else if (row.classification === null) unclassified.push(row)
+    else main.push(row)
+  }
+  return { main, unclassified, dismissed, total: analysis.rows.length }
+}
+
+/**
+ * `orderMode: 'custom'`: splits `analysis.rows` into the export's three
+ * sections (§2.6), independently of the table's own filter/sort/dismissal:
  *   1. Dismissed rows go to their own section, gated by `includeDismissed`,
  *      and never appear anywhere else.
  *   2. Of the rest, rows without a classification go to the Unclassified
@@ -125,7 +149,7 @@ interface ExportPartition {
  *   3. Classified rows are the `main` section: `all` scope keeps every one,
  *      `filtered` scope applies `filterRows`.
  */
-function partitionForExport(analysis: Analysis, options: ExportOptions): ExportPartition {
+function partitionForCustomExport(analysis: Analysis, options: ExportOptions): ExportPartition {
   const dismissedSet = new Set(analysis.working.dismissed)
   const dismissed: IssueRow[] = []
   const remaining: IssueRow[] = []
@@ -147,6 +171,10 @@ function partitionForExport(analysis: Analysis, options: ExportOptions): ExportP
     dismissed,
     total: analysis.rows.length,
   }
+}
+
+function partitionForExport(analysis: Analysis, options: ExportOptions): ExportPartition {
+  return options.orderMode === 'table' ? partitionForTableExport(analysis) : partitionForCustomExport(analysis, options)
 }
 
 /** Every row that would appear in some section, for the "Nothing to export" gate (§2.6 edge cases). */
@@ -221,11 +249,17 @@ function buildHeader(analysis: Analysis, options: ExportOptions, mainCount: numb
     lines.push(labelLine('Model', `${modelRow.classification.model} · questions v${modelRow.classification.questionsVersion}`))
   }
 
-  lines.push(labelLine('Order', formatOrder(options.order)))
+  const orderLine =
+    options.orderMode === 'table' ? `Same as table: ${formatOrder(analysis.working.tableSort)}` : formatOrder(options.order)
+  lines.push(labelLine('Order', orderLine))
   lines.push(labelLine('Weights', formatWeights(analysis.working.priorityWeights)))
 
-  const filterParts = options.scope === 'filtered' ? describeFilter(analysis.working.filter) : []
-  const scopeLabel = options.scope === 'filtered' ? 'filtered view' : 'all issues'
+  // `orderMode: 'table'` always applies `working.filter` (mirroring the
+  // table), regardless of `options.scope`; only `'custom'` mode lets `scope`
+  // pick between the filtered view and every issue.
+  const scopeIsFiltered = options.orderMode === 'table' || options.scope === 'filtered'
+  const filterParts = scopeIsFiltered ? describeFilter(analysis.working.filter) : []
+  const scopeLabel = scopeIsFiltered ? 'filtered view' : 'all issues'
   const filterSuffix = filterParts.length > 0 ? ` (filters: ${filterParts.join(', ')})` : ''
   lines.push(labelLine('Scope', `${scopeLabel} — ${mainCount} of ${total} issues${filterSuffix}`))
 
@@ -249,7 +283,11 @@ function buildCompactBlock(title: string, rows: IssueRow[]): string {
  */
 export function formatExport(analysis: Analysis, options: ExportOptions, now: Date): string {
   const partition = partitionForExport(analysis, options)
-  const sortedMain = sortRowsBy(partition.main, options.order, analysis.working.priorityWeights)
+  // In 'table' mode, `partition.main` is already in `visibleRows`' order
+  // (`sortRowsBy(working.tableSort, ...)`); re-sorting by `options.order`
+  // would ignore the live table sort the header/preview promise.
+  const sortedMain =
+    options.orderMode === 'table' ? partition.main : sortRowsBy(partition.main, options.order, analysis.working.priorityWeights)
 
   const blocks = [
     buildHeader(analysis, options, sortedMain.length, partition.total, now),
